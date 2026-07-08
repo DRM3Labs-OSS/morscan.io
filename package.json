@@ -43,7 +43,7 @@
     "wrangler": "^4.108.0"
   },
   "dependencies": {
-    "@drm3labs-oss/provenance": "^0.2.0",
+    "@drm3labs-oss/provenance": "^0.2.3",
     "@drm3labs-oss/rpc-pool": "^0.2.8",
     "@noble/curves": "^2.2.0",
     "@noble/hashes": "^2.2.0",
