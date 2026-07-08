@@ -1,0 +1,40 @@
+{
+  "$schema": "https://biomejs.dev/schemas/2.0.0/schema.json",
+  "files": {
+    "includes": [
+      "src/**/*.ts",
+      "!src/**/*.test.ts",
+      "!src/build-info.ts",
+      "!src/providers/deploy-overrides.ts"
+    ]
+  },
+  "formatter": {
+    "enabled": true,
+    "indentStyle": "tab",
+    "lineWidth": 90
+  },
+  "assist": {
+    "actions": {
+      "source": {
+        "organizeImports": "off"
+      }
+    }
+  },
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "suspicious": {
+        "noExplicitAny": "warn"
+      },
+      "correctness": {
+        "noUnusedVariables": "warn",
+        "noUnusedFunctionParameters": "warn"
+      },
+      "style": {
+        "useTemplate": "warn",
+        "useImportType": "warn",
+        "noNonNullAssertion": "warn"
+      }
+    }
+  }
+}

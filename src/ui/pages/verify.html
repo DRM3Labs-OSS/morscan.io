@@ -1,0 +1,727 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Verify a Response - MorScan</title>
+  <meta name="description" content="Verify a live MorScan API response in your browser: your own machine checks the Ed25519 signature against MorScan's published public keys. No trust required.">
+  <meta name="keywords" content="provenance receipt, Ed25519 verification, signed API response, verify blockchain data, Morpheus AI, MOR token, cryptographic attestation, Base network AI">
+  <link rel="canonical" href="https://morscan.io/verify">
+  <meta property="og:title" content="Verify a Response - MorScan">
+  <meta property="og:description" content="Your browser checks the Ed25519 signature on a live MorScan API response against the published public keys. The math does the trusting.">
+  <meta property="og:image" content="https://morscan.io/og/verify.png">
+  <meta property="og:url" content="https://morscan.io/verify">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="MorScan">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Verify a Response - MorScan">
+  <meta name="twitter:description" content="Your browser checks the Ed25519 signature on a live MorScan API response against the published public keys.">
+  <meta name="twitter:image" content="https://morscan.io/og/verify.png">
+  <link rel="icon" href="/favicon.ico" sizes="any">
+  <link rel="icon" type="image/png" sizes="48x48" href="/favicon.png">
+  <link rel="icon" type="image/svg+xml" href="/morscan-icon.svg">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"MorScan","item":"https://morscan.io/"},{"@type":"ListItem","position":2,"name":"Verify","item":"https://morscan.io/verify"}]}</script>
+  <!-- IBM Plex Mono self-hosted at /fonts/ (SIL OFL 1.1, src/fonts/OFL.txt) - fleet console convention, no third-party font host. -->
+  <style>
+    @font-face { font-family: 'IBM Plex Mono'; font-style: normal; font-weight: 400; font-display: swap; src: url('/fonts/ibm-plex-mono-400.woff2') format('woff2'); }
+    @font-face { font-family: 'IBM Plex Mono'; font-style: normal; font-weight: 500; font-display: swap; src: url('/fonts/ibm-plex-mono-500.woff2') format('woff2'); }
+    @font-face { font-family: 'IBM Plex Mono'; font-style: normal; font-weight: 600; font-display: swap; src: url('/fonts/ibm-plex-mono-600.woff2') format('woff2'); }
+    @font-face { font-family: 'IBM Plex Mono'; font-style: normal; font-weight: 700; font-display: swap; src: url('/fonts/ibm-plex-mono-700.woff2') format('woff2'); }
+  </style>
+  <style>
+    html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+    * { margin: 0; padding: 0; box-sizing: border-box; border-radius: 0; }
+    button, input, select, textarea { font-family: inherit; }
+    :root {
+      --mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+      --bg-primary: #0c0a09;
+      --bg-secondary: #1c1917;
+      --border: #44403c;
+      --text-primary: #fafaf9;
+      --text-secondary: #d6d3d1;
+      --text-muted: #c7c2bc;
+      --green: #22c55e;
+      --cyan: #22d3ee;
+      --red: #f87171;
+      --amber: #fbbf24;
+    }
+    body {
+      font-family: var(--mono);
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      min-height: 100vh;
+      line-height: 1.6;
+    }
+    html, body { overflow-x: hidden; }
+    .verify {
+      max-width: 680px;
+      margin: 0 auto;
+      padding: 3rem 1.5rem 4rem;
+    }
+    .verify-back {
+      display: inline-block;
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      text-decoration: none;
+      margin-bottom: 2rem;
+      letter-spacing: 0.05em;
+    }
+    .verify-back:hover { color: var(--green); }
+    .verify h1 { font-size: 1.5rem; color: var(--green); margin: 0 0 0.25rem; }
+    .verify .kicker {
+      font-size: 0.65rem;
+      text-transform: uppercase;
+      letter-spacing: 0.2em;
+      color: var(--text-muted);
+      margin-bottom: 1.75rem;
+    }
+    .verify h2 {
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.18em;
+      color: var(--text-muted);
+      margin: 2.25rem 0 0.6rem;
+    }
+    .verify p { font-size: 0.85rem; color: var(--text-secondary); margin: 0 0 0.9rem; }
+    .verify code { font-family: inherit; color: var(--cyan); font-size: 0.85em; }
+    .verify a { color: var(--green); text-decoration: none; }
+    .verify a:hover { text-decoration: underline; }
+
+    /* Controls */
+    .run-row { display: flex; flex-wrap: wrap; gap: 0.6rem; margin: 0 0 0.9rem; }
+    .run-row input[type="text"] {
+      flex: 1 1 220px;
+      min-width: 0;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      color: var(--text-primary);
+      font-size: 0.8rem;
+      padding: 0.6rem 0.7rem;
+    }
+    .run-row input[type="text"]:focus { border-color: var(--green); outline: none; }
+    .btn {
+      background: var(--green);
+      color: #04120a;
+      font-weight: 700;
+      font-size: 0.75rem;
+      border: none;
+      padding: 0.6rem 1.1rem;
+      cursor: pointer;
+      min-height: 40px;
+    }
+    .btn:hover { filter: brightness(1.08); }
+    .btn:disabled { opacity: 0.55; cursor: default; }
+    .btn-secondary { background: var(--bg-secondary); color: var(--text-primary); border: 1px solid var(--border); font-weight: 600; }
+    .btn-secondary:hover { border-color: var(--green); filter: none; }
+    .paste-box {
+      width: 100%;
+      min-height: 96px;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      color: var(--text-primary);
+      font-size: 0.72rem;
+      line-height: 1.5;
+      padding: 0.6rem 0.7rem;
+      resize: vertical;
+      margin-bottom: 0.6rem;
+    }
+    .paste-box:focus { border-color: var(--green); outline: none; }
+    .run-note { font-size: 0.7rem; color: var(--text-muted); margin: 0.3rem 0 0; }
+
+    /* The walkthrough */
+    .steps { list-style: none; margin: 1.4rem 0 0; padding: 0; }
+    .step {
+      display: none;
+      gap: 0.75rem;
+      padding: 0.75rem 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .step.shown { display: flex; }
+    .step:last-child { border-bottom: none; }
+    .step-mark {
+      flex: 0 0 auto;
+      width: 1.35rem; height: 1.35rem;
+      margin-top: 0.1rem;
+      display: inline-flex; align-items: center; justify-content: center;
+      border: 1px solid var(--border);
+      font-size: 0.8rem; font-weight: 700;
+      color: var(--text-muted);
+    }
+    .step.ok .step-mark { border-color: var(--green); color: var(--green); }
+    .step.bad .step-mark { border-color: var(--red); color: var(--red); }
+    .step.warn .step-mark { border-color: var(--amber); color: var(--amber); }
+    .step-body { min-width: 0; }
+    .step-title { font-size: 0.85rem; color: var(--text-primary); font-weight: 600; }
+    .step-detail { font-size: 0.75rem; color: var(--text-secondary); margin-top: 0.15rem; overflow-wrap: anywhere; }
+    .step-detail code { overflow-wrap: anywhere; }
+
+    /* Verdict */
+    .verdict {
+      display: none;
+      margin: 1.6rem 0 0.4rem;
+      padding: 1.1rem 1.2rem;
+      border: 1px solid var(--border);
+      background: var(--bg-secondary);
+      text-align: center;
+    }
+    .verdict.shown { display: block; }
+    .verdict-word { font-size: 1.6rem; font-weight: 700; letter-spacing: 0.12em; }
+    .verdict.verified .verdict-word { color: var(--green); }
+    .verdict.failed .verdict-word { color: var(--red); }
+    .verdict.unsigned .verdict-word { color: var(--amber); }
+    .verdict.verified { border-color: rgba(34,197,94,0.55); box-shadow: 0 0 28px rgba(34,197,94,0.08); }
+    .verdict.failed { border-color: rgba(248,113,113,0.55); }
+    .verdict.unsigned { border-color: rgba(251,191,36,0.5); }
+    .verdict-line { font-size: 0.78rem; color: var(--text-secondary); margin-top: 0.45rem; }
+
+    .sowhat { display: none; margin-top: 1rem; }
+    .sowhat.shown { display: block; }
+
+    /* Explanation blocks */
+    .block {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      padding: 0.9rem 1rem;
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+      margin: 0 0 0.9rem;
+    }
+    .block code { color: var(--green); }
+    .kv { margin-top: 0.4rem; font-size: 0.75rem; }
+    .kv div { padding: 0.15rem 0; overflow-wrap: anywhere; }
+    .kv .k { color: var(--text-muted); }
+
+    /* Raw JSON */
+    details.raw { margin: 1.2rem 0 0; border: 1px solid var(--border); background: var(--bg-secondary); }
+    details.raw summary {
+      cursor: pointer;
+      padding: 0.7rem 1rem;
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+      letter-spacing: 0.04em;
+    }
+    details.raw summary:hover { color: var(--green); }
+    details.raw pre {
+      margin: 0;
+      padding: 0.8rem 1rem;
+      border-top: 1px solid var(--border);
+      font-size: 0.7rem;
+      line-height: 1.5;
+      color: var(--text-secondary);
+      overflow-x: auto;
+      max-height: 420px;
+      overflow-y: auto;
+      white-space: pre;
+    }
+    details.raw .raw-label { padding: 0.55rem 1rem 0; border-top: 1px solid var(--border); font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.14em; color: var(--text-muted); }
+    details.raw .raw-label + pre { border-top: none; }
+
+    :focus-visible { outline: 2px solid var(--green); outline-offset: 2px; }
+    .skip-link { position: absolute; left: -9999px; top: 0; z-index: 100; background: var(--green); color: var(--bg-primary); font-weight: 700; font-size: 0.8rem; padding: 0.6rem 1rem; text-decoration: none; }
+    .skip-link:focus { left: 0.5rem; top: 0.5rem; }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
+    }
+
+    /* Footer - same condensed pattern as the other standalone pages. */
+    .site-footer { margin-top: 3rem; padding-top: 1.5rem; border-top: 1px solid #44403c; text-align: center; padding-bottom: 2rem; max-width: 100%; }
+    .footer-nav { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 0 0.15rem; max-width: 100%; }
+    .footer-logo { display: inline-flex; align-items: center; justify-content: center; min-height: 40px; padding: 0.4rem; margin-bottom: 0.3rem; }
+    .footer-logo svg { display: block; filter: drop-shadow(0 0 10px rgba(34,197,94,0.4)); }
+    .footer-drm3 { display: inline-flex; align-items: center; justify-content: center; min-height: 40px; padding: 0.4rem 0.6rem; margin-top: 0.9rem; opacity: 0.85; transition: opacity 0.15s; }
+    .footer-drm3:hover, .footer-drm3:focus-visible { opacity: 1; }
+    .footer-drm3 img { display: block; height: 26px; width: auto; }
+    .footer-nav a { display: inline-flex; align-items: center; min-height: 40px; padding: 0.5rem 0.5rem; color: #c7c2bc; font-size: 0.72rem; text-decoration: none; }
+    .footer-nav a:hover, .footer-nav a:focus-visible { color: var(--green); }
+    .footer-sep { color: #6b6660; font-size: 0.72rem; user-select: none; }
+    .footer-credit { margin: 0.75rem auto 0.45rem; max-width: 44rem; font-size: 0.66rem; line-height: 1.55; color: #c7c2bc; }
+    .footer-credit a { color: #c7c2bc; text-decoration: underline; }
+    .footer-credit a:hover, .footer-credit a:focus-visible { color: var(--green); }
+  </style>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+  <div class="verify">
+    <a href="/" class="verify-back">&larr; Back to explorer</a>
+
+    <main id="main" tabindex="-1">
+    <p class="kicker">Provenance &middot; Ed25519 &middot; Checked in your browser</p>
+    <h1>Verify a response</h1>
+    <p>
+      Every API response MorScan serves is signed. This page takes one live response and
+      walks through the check, step by step, in front of you. The math runs in your own
+      browser: MorScan's server is not part of the verdict.
+    </p>
+
+    <div id="unsupported" class="block" style="display:none; border-color: rgba(251,191,36,0.5);">
+      Your browser lacks Ed25519 WebCrypto, so it cannot run this check itself. Current
+      Chrome, Safari, and Firefox all can. You can still verify from any machine with the
+      CLI verifier: <code>npm run verify:receipt</code> in the
+      <a href="https://github.com/DRM3Labs-OSS/morscan.io" target="_blank" rel="noopener">public repo</a>
+      (<code>scripts/verify-receipt.mjs</code>, about 50 lines).
+    </div>
+
+    <h2>Pick what to verify</h2>
+    <form class="run-row" id="live-form">
+      <label for="endpoint-input" style="position:absolute;left:-9999px;">Endpoint path to verify</label>
+      <input type="text" id="endpoint-input" value="/mor/v1/price" spellcheck="false" autocomplete="off">
+      <button type="submit" class="btn" id="run-live">Verify live response</button>
+    </form>
+    <label for="paste-input" style="position:absolute;left:-9999px;">Paste a response or receipt JSON</label>
+    <textarea class="paste-box" id="paste-input" spellcheck="false" placeholder='Or paste a full response body, or just its receipt JSON, from any MorScan endpoint...'></textarea>
+    <button type="button" class="btn btn-secondary" id="run-paste">Verify pasted JSON</button>
+    <p class="run-note">
+      Free endpoints like <code>/mor/v1/price</code> and <code>/version</code> need no key.
+      Metered endpoints answer <code>402</code> without one; paste their body here instead,
+      or use an <a href="/api/playground">API key</a>.
+    </p>
+
+    <h2 id="walkthrough-heading">The check, live</h2>
+    <ol class="steps" id="steps" aria-labelledby="walkthrough-heading">
+      <li class="step" id="step-1">
+        <span class="step-mark" aria-hidden="true"></span>
+        <div class="step-body">
+          <div class="step-title" id="step-1-title">We fetched this API response from morscan.io</div>
+          <div class="step-detail" id="step-1-detail"></div>
+        </div>
+      </li>
+      <li class="step" id="step-2">
+        <span class="step-mark" aria-hidden="true"></span>
+        <div class="step-body">
+          <div class="step-title">The response came with a signature</div>
+          <div class="step-detail" id="step-2-detail"></div>
+        </div>
+      </li>
+      <li class="step" id="step-3">
+        <span class="step-mark" aria-hidden="true"></span>
+        <div class="step-body">
+          <div class="step-title">We fetched MorScan's published public key</div>
+          <div class="step-detail" id="step-3-detail"></div>
+        </div>
+      </li>
+      <li class="step" id="step-4">
+        <span class="step-mark" aria-hidden="true"></span>
+        <div class="step-body">
+          <div class="step-title">Your browser is checking the math right now</div>
+          <div class="step-detail" id="step-4-detail"></div>
+        </div>
+      </li>
+      <li class="step" id="step-5">
+        <span class="step-mark" aria-hidden="true"></span>
+        <div class="step-body">
+          <div class="step-title" id="step-5-title">Verdict</div>
+          <div class="step-detail" id="step-5-detail"></div>
+        </div>
+      </li>
+    </ol>
+
+    <div class="verdict" id="verdict" role="status">
+      <div class="verdict-word" id="verdict-word"></div>
+      <div class="verdict-line" id="verdict-line"></div>
+    </div>
+
+    <p class="sowhat" id="sowhat">
+      Notice what you did not have to do: trust MorScan. The response is public, the
+      signature came with it, the public key is published for anyone to fetch, and your
+      own browser did the checking. If MorScan ever altered a served number after signing
+      it, this exact check is what would catch it.
+    </p>
+
+    <details class="raw" id="raw-panel" style="display:none;">
+      <summary>Raw response JSON (the bytes behind the verdict)</summary>
+      <pre id="raw-json"></pre>
+      <div class="raw-label">Canonical signed payload (what the signature covers)</div>
+      <pre id="raw-canonical"></pre>
+    </details>
+
+    <h2>What was verified</h2>
+    <div class="block">
+      The exact response above was signed by the key <code id="who-path-inline">morscan/cache</code>
+      at the moment it was served. The signature covers a canonical form of the receipt:
+      its id, action, timestamp, and the SHA-256 hashes of the request and the response
+      body. One changed byte anywhere under those hashes and the signature stops verifying.
+    </div>
+
+    <h2>Who signed it</h2>
+    <div class="block">
+      MorScan derives two Ed25519 signing keys: <code>morscan/cache</code> for indexed
+      on-chain data and <code>morscan/signer</code> for service-level attestations. Both
+      public keys, with their full rotation history and validity windows, are published at
+      <a href="/.well-known/morscan-keys.json">/.well-known/morscan-keys.json</a>. The
+      operator behind those keys is DRM3 Labs, whose signing-key lineage across all its
+      services lives in the public registry at
+      <a href="https://drm3.io/signers" target="_blank" rel="noopener">drm3.io/signers</a>.
+      <div class="kv" id="who-kv" style="display:none;">
+        <div><span class="k">key used: </span><code id="who-path"></code></div>
+        <div><span class="k">fingerprint: </span><code id="who-key"></code></div>
+        <div><span class="k">valid: </span><span id="who-window"></span></div>
+      </div>
+    </div>
+
+    <h2>What it means</h2>
+    <div class="block">
+      You do not have to take MorScan's word for its numbers. Every response carries the
+      evidence with it, the keys are public, and the check is pure math that anyone can run:
+      this page in a browser, or the same ~50-line verifier from the command line:
+      <code>npm run verify:receipt</code> in the
+      <a href="https://github.com/DRM3Labs-OSS/morscan.io" target="_blank" rel="noopener">public repo</a>.
+      Machine-readable build identity stays at <a href="/version">/version</a>, and the
+      full receipt design is documented in the repo's provenance docs.
+    </div>
+    </main>
+
+    <footer class="site-footer">
+      <a href="/" class="footer-logo" aria-label="MorScan home"><svg width="56" height="25" viewBox="0 0 89 40" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false"><path d="M44.5031 36.7108L52.2884 27.0574V39.5L75.154 30.3296L78.4294 22.9099L58.8453 30.8065V28.0173L80.2346 19.2454L83.6775 11.7472L58.7647 21.8776V19.1669L85.7246 7.99814L89 0.5L56.3826 13.818C56.3826 13.818 53.5973 14.8563 52.369 16.8486L44.5031 26.5805L36.6372 16.8486C35.4089 14.8563 32.6236 13.818 32.6236 13.818L0 0.5L3.27539 7.99814L30.2415 19.1608V21.8715L5.32871 11.7472L8.77159 19.2454L30.1609 28.0173V30.8065L10.5768 22.9099L13.8522 30.3296L36.7178 39.5V27.0574L44.5031 36.7108Z" fill="#22c55e"/></svg></a>
+      <nav class="footer-nav" aria-label="Footer">
+        <a href="/about">About</a>
+        <span class="footer-sep" aria-hidden="true">&middot;</span>
+        <a href="/terms">Terms</a>
+        <span class="footer-sep" aria-hidden="true">&middot;</span>
+        <a href="/privacy">Privacy</a>
+        <span class="footer-sep" aria-hidden="true">&middot;</span>
+        <a href="/health">Status</a>
+        <span class="footer-sep" aria-hidden="true">&middot;</span>
+        <a href="/stake">Support</a>
+        <span class="footer-sep" aria-hidden="true">&middot;</span>
+        <a href="/contribute">Contribute</a>
+        <span class="footer-sep" aria-hidden="true">&middot;</span>
+        <a href="https://github.com/DRM3Labs-OSS/morscan.io/issues" target="_blank" rel="noopener">Feedback</a>
+      </nav>
+      <p class="footer-credit">Developed, maintained, and operated by <a href="https://drm3.network" target="_blank" rel="noopener">DRM3 Labs</a> &middot; Fair Source (FSL-1.1-MIT), pull requests welcome.</p>
+      <a href="https://drm3.network" class="footer-drm3" target="_blank" rel="noopener" aria-label="DRM3 Labs"><img src="/drm3-icon-transparent-white-consumer-128.png" alt="DRM3 Labs" width="40" height="40"></a>
+      <p style="margin:0;font-size:0.6rem;color:#8a8580;">MorScan &middot; &copy; 2026</p>
+    </footer>
+  </div>
+
+  <script id="verifier-logic">
+  // The verification core, ported from scripts/verify-receipt.mjs in the public
+  // repo. Same canonicalization, same payload fields, same key-window check.
+  // Kept pure (no DOM) so the unit suite runs THIS exact code against a fixture
+  // captured from the live API and asserts it matches the CLI verifier
+  // byte for byte. If you edit this block, run the tests.
+  (function () {
+    // DRM3 canonical JSON: recursively sort object keys, compact output.
+    function canonicalize(v) {
+      if (v === null || typeof v !== "object") return JSON.stringify(v);
+      if (Array.isArray(v)) return "[" + v.map(canonicalize).join(",") + "]";
+      const keys = Object.keys(v).sort();
+      return "{" + keys.map((k) => JSON.stringify(k) + ":" + canonicalize(v[k])).join(",") + "}";
+    }
+
+    // The signing payload (receipt-spec 1.0): the receipt fields with sorted
+    // keys and the optional fields present as null when absent.
+    function receiptPayload(r) {
+      return canonicalize({
+        id: r.id,
+        action: r.action,
+        timestamp: r.timestamp,
+        input_hash: r.input_hash,
+        output_hash: r.output_hash,
+        cost: r.cost ?? null,
+        duration_ms: r.duration_ms ?? null,
+        parent_id: r.parent_id ?? null,
+        metadata: r.metadata ?? null,
+        public_key: r.public_key,
+      });
+    }
+
+    function hexBytes(s) {
+      const hex = String(s).replace(/^ed25519:/, "");
+      const out = new Uint8Array(hex.length / 2);
+      for (let i = 0; i < out.length; i++) out[i] = parseInt(hex.substr(i * 2, 2), 16);
+      return out;
+    }
+
+    // Endpoints embed the receipt as _provenance_aggregate (data responses) or
+    // receipt (/version). A bare pasted receipt object also works.
+    function extractReceipt(body) {
+      if (!body || typeof body !== "object") return null;
+      const agg = body._provenance_aggregate;
+      if (agg && agg.signature && agg.public_key) return agg;
+      const r = body.receipt;
+      if (r && r.signature && r.public_key) return r;
+      if (body.signature && body.public_key && body.id) return body;
+      return null;
+    }
+
+    // The signing key must be one MorScan actually publishes, with a validity
+    // window covering the receipt timestamp.
+    function matchPublishedKey(keys, receipt) {
+      const all = (keys.current || []).concat(keys.history || []);
+      const ts = new Date(receipt.timestamp);
+      return (
+        all.find(
+          (k) =>
+            k.key === receipt.public_key &&
+            ts >= new Date(k.valid_from) &&
+            ts <= new Date(k.valid_until || "9999-01-01"),
+        ) || null
+      );
+    }
+
+    async function ed25519Supported() {
+      try {
+        await crypto.subtle.importKey("raw", new Uint8Array(32), { name: "Ed25519" }, false, ["verify"]);
+        return true;
+      } catch (_e) {
+        return false;
+      }
+    }
+
+    // The actual math: Ed25519 over the canonical payload, via WebCrypto,
+    // on the machine running this page.
+    async function verifySignature(receipt) {
+      const payload = receiptPayload(receipt);
+      const key = await crypto.subtle.importKey(
+        "raw",
+        hexBytes(receipt.public_key),
+        { name: "Ed25519" },
+        false,
+        ["verify"],
+      );
+      return crypto.subtle.verify(
+        { name: "Ed25519" },
+        key,
+        hexBytes(receipt.signature),
+        new TextEncoder().encode(payload),
+      );
+    }
+
+    globalThis.MorscanVerify = {
+      canonicalize: canonicalize,
+      receiptPayload: receiptPayload,
+      hexBytes: hexBytes,
+      extractReceipt: extractReceipt,
+      matchPublishedKey: matchPublishedKey,
+      ed25519Supported: ed25519Supported,
+      verifySignature: verifySignature,
+    };
+  })();
+  </script>
+
+  <script>
+  // The walkthrough UI. All dynamic values go in via textContent (never HTML).
+  (function () {
+    const V = globalThis.MorscanVerify;
+    const $ = (id) => document.getElementById(id);
+    const stepEls = [1, 2, 3, 4, 5].map((n) => $("step-" + n));
+    const PAUSE = 320;
+    let running = false;
+
+    const wait = (ms) => new Promise((res) => setTimeout(res, ms));
+
+    function resetSteps() {
+      for (const el of stepEls) {
+        el.classList.remove("shown", "ok", "bad", "warn");
+        el.querySelector(".step-mark").textContent = "";
+      }
+      for (const n of [1, 2, 3, 4, 5]) $("step-" + n + "-detail") && ($("step-" + n + "-detail").textContent = "");
+      $("verdict").className = "verdict";
+      $("verdict-word").textContent = "";
+      $("verdict-line").textContent = "";
+      $("sowhat").classList.remove("shown");
+      $("raw-panel").style.display = "none";
+      $("who-kv").style.display = "none";
+    }
+
+    async function showStep(n, state, detail) {
+      const el = stepEls[n - 1];
+      el.classList.add("shown");
+      await wait(PAUSE);
+      el.classList.add(state);
+      el.querySelector(".step-mark").textContent = state === "ok" ? "✓" : state === "bad" ? "✗" : "!";
+      $("step-" + n + "-detail").textContent = detail;
+    }
+
+    function verdict(kind, word, line) {
+      const v = $("verdict");
+      v.classList.add("shown", kind);
+      $("verdict-word").textContent = word;
+      $("verdict-line").textContent = line;
+      $("sowhat").classList.add("shown");
+    }
+
+    function short(s, keep) {
+      s = String(s);
+      const k = keep || 20;
+      return s.length > k * 2 + 3 ? s.slice(0, k) + "..." + s.slice(-8) : s;
+    }
+
+    // A one-line human peek at what the response says.
+    function peek(body) {
+      if (body && typeof body.usd === "number") return "it says MOR is $" + body.usd.toFixed(2) + " right now";
+      if (body && typeof body.version === "string") return "it reports build version " + body.version;
+      const keys = body && typeof body === "object" ? Object.keys(body).filter((k) => k[0] !== "_").slice(0, 4) : [];
+      return keys.length ? "fields: " + keys.join(", ") : "an empty body";
+    }
+
+    function fillRaw(body, receipt) {
+      $("raw-json").textContent = JSON.stringify(body, null, 2);
+      $("raw-canonical").textContent = receipt ? V.receiptPayload(receipt) : "(no receipt)";
+      $("raw-panel").style.display = "block";
+    }
+
+    async function run(source) {
+      if (running) return;
+      running = true;
+      $("run-live").disabled = true;
+      $("run-paste").disabled = true;
+      try {
+        resetSteps();
+
+        // Step 1: get the bytes.
+        let body = null;
+        if (source.kind === "live") {
+          $("step-1-title").textContent = "We fetched this API response from " + location.host;
+          let resp;
+          try {
+            resp = await fetch(source.path, { headers: { Accept: "application/json" } });
+          } catch (e) {
+            await showStep(1, "bad", "The fetch itself failed (" + e + "). Check the path and try again.");
+            return;
+          }
+          if (resp.status === 402) {
+            await showStep(1, "bad", "GET " + source.path + " answered 402 Payment Required: that endpoint is metered and this page carries no key. Honest answer: verify a free endpoint like /mor/v1/price or /version, or call the metered one with your own key and paste the body below.");
+            return;
+          }
+          if (resp.status === 401) {
+            await showStep(1, "bad", "GET " + source.path + " answered 401: it needs an API key. Verify a free endpoint like /mor/v1/price, or paste a keyed response body below.");
+            return;
+          }
+          if (!resp.ok) {
+            await showStep(1, "bad", "GET " + source.path + " answered " + resp.status + ". Nothing to verify.");
+            return;
+          }
+          try {
+            body = await resp.json();
+          } catch (_e) {
+            await showStep(1, "bad", "GET " + source.path + " did not return JSON, so there is no receipt to check.");
+            return;
+          }
+          await showStep(1, "ok", "GET " + source.path + " answered 200; " + peek(body) + ".");
+        } else {
+          $("step-1-title").textContent = "You pasted a response";
+          try {
+            body = JSON.parse(source.text);
+          } catch (_e) {
+            await showStep(1, "bad", "That is not valid JSON. Paste a full response body, or just the receipt object.");
+            return;
+          }
+          await showStep(1, "ok", "Parsed your JSON; " + peek(body) + ".");
+        }
+
+        // Step 2: find the signature.
+        const receipt = V.extractReceipt(body);
+        if (!receipt) {
+          await showStep(2, "warn", "No signature fields found on this response. Nothing to verify: that is not proof of tampering, but it is not proof of anything else either.");
+          fillRaw(body, null);
+          // Honest unsigned mode: the instance may run with provenance off.
+          let line = "This response carries no provenance receipt. Some MorScan instances run with PROVENANCE_ENABLED=false; their /version says so.";
+          if (source.kind === "live") {
+            try {
+              const ver = await (await fetch("/version")).json();
+              if (ver.provenance === "disabled") line = "This instance runs with provenance disabled (its /version says provenance: \"disabled\"), so responses are served unsigned. There is nothing to verify.";
+            } catch (_e) { /* keep the generic line */ }
+          }
+          verdict("unsigned", "UNSIGNED", line);
+          return;
+        }
+        await showStep(2, "ok", "Receipt " + receipt.id + " carries signature " + short(receipt.signature, 22) + ". A signature is a stamp only the holder of the private key can produce; it pins these exact bytes.");
+
+        // Step 3: fetch the published key.
+        let keysDoc = null;
+        try {
+          keysDoc = await (await fetch("/.well-known/morscan-keys.json")).json();
+        } catch (_e) {
+          await showStep(3, "bad", "Could not fetch /.well-known/morscan-keys.json, so the signing key cannot be checked against what MorScan publishes.");
+          fillRaw(body, receipt);
+          verdict("failed", "NOT VERIFIED", "The key registry was unreachable. Try again, or run the CLI verifier.");
+          return;
+        }
+        const published = V.matchPublishedKey(keysDoc, receipt);
+        if (published) {
+          await showStep(3, "ok", "The receipt's key matches " + published.path + " (" + short(published.key, 16) + "), published with a validity window covering this receipt. Anyone can fetch this same file and see the full rotation history.");
+          $("who-path").textContent = published.path;
+          $("who-key").textContent = published.key;
+          $("who-window").textContent = published.valid_from + " to " + (published.valid_until || published.expected_valid_until || "open");
+          $("who-path-inline").textContent = published.path;
+          $("who-kv").style.display = "block";
+        } else {
+          await showStep(3, "bad", "The key this receipt claims (" + short(receipt.public_key, 16) + ") is NOT published at /.well-known/morscan-keys.json for this timestamp. Anyone can hold a key; only these published ones are MorScan's.");
+        }
+
+        // Step 4: the math, on your machine.
+        if (!(await V.ed25519Supported())) {
+          await showStep(4, "warn", "Your browser lacks Ed25519 WebCrypto, so it cannot run the math itself. Use the CLI verifier (scripts/verify-receipt.mjs in the public repo): same check, same keys.");
+          fillRaw(body, receipt);
+          verdict("unsigned", "NOT CHECKED", "The signature could not be checked in this browser. This is a browser capability gap, not a data problem.");
+          return;
+        }
+        let sigOk = false;
+        try {
+          sigOk = await V.verifySignature(receipt);
+        } catch (_e) {
+          sigOk = false;
+        }
+        await showStep(4, sigOk ? "ok" : "bad", "Your browser rebuilt the canonical signed payload and ran Ed25519 verification locally, via WebCrypto. Not on our server: we cannot fake what your own machine computes.");
+
+        // Step 5: verdict.
+        const rejected = published && (published.status === "compromised" || published.status === "revoked");
+        const ok = sigOk && !!published && !rejected;
+        if (ok) {
+          $("step-5-title").textContent = "Verdict: signature valid";
+          await showStep(5, "ok", "This exact response, byte for byte, was signed by " + published.path + " when it was served. If even one character had been altered, this check would fail.");
+          verdict("verified", "VERIFIED", "Signed by " + published.path + " at " + receipt.timestamp + ". Checked by your browser against the published key.");
+        } else {
+          $("step-5-title").textContent = "Verdict: verification failed";
+          const why = !sigOk
+            ? "The signature does not match these bytes: either the response was altered after signing, or the signature is not over this content."
+            : rejected
+              ? "The signing key is published but marked " + published.status + ": signatures from it must be rejected."
+              : "The signature is internally consistent, but the key is not one MorScan publishes, so it proves nothing about MorScan.";
+          await showStep(5, "bad", why);
+          verdict("failed", "FAILED", why + " Do not trust this response; refetch it, or verify with the CLI.");
+        }
+        fillRaw(body, receipt);
+      } finally {
+        running = false;
+        $("run-live").disabled = false;
+        $("run-paste").disabled = false;
+      }
+    }
+
+    $("live-form").addEventListener("submit", (e) => {
+      e.preventDefault();
+      let raw = $("endpoint-input").value.trim() || "/mor/v1/price";
+      // Same-origin only: this page's security policy blocks other hosts.
+      if (/^https?:\/\//i.test(raw)) {
+        try {
+          const u = new URL(raw);
+          if (u.origin !== location.origin) {
+            resetSteps();
+            $("step-1-title").textContent = "We fetched this API response from " + location.host;
+            showStep(1, "bad", "This page can only fetch endpoints on " + location.host + " (its security policy blocks other hosts). For another MorScan instance, use the CLI verifier: node scripts/verify-receipt.mjs <url>.");
+            return;
+          }
+          raw = u.pathname + u.search;
+        } catch (_e) { /* fall through; fetch will reject it */ }
+      }
+      if (raw[0] !== "/") raw = "/" + raw;
+      run({ kind: "live", path: raw });
+    });
+
+    $("run-paste").addEventListener("click", () => {
+      const text = $("paste-input").value.trim();
+      if (!text) return;
+      run({ kind: "pasted", text: text });
+    });
+
+    // Verify a real live response the moment the page opens: the point of the
+    // page is watching it happen, not reading about it.
+    run({ kind: "live", path: "/mor/v1/price" });
+  })();
+  </script>
+  <script src="/webmcp.js" defer></script>
+</body>
+</html>

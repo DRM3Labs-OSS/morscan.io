@@ -1,0 +1,627 @@
+  <script>
+    function post(pathname) {
+      return fetch(pathname, { method: 'POST', headers: { 'Content-Type': 'application/json' } }).then(function(r){ return r.json().then(function(j){ return { ok: r.ok, j: j }; }); });
+    }
+    function setMsg(t, ok) { var m = document.getElementById('msg'); m.textContent = t; m.className = 'msg ' + (ok ? 'ok' : 'err'); }
+    function setConnectMsg(t, ok) { var m = document.getElementById('connect-msg'); m.textContent = t; m.className = 'msg ' + (ok ? 'ok' : 'err'); }
+
+    // ── Key display: masked by default, Show/Hide reveal, Copy always copies the
+    // full value. The full key lives in data-key; the visible text is masked
+    // (first 8 + last 4) until revealed. A freshly minted key reveals itself
+    // once so it can be saved.
+    var _keyRevealed = false;
+    function maskKey(k) { return k && k.length > 16 ? k.slice(0, 8) + '...' + k.slice(-4) : (k || ''); }
+    function paintKey() {
+      var el = document.getElementById('keyval');
+      if (!el) return;
+      var k = el.getAttribute('data-key') || '';
+      el.textContent = _keyRevealed ? k : maskKey(k);
+      var rb = document.getElementById('reveal-btn');
+      if (rb) {
+        rb.textContent = _keyRevealed ? 'Hide' : 'Show';
+        rb.setAttribute('aria-pressed', _keyRevealed ? 'true' : 'false');
+        rb.setAttribute('aria-label', (_keyRevealed ? 'Hide' : 'Show') + ' the full API key');
+      }
+    }
+    function showKey(k) {
+      var el = document.getElementById('keyval');
+      el.setAttribute('data-key', k);
+      _keyRevealed = true;
+      paintKey();
+      document.getElementById('key-present').style.display = 'block';
+      document.getElementById('key-absent').style.display = 'none';
+      var uc = document.getElementById('usage-card');
+      if (uc) { uc.style.display = 'block'; loadUsage(); }
+      var cc = document.getElementById('capacity-card');
+      if (cc) cc.style.display = 'block';
+      if (window.refreshCapCurl) window.refreshCapCurl();
+    }
+    var revealBtn = document.getElementById('reveal-btn');
+    if (revealBtn) revealBtn.onclick = function(){ _keyRevealed = !_keyRevealed; paintKey(); };
+
+    // ── Themed confirm modal (in-page overlay, no native confirm/alert) ──
+    var Modal = (function(){
+      var el = document.getElementById('modal');
+      var titleEl = document.getElementById('modal-title');
+      var msgEl = document.getElementById('modal-msg');
+      var okBtn = document.getElementById('modal-confirm');
+      var cancelBtn = document.getElementById('modal-cancel');
+      var lastFocus = null, resolver = null;
+      function focusable(){ return [cancelBtn, okBtn]; }
+      function close(result){
+        el.style.display = 'none';
+        document.removeEventListener('keydown', onKey, true);
+        if (lastFocus && lastFocus.focus) lastFocus.focus();
+        var r = resolver; resolver = null;
+        if (r) r(result);
+      }
+      function onKey(e){
+        if (e.key === 'Escape') { e.preventDefault(); close(false); return; }
+        if (e.key === 'Tab') {
+          var f = focusable(), i = f.indexOf(document.activeElement);
+          if (e.shiftKey) { if (i <= 0) { e.preventDefault(); f[f.length - 1].focus(); } }
+          else { if (i === f.length - 1) { e.preventDefault(); f[0].focus(); } }
+        }
+      }
+      okBtn.onclick = function(){ close(true); };
+      cancelBtn.onclick = function(){ close(false); };
+      el.addEventListener('mousedown', function(e){ if (e.target === el) close(false); });
+      function open(opts){
+        opts = opts || {};
+        titleEl.textContent = opts.title || 'Confirm';
+        msgEl.textContent = opts.message || '';
+        okBtn.textContent = opts.confirmText || 'Confirm';
+        cancelBtn.textContent = opts.cancelText || 'Cancel';
+        okBtn.className = 'btn ' + (opts.danger ? 'danger' : 'solid');
+        lastFocus = document.activeElement;
+        el.style.display = 'flex';
+        document.addEventListener('keydown', onKey, true);
+        // Danger actions default focus to Cancel (the safe choice).
+        (opts.danger ? cancelBtn : okBtn).focus();
+        return new Promise(function(resolve){ resolver = resolve; });
+      }
+      return { confirm: open };
+    })();
+
+    // ── Usage & limits panel ──
+    var _numFmt = function(n){ return (n || 0).toLocaleString('en-US'); };
+    function paintBar(barEl, used, cap) {
+      var pct = cap > 0 ? Math.min(100, (used / cap) * 100) : 0;
+      barEl.style.width = pct + '%';
+      barEl.className = 'bar-fill' + (used >= cap && cap > 0 ? ' over' : (pct >= 80 ? ' near' : ''));
+    }
+    function loadUsage() {
+      var card = document.getElementById('usage-card');
+      if (!card) return;
+      fetch('/console/usage', { headers: { 'Accept': 'application/json' } })
+        .then(function(r){ return r.ok ? r.json() : null; })
+        .then(function(u){
+          if (!u) return;
+          document.getElementById('u-day').innerHTML = _numFmt(u.today.used) + ' <span class="cap">/ ' + _numFmt(u.today.cap) + ' calls</span>';
+          document.getElementById('u-month').innerHTML = _numFmt(u.month.used) + ' <span class="cap">/ ' + _numFmt(u.month.cap) + ' calls</span>';
+          document.getElementById('u-rate').textContent = _numFmt(u.perMin.cap);
+          paintBar(document.getElementById('u-day-bar'), u.today.used, u.today.cap);
+          paintBar(document.getElementById('u-month-bar'), u.month.used, u.month.cap);
+        })
+        .catch(function(){});
+    }
+    // Initial load when a key is already present on page render.
+    if (document.getElementById('key-present') && document.getElementById('key-present').style.display !== 'none') loadUsage();
+
+    // Same-host return path (?return=/some/path) - honored after wallet verify
+    // and key sign-in, same rules as the server's safeRedirect.
+    var RETURN = '';
+    try {
+      var _rp = new URLSearchParams(location.search).get('return') || '';
+      if (_rp.charAt(0) === '/' && _rp.charAt(1) !== '/') RETURN = _rp;
+    } catch (e) {}
+
+    // ── Wallet connect: (injected OR WalletConnect) -> challenge -> personal_sign -> verify ──
+    // The server verifies a plain EIP-191 personal_sign of the challenge; it does
+    // not care about transport. So the same challenge/verify flow runs whether the
+    // signature comes from an injected provider (window.ethereum: desktop
+    // extension or in-wallet browser) or from a WalletConnect session (mobile
+    // browser deep-links to the wallet app; desktop shows a QR modal).
+    function toHex(s) {
+      var bytes = new TextEncoder().encode(s); var hex = '0x';
+      for (var i = 0; i < bytes.length; i++) hex += bytes[i].toString(16).padStart(2, '0');
+      return hex;
+    }
+
+    // WalletConnect config injected by the server. Set
+    // MORSCAN_WALLETCONNECT_PROJECT_ID to a real cloud.reown.com id for the
+    // relay to accept live pairings.
+    var WC_PROJECT_ID = "{{WC_PROJECT_ID}}";
+    var WC_CHAIN = 8453; // Base mainnet.
+
+    // WalletConnect is only usable with a REAL reown project id. The server
+    // injects "morscan-placeholder" when MORSCAN_WALLETCONNECT_PROJECT_ID is
+    // unset; treat that (and an unreplaced template token) as not configured so
+    // the WC path fails loudly instead of hanging on a relay that rejects the
+    // pairing.
+    var WC_CONFIGURED = !!WC_PROJECT_ID && WC_PROJECT_ID !== 'morscan-placeholder' && WC_PROJECT_ID.indexOf('{{') !== 0;
+
+    // Mobile browsers that are NOT a wallet's own in-app browser cannot open an
+    // external wallet app via an injected eth_requestAccounts - the call just
+    // hangs, dead-ending the connect. On mobile we prefer WalletConnect (which
+    // deep-links the chosen wallet app). Inside a wallet's in-app browser the
+    // injected provider IS the active wallet, so injected still works there.
+    var IS_MOBILE = /Android|iPhone|iPad|iPod/i.test((navigator && navigator.userAgent) || '');
+    // WalletConnect action label, phrased for the platform: on a phone it opens
+    // the wallet app (deep-link); on desktop it shows a QR to scan.
+    var WC_BTN_LABEL = IS_MOBILE ? 'Open your wallet app (WalletConnect)' : 'Scan QR with any wallet (WalletConnect)';
+
+    // Lazy-load the self-served WalletConnect bundle (2MB) only when a visitor
+    // without an injected wallet actually taps Connect - desktop-extension users
+    // never download it. Same-origin, so it loads under CSP script-src 'self'.
+    var _wcScriptPromise = null;
+    function loadWcScript() {
+      if (_wcScriptPromise) return _wcScriptPromise;
+      _wcScriptPromise = new Promise(function(resolve, reject){
+        var s = document.createElement('script');
+        s.src = '/console/wc.js'; s.async = true;
+        s.onload = function(){ resolve(); };
+        s.onerror = function(){ _wcScriptPromise = null; reject(new Error('Could not load the wallet connector')); };
+        document.head.appendChild(s);
+      });
+      return _wcScriptPromise;
+    }
+    var _wcProvider = null;
+    function getWalletConnectProvider() {
+      if (_wcProvider) return Promise.resolve(_wcProvider);
+      return loadWcScript().then(function(){
+        var EP = window.WalletConnectEthereumProvider;
+        if (!EP || !EP.init) throw new Error('Wallet connector unavailable');
+        return EP.init({
+          projectId: WC_PROJECT_ID,
+          chains: [WC_CHAIN],
+          showQrModal: true,
+          metadata: {
+            name: 'MorScan',
+            description: 'Connect your wallet for a free MorScan API key.',
+            url: location.origin,
+            icons: [location.origin + '/morscan-icon.svg'],
+          },
+        });
+      }).then(function(p){ _wcProvider = p; return p; });
+    }
+
+    // Shared challenge -> personal_sign -> verify, given any EIP-1193 provider.
+    function signChallengeAndVerify(provider, addr) {
+      var challenge = null;
+      return fetch('/console/wallet/challenge').then(function(r){ return r.json(); }).then(function(ch){
+        challenge = ch;
+        if (!ch || !ch.nonce) throw new Error((ch && ch.error) || 'Could not get a challenge');
+        setConnectMsg('Sign the verification message in your wallet...', true);
+        return provider.request({ method: 'personal_sign', params: [toHex(ch.message), addr] });
+      }).then(function(sig){
+        return fetch('/console/wallet/verify', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ wallet: addr, signature: sig, nonce: challenge.nonce }),
+        }).then(function(r){ return r.json().then(function(j){ return { ok: r.ok, j: j }; }); });
+      }).then(function(res){
+        if (res.ok && res.j.ok) {
+          setConnectMsg('Connected. Loading your console...', true);
+          if (RETURN) location.href = RETURN; else location.reload();
+        } else throw new Error(res.j.error || 'Verification failed');
+      });
+    }
+
+    // ── Injected provider discovery (EIP-6963) ──
+    // Relying on window.ethereum alone force-routes some browsers into the wrong
+    // wallet. On Brave, window.ethereum is Brave Wallet (isBraveWallet) even when
+    // the visitor has MetaMask installed or only wants to scan a QR - clicking
+    // Connect popped Brave Wallet and dead-ended. EIP-6963 lets each installed
+    // wallet announce itself, so we can offer a real choice (each injected wallet
+    // + WalletConnect QR) instead of hijacking whatever grabbed window.ethereum.
+    var _injected = [];
+    function _haveProvider(list, p) { for (var i = 0; i < list.length; i++) { if (list[i].provider === p) return true; } return false; }
+    window.addEventListener('eip6963:announceProvider', function(e){
+      var d = e && e.detail; if (!d || !d.provider) return;
+      var rdns = d.info && d.info.rdns;
+      for (var i = 0; i < _injected.length; i++) { if (_injected[i].info && _injected[i].info.rdns && _injected[i].info.rdns === rdns) return; }
+      _injected.push({ info: d.info || {}, provider: d.provider });
+    });
+    try { window.dispatchEvent(new Event('eip6963:requestProvider')); } catch (e) {}
+
+    function discoverInjected() {
+      // Re-ask, give announcers a tick, then merge any legacy window.ethereum
+      // (and its .providers multiplex) that did not announce via EIP-6963.
+      return new Promise(function(resolve){
+        try { window.dispatchEvent(new Event('eip6963:requestProvider')); } catch (e) {}
+        setTimeout(function(){
+          var list = _injected.slice();
+          var eth = window.ethereum;
+          if (eth) {
+            var legacy = (eth.providers && eth.providers.length) ? eth.providers : [eth];
+            for (var i = 0; i < legacy.length; i++) {
+              var p = legacy[i];
+              if (!p || _haveProvider(list, p)) continue;
+              var name = p.isBraveWallet ? 'Brave Wallet' : p.isMetaMask ? 'MetaMask' : p.isCoinbaseWallet ? 'Coinbase Wallet' : 'browser wallet';
+              list.push({ info: { name: name, brave: !!p.isBraveWallet }, provider: p });
+            }
+          }
+          resolve(list);
+        }, 60);
+      });
+    }
+    function isBraveChoice(item) {
+      return !!(item && ((item.info && item.info.brave) || item.provider.isBraveWallet ||
+        (item.info && item.info.rdns === 'com.brave.wallet') || /brave/i.test((item.info && item.info.name) || '')));
+    }
+    // On mobile, is the injected set safe to use? Only when there is exactly one
+    // provider AND it is the page's own window.ethereum - i.e. the wallet app
+    // hosting this in-app browser. In that case injected connect stays inside
+    // the wallet and works. Any other shape (zero, several, or a lone provider
+    // that is not window.ethereum) means a plain mobile browser where injected
+    // cannot deep-link, so we route to WalletConnect instead. Desktop is always
+    // fine for injected.
+    function isInAppWallet(list) {
+      if (!IS_MOBILE) return true;
+      if (!list || list.length !== 1) return false;
+      var eth = window.ethereum;
+      return !!(eth && list[0] && list[0].provider === eth);
+    }
+
+    var connectBtn = document.getElementById('connect-btn');
+    var choicesBox = document.getElementById('wallet-choices');
+    function hideWalletChoices() { if (choicesBox) { choicesBox.style.display = 'none'; choicesBox.innerHTML = ''; } }
+    if (connectBtn) {
+      function onConnectError(e) {
+        var m = (e && (e.message || e.toString())) || 'Connection failed';
+        if (e && e.code === 4001) m = 'Signature request rejected in the wallet.';
+        setConnectMsg(m, false);
+        connectBtn.disabled = false;
+        // Always leave a QR escape hatch - covers a browser wallet (e.g. Brave)
+        // that opened but errored out, so the visitor is never dead-ended.
+        offerWalletConnectFallback();
+      }
+      function connectInjected(provider) {
+        setConnectMsg('Waiting for your wallet...', true);
+        // Belt and suspenders (all platforms): race eth_requestAccounts against a
+        // ~4s timeout. If it neither resolves nor rejects, the wallet app almost
+        // certainly never opened (typical on a mobile browser that exposes an
+        // injected provider but cannot deep-link). Never strand the visitor on a
+        // spinning "Waiting for your wallet..." - give them an escape.
+        return new Promise(function(resolve, reject){
+          var settled = false;
+          function finish(fn, v){ if (settled) return; settled = true; fn(v); }
+          provider.request({ method: 'eth_requestAccounts' }).then(function(accounts){
+            var addr = accounts && accounts[0];
+            if (!addr) { finish(reject, new Error('No account selected')); return; }
+            finish(resolve, signChallengeAndVerify(provider, addr));
+          }, function(e){ finish(reject, e); });
+          setTimeout(function(){
+            if (settled) return;
+            if (IS_MOBILE) {
+              // Mobile: the injected request is a dead end - fall back to
+              // WalletConnect, which deep-links the chosen wallet app.
+              setConnectMsg('Opening your wallet... if nothing happens, use ' + WC_BTN_LABEL + ' below.', true);
+              finish(resolve, connectWalletConnect());
+            } else {
+              // Desktop: the extension prompt may still be open, so keep waiting
+              // on the injected request, but surface the QR escape hatch so the
+              // visitor is never trapped.
+              setConnectMsg('Waiting for your wallet... if nothing happens, use ' + WC_BTN_LABEL + ' below.', true);
+              offerWalletConnectFallback();
+            }
+          }, 4000);
+        });
+      }
+      function connectWalletConnect() {
+        // Fail loudly rather than hang if the relay project id is not real - a
+        // placeholder id makes the relay silently reject the pairing.
+        if (!WC_CONFIGURED) {
+          setConnectMsg('Wallet connect is not set up on this server yet. Connect from a desktop browser with a wallet extension, or ask the operator to configure WalletConnect (MORSCAN_WALLETCONNECT_PROJECT_ID).', false);
+          connectBtn.disabled = false;
+          return Promise.resolve();
+        }
+        // WalletConnect: on a phone this deep-links to the wallet app; on desktop
+        // it shows a QR modal. Either way the wallet approves and signs back into
+        // this same browser - no "browse inside your wallet app" detour.
+        setConnectMsg('Opening WalletConnect...', true);
+        return getWalletConnectProvider().then(function(provider){
+          return provider.enable().then(function(){
+            var addr = provider.accounts && provider.accounts[0];
+            if (!addr) throw new Error('No account connected');
+            return signChallengeAndVerify(provider, addr);
+          });
+        });
+      }
+      function offerWalletConnectFallback() {
+        if (!choicesBox || choicesBox.style.display !== 'none') return; // chooser already up
+        choicesBox.innerHTML = '';
+        var wc = document.createElement('button');
+        wc.type = 'button'; wc.className = 'btn secondary';
+        wc.textContent = WC_BTN_LABEL;
+        wc.onclick = function(){ hideWalletChoices(); connectBtn.disabled = true; connectWalletConnect().catch(onConnectError); };
+        choicesBox.appendChild(wc);
+        choicesBox.style.display = '';
+      }
+      function showWalletChooser(list) {
+        if (!choicesBox) { connectBtn.disabled = true; connectWalletConnect().catch(onConnectError); return; }
+        choicesBox.innerHTML = '';
+        list.forEach(function(item){
+          var b = document.createElement('button');
+          b.type = 'button'; b.className = 'btn secondary';
+          b.textContent = 'Connect with ' + ((item.info && item.info.name) || 'browser wallet');
+          // On a plain mobile browser an injected provider cannot deep-link an
+          // external wallet, so route these picks through WalletConnect too;
+          // desktop (and in-app wallet browsers) use the injected provider.
+          var useInjected = !IS_MOBILE || isInAppWallet(list);
+          b.onclick = function(){
+            hideWalletChoices(); connectBtn.disabled = true;
+            (useInjected ? connectInjected(item.provider) : connectWalletConnect()).catch(onConnectError);
+          };
+          choicesBox.appendChild(b);
+        });
+        var wc = document.createElement('button');
+        wc.type = 'button'; wc.className = 'btn secondary';
+        wc.textContent = WC_BTN_LABEL;
+        wc.onclick = function(){ hideWalletChoices(); connectBtn.disabled = true; connectWalletConnect().catch(onConnectError); };
+        choicesBox.appendChild(wc);
+        choicesBox.style.display = '';
+        setConnectMsg('Choose how to connect:', true);
+        connectBtn.disabled = false;
+        var first = choicesBox.querySelector('button'); if (first) first.focus();
+      }
+      connectBtn.onclick = function(){
+        connectBtn.disabled = true;
+        hideWalletChoices();
+        setConnectMsg('Looking for your wallet...', true);
+        discoverInjected().then(function(list){
+          // Mobile browser that is NOT a wallet's own in-app browser: an injected
+          // eth_requestAccounts cannot open an external wallet app (it just
+          // hangs), so go straight to WalletConnect deep-linking.
+          if (IS_MOBILE && !isInAppWallet(list)) { return connectWalletConnect(); }
+          if (!list.length) { return connectWalletConnect(); } // no extension: straight to QR
+          var single = list.length === 1 ? list[0] : null;
+          if (single && !isBraveChoice(single)) { return connectInjected(single.provider); } // one non-Brave wallet: one click
+          // Brave present, or several wallets installed: let the visitor pick so
+          // Brave Wallet never hijacks the flow.
+          showWalletChooser(list);
+        }).catch(onConnectError);
+      };
+    }
+
+    var recheck = document.getElementById('recheck-btn');
+    if (recheck) recheck.onclick = function(){
+      recheck.disabled = true; recheck.textContent = 'Re-checking...';
+      // Reloading re-derives caps from live on-chain stake server-side.
+      location.reload();
+    };
+
+    var disc = document.getElementById('disconnect-btn');
+    if (disc) disc.onclick = function(){
+      Modal.confirm({
+        title: 'Disconnect wallet',
+        message: 'Your API key keeps working. Reconnect anytime to manage it.',
+        confirmText: 'Disconnect',
+      }).then(function(ok){
+        if (!ok) return;
+        disc.disabled = true;
+        post('/console/wallet/disconnect').then(function(){ location.href = '/console'; });
+      });
+    };
+
+    var create = document.getElementById('create-btn');
+    if (create) create.onclick = function(){
+      create.disabled = true;
+      post('/console/key').then(function(r){
+        if (r.ok && r.j.key) { showKey(r.j.key); setMsg('Key created.', true); }
+        else setMsg(r.j.error || 'Could not create the key.', false);
+        create.disabled = false;
+      });
+    };
+    var rot = document.getElementById('rotate-btn');
+    if (rot) rot.onclick = function(){
+      Modal.confirm({
+        title: 'Rotate key',
+        message: 'A fresh key is issued and the old value stops working immediately. Update your clients after rotating.',
+        confirmText: 'Rotate key',
+      }).then(function(ok){
+        if (!ok) return;
+        rot.disabled = true;
+        post('/console/key').then(function(r){
+          if (r.ok && r.j.key) { showKey(r.j.key); setMsg('Key rotated. Update your clients.', true); }
+          else setMsg(r.j.error || 'Could not rotate the key.', false);
+          rot.disabled = false;
+        });
+      });
+    };
+    var rev = document.getElementById('revoke-btn');
+    if (rev) rev.onclick = function(){
+      Modal.confirm({
+        title: 'Delete API key',
+        message: 'The key is deleted and stops working immediately. You stay signed in and can create a new key here anytime. This cannot be undone.',
+        confirmText: 'Delete key',
+        danger: true,
+      }).then(function(ok){
+        if (!ok) return;
+        rev.disabled = true;
+        post('/console/key/revoke').then(function(r){
+          if (r.ok) {
+            var kv = document.getElementById('keyval');
+            kv.setAttribute('data-key', '');
+            _keyRevealed = false;
+            paintKey();
+            document.getElementById('key-present').style.display = 'none';
+            document.getElementById('key-absent').style.display = 'block';
+            var uc = document.getElementById('usage-card'); if (uc) uc.style.display = 'none';
+            var cc = document.getElementById('capacity-card'); if (cc) cc.style.display = 'none';
+            setMsg('Key deleted. You are still signed in; create a new key anytime.', true);
+          } else setMsg(r.j.error || 'Could not delete the key.', false);
+          rev.disabled = false;
+        });
+      });
+    };
+    var copy = document.getElementById('copy-btn');
+    if (copy) copy.onclick = function(){
+      var k = document.getElementById('keyval').getAttribute('data-key') || '';
+      navigator.clipboard.writeText(k).then(function(){ setMsg('Copied.', true); });
+    };
+
+    // ── Secondary key sign-in (returning key holders / SSO identities) ──
+    var keyToggle = document.getElementById('key-toggle');
+    if (keyToggle) keyToggle.onclick = function(){
+      var p = document.getElementById('key-signin');
+      var open = p.style.display !== 'none';
+      p.style.display = open ? 'none' : 'block';
+      if (!open) document.getElementById('signin-key').focus();
+    };
+    function setSigninMsg(t, ok) { var m = document.getElementById('signin-msg'); m.textContent = t; m.className = 'msg ' + (ok ? 'ok' : 'err'); }
+    function keySignIn() {
+      var btn = document.getElementById('signin-btn');
+      var key = (document.getElementById('signin-key').value || '').trim();
+      if (!key || key.indexOf('mor_') !== 0) { setSigninMsg('Invalid key format. Keys start with mor_', false); return; }
+      btn.disabled = true;
+      fetch('/login', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key: key, return: RETURN || '/console' }),
+      }).then(function(r){ return r.json().then(function(j){ return { ok: r.ok, j: j }; }); }).then(function(res){
+        if (res.ok && res.j.ok) { location.href = res.j.redirect || '/console'; }
+        else { setSigninMsg(res.j.error || 'Invalid API key', false); btn.disabled = false; }
+      }).catch(function(){ setSigninMsg('Connection error. Try again.', false); btn.disabled = false; });
+    }
+    var signinBtn = document.getElementById('signin-btn');
+    if (signinBtn) signinBtn.onclick = keySignIn;
+    var signinInput = document.getElementById('signin-key');
+    if (signinInput) signinInput.addEventListener('keydown', function(e){ if (e.key === 'Enter') keySignIn(); });
+
+    // The connect-view market widget (live price + interactive hover chart +
+    // timeframe pills + network stats) is the shared price widget injected via
+    // the price-widget partial (src/ui/price-widget.html). It carries its own script and
+    // skips itself when the connect view is hidden (signed-in state).
+
+    // ── Run-a-query demo ──
+    // "Run query" makes a REAL metered data call (GET /mor/v1/holders?limit=1)
+    // with the signed-in key: it returns live data and spends one call off the
+    // day/month quota. Then it reads /mor/v1/capacity - a FREE, IP-limited
+    // introspection call that never spends quota - to show remaining. "Check
+    // capacity" does just the free read. Readout bars show remaining/limit:
+    // green normally, amber near empty, red when spent.
+    (function(){
+      var runBtn = document.getElementById('cap-run');
+      if (!runBtn) return;
+      var curlEl = document.getElementById('cap-curl');
+      var copyBtn = document.getElementById('cap-copy');
+      var statusEl = document.getElementById('cap-status');
+      var jsonEl = document.getElementById('cap-json');
+      var capFmt = function(n){ return (n || 0).toLocaleString('en-US'); };
+      var DATA_PATH = '/mor/v1/holders?limit=1';
+
+      function curKey(){ var k = document.getElementById('keyval'); return ((k && k.getAttribute('data-key')) || '').trim(); }
+      // Displayed curl masks the key; Copy writes the full working command.
+      function buildCurl(full){
+        var k = curKey();
+        var shown = k ? (full ? k : maskKey(k)) : 'mor_...';
+        return 'curl -s ' + location.origin + DATA_PATH + ' -H "X-Morscan-Key: ' + shown + '"';
+      }
+      function refreshCurl(){ if (curlEl) curlEl.textContent = buildCurl(false); }
+      window.refreshCapCurl = refreshCurl;
+      refreshCurl();
+
+      if (copyBtn) copyBtn.onclick = function(){
+        navigator.clipboard.writeText(buildCurl(true)).then(function(){
+          copyBtn.textContent = 'Copied'; setTimeout(function(){ copyBtn.textContent = 'Copy'; }, 1400);
+        }).catch(function(){});
+      };
+
+      function paint(barId, valId, w){
+        var bar = document.getElementById(barId), val = document.getElementById(valId);
+        if (!bar || !val || !w) return;
+        var pct = w.limit > 0 ? Math.max(0, Math.min(100, (w.remaining / w.limit) * 100)) : 0;
+        bar.style.width = pct + '%';
+        bar.className = 'bar-fill' + (w.remaining <= 0 ? ' over' : (pct <= 20 ? ' near' : ''));
+        val.innerHTML = capFmt(w.remaining) + ' <span class="cap-left">left</span> <span class="cap-of">/ ' + capFmt(w.limit) + '</span>';
+      }
+
+      // Free capacity read (IP-limited, spends nothing) - paints remaining.
+      function loadCapacity(){
+        return fetch('/mor/v1/capacity', { headers: { 'X-Morscan-Key': curKey(), 'Accept': 'application/json' } })
+          .then(function(r){ return r.json(); })
+          .then(function(j){
+            if (j && j.perMin) { paint('cap-min-bar', 'cap-min', j.perMin); paint('cap-day-bar', 'cap-day', j.today); paint('cap-month-bar', 'cap-month', j.month); }
+            return j;
+          }).catch(function(){ return null; });
+      }
+
+      // Paint remaining straight from the metered response's X-RateLimit-* headers
+      // (fresh per call, no cache), so every Run query visibly ticks per-minute,
+      // today, and month. Painting BOTH the query bars AND the top USAGE & LIMITS
+      // card from these SAME numbers keeps the two sections in lockstep. Returns
+      // false if the headers are absent (e.g. a high-limit key), so the caller can
+      // fall back to the free /capacity + /usage reads.
+      function paintFromHeaders(h){
+        if (!h) return false;
+        var dRem = h.get('X-RateLimit-Remaining-Day'), dLim = h.get('X-RateLimit-Limit-Day');
+        var mRem = h.get('X-RateLimit-Remaining-Month'), mLim = h.get('X-RateLimit-Limit-Month');
+        if (dRem === null || mRem === null) return false;
+        var pmRem = h.get('X-RateLimit-Remaining'), pmLim = h.get('X-RateLimit-Limit');
+        dRem = +dRem; dLim = +dLim || 0; mRem = +mRem; mLim = +mLim || 0; pmLim = +pmLim || 0;
+        if (pmRem !== null) paint('cap-min-bar', 'cap-min', { remaining: +pmRem, limit: pmLim });
+        paint('cap-day-bar', 'cap-day', { remaining: dRem, limit: dLim });
+        paint('cap-month-bar', 'cap-month', { remaining: mRem, limit: mLim });
+        var uDay = document.getElementById('u-day'), uMonth = document.getElementById('u-month'), uRate = document.getElementById('u-rate');
+        if (uDay) uDay.innerHTML = capFmt(dLim - dRem) + ' <span class="cap">/ ' + capFmt(dLim) + ' calls</span>';
+        if (uMonth) uMonth.innerHTML = capFmt(mLim - mRem) + ' <span class="cap">/ ' + capFmt(mLim) + ' calls</span>';
+        if (uRate && pmLim) uRate.textContent = capFmt(pmLim);
+        if (typeof paintBar === 'function') {
+          var udb = document.getElementById('u-day-bar'), umb = document.getElementById('u-month-bar');
+          if (udb) paintBar(udb, dLim - dRem, dLim);
+          if (umb) paintBar(umb, mLim - mRem, mLim);
+        }
+        return true;
+      }
+
+      runBtn.onclick = function(){
+        runBtn.disabled = true;
+        statusEl.className = 'cap-status pending';
+        statusEl.textContent = 'Calling GET ' + DATA_PATH + ' ...';
+        var t0 = Date.now();
+        fetch(DATA_PATH, { headers: { 'X-Morscan-Key': curKey(), 'Accept': 'application/json' } })
+          .then(function(r){ return r.text().then(function(t){ var j; try { j = JSON.parse(t); } catch (e) { j = { raw: t }; } return { status: r.status, ok: r.ok, j: j, headers: r.headers }; }); })
+          .then(function(res){
+            var ms = Date.now() - t0;
+            jsonEl.textContent = JSON.stringify(res.j, null, 2);
+            if (res.status === 429) {
+              statusEl.className = 'cap-status err';
+              var ra = (res.j && (res.j.retryAfter || res.j.retry_after)) || 60;
+              statusEl.textContent = 'HTTP 429 - ' + ((res.j && res.j.error) || 'Rate limit exceeded') + ' Quota spent; resets in ' + ra + 's, or stake MOR to raise it.';
+            } else if (res.ok) {
+              statusEl.className = 'cap-status ok';
+              statusEl.textContent = 'HTTP ' + res.status + ' in ' + ms + 'ms - live data returned. One call spent.';
+            } else {
+              statusEl.className = 'cap-status err';
+              statusEl.textContent = 'HTTP ' + res.status + ' - ' + ((res.j && res.j.error) || 'error');
+            }
+            // Fresh, header-driven update; fall back to the free reads only if the
+            // rate headers were not present on this response.
+            if (!paintFromHeaders(res.headers)) {
+              loadCapacity();
+              if (typeof loadUsage === 'function') loadUsage();
+            }
+          })
+          .then(function(){ runBtn.disabled = false; })
+          .catch(function(e){
+            statusEl.className = 'cap-status err';
+            statusEl.textContent = 'Request failed: ' + ((e && e.message) || e);
+            runBtn.disabled = false;
+          });
+      };
+
+      // Capacity bars are always live: populate on load when a key is present,
+      // and re-read after each Run query (above) and after create/rotate.
+      window.refreshCapacity = function(){ if (curKey()) loadCapacity(); };
+      window.refreshCapacity();
+
+      // Key created/rotated after load updates #keyval - keep the curl current
+      // and refresh the live capacity bars for the new key.
+      ['create-btn', 'rotate-btn'].forEach(function(id){
+        var b = document.getElementById(id);
+        if (b) b.addEventListener('click', function(){ setTimeout(function(){ refreshCurl(); window.refreshCapacity(); }, 500); });
+      });
+    })();
+  </script>
+</body>
+</html>

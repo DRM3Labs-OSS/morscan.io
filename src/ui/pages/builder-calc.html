@@ -1,0 +1,111 @@
+<style>
+  .calc-section { background: var(--bg-secondary); border: 1px solid var(--border); padding: 1.5rem; margin-bottom: 1.5rem; }
+  .calc-section h3 { font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-muted); margin-bottom: 1rem; }
+  .calc-row { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.75rem; flex-wrap: wrap; }
+  .calc-label { font-size: 0.65rem; color: var(--text-muted); min-width: 100px; text-transform: uppercase; letter-spacing: 0.05em; flex-shrink: 0; }
+  .calc-input {
+    background: var(--bg-primary); border: 1px solid var(--border); color: var(--text-primary);
+    font-family: inherit; font-size: 1rem; padding: 0.5rem 0.75rem; width: 180px;
+    font-variant-numeric: tabular-nums;
+  }
+  .calc-input:focus { border-color: var(--green); outline: none; }
+  .calc-result { font-size: 1.1rem; font-weight: 700; color: var(--green); font-variant-numeric: tabular-nums; }
+  .calc-dim { font-size: 0.7rem; color: var(--text-muted); }
+  .calc-divider { border-top: 1px solid var(--border); margin: 1rem 0; }
+  .calc-note { font-size: 0.65rem; color: var(--text-muted); line-height: 1.5; }
+  .section-title { font-size: 0.75rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 0.75rem; }
+  .explainer { background: var(--bg-secondary); border: 1px solid var(--border); padding: 1rem; margin-bottom: 1rem; }
+  .explainer h3 { font-size: 0.75rem; font-weight: 600; margin-bottom: 0.5rem; }
+  .explainer p { font-size: 0.65rem; color: var(--text-muted); line-height: 1.6; margin-bottom: 0.3rem; }
+  @media (max-width: 600px) { .calc-input { width: 140px; } .calc-result { font-size: 0.95rem; } }
+</style>
+
+<div class="section-title">Emissions Calculator</div>
+<div class="calc-section">
+  <h3>Subnet Emissions</h3>
+  <div class="calc-note" style="margin-bottom:1rem;">How much of the daily MOR emissions pool flows to a subnet based on total MOR staked toward it.</div>
+  <div class="calc-row">
+    <span class="calc-label">MOR Staked</span>
+    <input type="number" class="calc-input" id="calc-stake" placeholder="1000" value="1000" min="0">
+    <span class="calc-dim">on this subnet</span>
+  </div>
+  <div class="calc-divider"></div>
+  <div class="calc-row">
+    <span class="calc-label">Subnet gets</span>
+    <span class="calc-result" id="calc-daily">-</span>
+    <span class="calc-dim">MOR / day to its liquidity pool</span>
+  </div>
+  <div class="calc-row">
+    <span class="calc-label">Weekly</span>
+    <span class="calc-result" id="calc-weekly">-</span>
+    <span class="calc-dim">MOR / week</span>
+  </div>
+  <div class="calc-row">
+    <span class="calc-label">Yearly</span>
+    <span class="calc-result" id="calc-yearly">-</span>
+    <span class="calc-dim">MOR / year</span>
+  </div>
+  <div class="calc-row">
+    <span class="calc-label">Pool share</span>
+    <span class="calc-result" id="calc-share">-</span>
+    <span class="calc-dim">of builder emissions</span>
+  </div>
+  <div class="calc-divider"></div>
+  <div class="calc-row">
+    <span class="calc-label">Total pool</span>
+    <span style="font-size:0.85rem;font-weight:600;color:var(--text-primary);" id="calc-pool">-</span>
+    <span class="calc-dim">MOR staked across all subnets</span>
+  </div>
+  <div class="calc-note" style="margin-top:0.75rem;">
+    The network's builder emissions pool is currently <strong style="color:var(--green)">~{{DAILY_EMISSIONS}} MOR/day</strong> (set by the protocol).
+    Each subnet's share = MOR staked on it / total MOR staked. 7-day withdrawal lock.
+  </div>
+</div>
+
+<div class="section-title">How It Works</div>
+<div class="explainer"><h3>For Stakers</h3><p>You stake MOR on a builder subnet. Your MOR is locked for 7 days. You earn the builder's <strong style="color:var(--text-primary)">native project tokens</strong>, not MOR. Each project decides its own distribution schedule. Some distribute immediately, others have a bootstrap period.</p></div>
+<div class="explainer"><h3>For Builders</h3><p>When people stake MOR on your subnet, your project earns a proportional share of the network's builder emissions pool (currently ~{{DAILY_EMISSIONS}} MOR/day, set by the protocol). Those MOR emissions go to your project's <strong style="color:var(--text-primary)">AMM liquidity pool</strong> (50% swapped for your token, paired as protocol-owned liquidity).</p></div>
+<div class="explainer"><h3>Staking vs Inference</h3><p><strong style="color:var(--text-primary)">Holding MOR</strong> = compute access (stake MOR to open AI inference sessions).<br><strong style="color:var(--text-primary)">Staking on builders</strong> = supporting projects and earning their tokens. These are separate mechanisms.</p></div>
+
+<script>
+(async () => {
+  function fmtCommas(s) { var parts = String(s).split('.'); parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ','); return parts.join('.'); }
+
+  var totalStaked = 0;
+  var dailyEmissions = {{DAILY_EMISSIONS}}; // fallback; API returns current decayed value
+
+  try {
+    var resp = await fetch('/mor/v1/builder/stats', { headers: { 'X-Morscan-Key': window.MORSCAN_API_KEY || '' } });
+    if (resp.ok) {
+      var stats = await resp.json();
+      totalStaked = parseFloat(stats.totalDeposited.replace(/,/g, '')) || 0;
+      dailyEmissions = stats.dailyEmissions || {{DAILY_EMISSIONS}};
+      document.getElementById('calc-pool').textContent = `${fmtCommas(stats.totalDeposited)} MOR`;
+
+      // Stat bar
+      var sbSubnets = document.getElementById('stat-bar-subnets');
+      var sbStaked = document.getElementById('stat-bar-staked');
+      var sbAllPools = document.getElementById('stat-bar-all-pools');
+      var sbApr = document.getElementById('stat-bar-apr');
+      if (sbSubnets) sbSubnets.textContent = stats.subnetCount;
+      if (sbStaked) sbStaked.textContent = `${fmtCommas(stats.totalDeposited)} MOR`;
+      if (sbAllPools) sbAllPools.textContent = stats.allPoolsTotal ? `${fmtCommas(stats.allPoolsTotal)} MOR` : '-';
+      if (sbApr) sbApr.textContent = stats.apr;
+    }
+  } catch(_e) {}
+
+  function updateCalc() {
+    var stake = parseFloat(document.getElementById('calc-stake').value) || 0;
+    var total = totalStaked + stake;
+    var share = total > 0 ? stake / total : 0;
+    var daily = share * dailyEmissions;
+    document.getElementById('calc-daily').textContent = daily.toFixed(4);
+    document.getElementById('calc-weekly').textContent = (daily * 7).toFixed(4);
+    document.getElementById('calc-yearly').textContent = fmtCommas((daily * 365).toFixed(2));
+    document.getElementById('calc-share').textContent = `${(share * 100).toFixed(4)}%`;
+  }
+
+  document.getElementById('calc-stake').addEventListener('input', updateCalc);
+  updateCalc();
+})();
+</script>

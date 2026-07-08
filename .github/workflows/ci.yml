@@ -1,0 +1,54 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check:
+    name: typecheck + lint + format + build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: install
+        run: npm ci
+
+      - name: generate build info
+        run: node scripts/stamp-build.mjs
+
+      - name: typecheck
+        run: npm run typecheck
+
+      - name: lint
+        run: npm run lint
+
+      - name: format check
+        run: npm run format:check
+
+      - name: unit tests
+        run: npm run test:unit
+
+      - name: build
+        run: npm run build
+
+      - name: no em/en dashes in tracked text
+        run: |
+          # Hard house rule: zero em (U+2014), en (U+2013), or minus (U+2212)
+          # dashes anywhere in tracked text. Vendored/minified/binary assets are
+          # excluded. A hit fails the build; use a hyphen or reword.
+          hits=$(git grep -nP '[\x{2013}\x{2014}\x{2212}]' -- \
+            ':!*.png' ':!*.ttf' ':!*.wasm' ':!package-lock.json' \
+            ':!src/ui/wc-provider.txt' ':!src/ui/sw.txt' || true)
+          if [ -n "$hits" ]; then
+            echo "Found em/en/minus dashes (use a hyphen or reword):"
+            echo "$hits"
+            exit 1
+          fi
+          echo "Clean: no em/en/minus dashes."

@@ -1,0 +1,296 @@
+<script>
+var F = window.__FATBOY__ || {};
+var K = window.MORSCAN_API_KEY || '';
+var SF = F.economics?.stakingFactor || 0.00315;
+var MODELS = F.models || {};
+var BASESCAN = 'https://basescan.org/address/';
+var allSessions = (F.consumers?.sessions || []);
+
+function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+function short(a) { return a ? `${a.slice(0,6)}...${a.slice(-4)}` : '-'; }
+function fmt(n) { return new Intl.NumberFormat().format(n); }
+function fmtTime(ts) { if (!ts) return '-'; const d=Math.floor((Date.now()/1000)-ts); return d<60?`${d}s ago`:d<3600?`${Math.floor(d/60)}m ago`:d<86400?`${Math.floor(d/3600)}h ago`:`${Math.floor(d/86400)}d ago`; }
+function parseDomain(ep) { if(!ep)return null; try{const h=ep.replace(/^https?:\/\//,'').split(':')[0].split('/')[0]; if(/^\d{1,3}(\.\d{1,3}){3}$/.test(h))return h; const p=h.split('.'); return p.length>=2?p.slice(-2).join('.'):h;}catch(e){return null;} }
+// Compute MOR to stake for 1 hour from price_per_second (wei) and staking factor
+function _hourlyMor(pps) {
+  if (!pps) return '-';
+  var pricePerSec = parseFloat(pps) / 1e18; // wei to MOR
+  var morPerHour = pricePerSec * 3600;
+  if (morPerHour <= 0 || SF <= 0) return '-';
+  var stake = morPerHour / SF;
+  return stake < 1 ? stake.toFixed(2) : Math.ceil(stake).toLocaleString();
+}
+function _morPerDay(pps) {
+  if (!pps) return '-';
+  var rate = (parseFloat(pps) / 1e18) * 86400;
+  return rate < 1 ? rate.toFixed(4) : rate.toFixed(2);
+}
+function modelName(id) { return MODELS[id] || (id ? `${id.slice(0,10)}...` : '-'); }
+function apiFetch(url) { return fetch(url, { headers: { 'X-Morscan-Key': K } }); }
+
+// ─── Network ───
+function renderNetwork() {
+  var e = F.economics || {}, s = F.sync || {};
+  // Economics
+  document.getElementById('econ-compute').textContent = fmt(Math.floor(e.computeBalance||0));
+  document.getElementById('econ-supply').textContent = fmt(Math.floor(e.totalMorSupply||0));
+  document.getElementById('econ-factor').textContent = (e.stakingFactor||0).toFixed(6);
+  document.getElementById('econ-example').textContent = `~${((e.stakingFactor||0)*100).toFixed(2)}`;
+  // Sync bar populated by shared layout script
+}
+
+// ─── Providers ───
+function renderProviders() {
+  // Build provider lookup for endpoints + bid counts
+  var provInfo = {};
+  (F.providers||[]).forEach((p)=> { provInfo[p.address] = { endpoint: p.endpoint, bidCount: p.bidCount||0, activeSessions: p.activeSessions||0 }; });
+
+  // Leaderboard - honest about what "active" means
+  var html = '<div class="lb-head"><span class="lb-title">Top Providers <span style="color:var(--text-muted);font-size:0.65rem;text-transform:none;letter-spacing:0.02em">ranked by live bids, then active sessions</span></span></div><div class="lb-scroll"><table class="lb-table"><thead><tr><th>#</th><th>Provider</th><th class="num">Models</th><th class="num">Sessions</th><th class="num">Offline</th><th class="num">All Time</th></tr></thead><tbody>';
+  var sorted = (F.leaderboard?.providers?.allTime||[]).slice().sort((a,b)=> {
+    var aInfo = provInfo[a.provider]||{};
+    var bInfo = provInfo[b.provider]||{};
+    // Providers with active bids first, then by active sessions
+    if ((aInfo.bidCount||0) > 0 && (bInfo.bidCount||0) === 0) return -1;
+    if ((aInfo.bidCount||0) === 0 && (bInfo.bidCount||0) > 0) return 1;
+    return (b.active_now||0) - (a.active_now||0);
+  });
+  sorted.slice(0,15).forEach((p,i)=> {
+    var info = provInfo[p.provider]||{};
+    var active = p.active_now||0;
+    var hasBids = (info.bidCount||0) > 0;
+    var ep = (info.endpoint||'').replace(/^https?:\/\//,'').replace(/:\d+$/,'').replace(/\/+$/,'');
+    // "Serving" = provider has bids, sessions are live. "Not Serving" = bids retracted.
+    var servingCol = hasBids ? active : 0;
+    var notServingCol = hasBids ? 0 : active;
+    html+=`<tr data-href="/compute/providers/${p.provider}"><td class="rank${i<3?' top':''}">${i+1}</td>`;
+    html+=`<td><a href="/compute/providers/${p.provider}"><span class="addr-full">${esc(p.provider)}</span><span class="addr-short">${short(p.provider)}</span></a> <a href="${BASESCAN}${p.provider}" target="_blank" onclick="event.stopPropagation()" style="color:var(--text-muted);font-size:0.65rem;">↗</a>${ep?`<br><span style="font-size:0.65rem;color:var(--cyan);">${esc(ep)}</span>`:''}</td>`;
+    html+=`<td class="num${hasBids?' green':''}">${info.bidCount||0}</td>`;
+    html+=`<td class="num${servingCol>0?' green':''}">${servingCol}</td>`;
+    html+=`<td class="num">${notServingCol>0?`<span style="color:var(--yellow)">${notServingCol}</span>`:'0'}</td>`;
+    html+=`<td class="num">${(p.sessions||0).toLocaleString()}</td></tr>`;
+  });
+  html+='</tbody></table></div>';
+  document.getElementById('prov-lb').innerHTML=html;
+
+  // Provider cards - sorted: active bids first, then by active sessions
+  var list=document.getElementById('provider-list');
+  list.innerHTML='';
+  var providers = (F.providers||[]).slice().sort((a,b)=> {
+    if ((a.bidCount||0) > 0 && (b.bidCount||0) === 0) return -1;
+    if ((a.bidCount||0) === 0 && (b.bidCount||0) > 0) return 1;
+    return (b.activeSessions||0) - (a.activeSessions||0);
+  });
+  providers.forEach((p)=> {
+    var domain=parseDomain(p.endpoint);
+    var bids=p.bids||[];
+    var hasBids = bids.length > 0;
+    var totalActive = p.activeSessions||0;
+    var card=document.createElement('div');card.className='provider-card';
+    if (!hasBids) card.style.opacity = '0.7';
+
+    var bidsHtml='<div style="display:grid;grid-template-columns:1fr auto auto;gap:0.5rem 1rem;font-size:0.65rem;align-items:center;">';
+    bidsHtml+='<div style="color:var(--text-muted);font-size:0.65rem;text-transform:uppercase;">Model</div><div style="color:var(--text-muted);font-size:0.65rem;text-transform:uppercase;text-align:right;">Live Sessions</div><div style="color:var(--text-muted);font-size:0.65rem;text-transform:uppercase;text-align:right;">Lock 1 Hour</div>';
+    bids.forEach((b)=> {
+      var bActive=b.active_sessions||0;
+      bidsHtml+=`<div style="color:var(--text-primary);font-weight:500;">${esc(modelName(b.model_id))}</div>`;
+      bidsHtml+=`<div style="text-align:right;${bActive>0?'color:var(--green);font-weight:600;':'color:var(--text-muted);'}">${bActive}</div>`;
+      bidsHtml+=`<div style="text-align:right;color:var(--mor);font-weight:600;">${b.hourlyStake?`${b.hourlyStake} MOR`:'-'}</div>`;
+    });
+    bidsHtml+='</div>';
+
+    // Honest status with same data as leaderboard columns
+    var statusHtml = '';
+    if (hasBids && totalActive > 0) {
+      statusHtml = `<div style="color:var(--green);font-weight:600;font-size:0.7rem;">${totalActive} sessions</div>`;
+    } else if (!hasBids && totalActive > 0) {
+      statusHtml = `<div style="color:var(--yellow);font-size:0.65rem;">${totalActive} zombie · MOR in escrow</div>`;
+    }
+    var bidLabel = hasBids ? `<div class="bid-count">${bids.length} model${bids.length!==1?'s':''}</div>` : '<div style="background:rgba(250,204,21,0.15);color:var(--yellow);padding:0.2rem 0.5rem;font-size:0.65rem;font-weight:600;">OFFLINE</div>';
+
+    card.innerHTML=`<div class="provider-header"${hasBids?' data-expandable':''}>${domain?`<div class="provider-info"><div class="provider-domain">${esc(domain)}</div><div class="provider-address"><a href="/compute/providers/${p.address}"><span class="addr-full">${esc(p.address)}</span><span class="addr-short">${short(p.address)}</span></a> <a href="${BASESCAN}${p.address}" target="_blank" style="color:var(--text-muted);font-size:0.65rem;">↗</a></div><div class="provider-endpoint">${esc(p.endpoint||'')}</div></div>`:`<div class="provider-info"><div class="provider-address"><a href="/compute/providers/${p.address}"><span class="addr-full">${esc(p.address)}</span><span class="addr-short">${short(p.address)}</span></a></div></div>`}<div class="provider-meta">${statusHtml}${bidLabel}${hasBids?'<div class="expand-icon">▼</div>':''}</div></div>${hasBids?`<div class="bids-panel">${bidsHtml}</div>`:''}`;
+    list.appendChild(card);
+  });
+}
+
+// ─── Consumers ───
+var consSort='total_sessions', consSortDir=1, consTab='allTime';
+function renderConsumerTable() {
+  var data=(consTab==='allTime'?F.leaderboard?.wallets?.allTime:F.leaderboard?.wallets?.weekly)||[];
+  var rows=data.slice().sort((a,b)=> {
+    var av=consSort==='active_stake'?Math.floor(a.active_stake||0):a[consSort]||0;
+    var bv=consSort==='active_stake'?Math.floor(b.active_stake||0):b[consSort]||0;
+    return consSortDir*(bv-av);
+  });
+  var cols=[{key:'total_sessions',label:'All Time'},{key:'serving',label:'By Model'},{key:'zombie',label:'Zombie'},{key:'active_stake',label:'MOR Locked'}];
+  var _rlbl=(cols.find(function(c){return c.key===consSort;})||{}).label||'';
+  var html='<div class="lb-head"><span class="lb-title">Top Consumer Wallets <span style="color:var(--text-muted);font-size:0.65rem;text-transform:none;letter-spacing:0.02em">ranked by '+_rlbl+(consSortDir>0?' (high to low)':' (low to high)')+' - click columns to re-rank</span></span><div class="lb-tabs"><button type="button" class="lb-tab'+(consTab==='allTime'?' active':'')+'" onclick="consTab=\'allTime\';renderConsumerTable()">All Time</button><button type="button" class="lb-tab'+(consTab==='weekly'?' active':'')+'" onclick="consTab=\'weekly\';renderConsumerTable()">Weekly</button></div></div>';
+  html+='<div class="lb-scroll"><table class="lb-table"><thead><tr><th>#</th><th>Wallet</th>';
+  cols.forEach((c)=> { var arrow=consSort===c.key?(consSortDir>0?' ↓':' ↑'):''; var as=consSort===c.key?` aria-sort="${consSortDir>0?'descending':'ascending'}"`:''; html+=`<th class="num" onclick="sortCons('${c.key}')"${as}>${c.label}<span class="sort-arrow">${arrow}</span></th>`; });
+  html+='</tr></thead><tbody>';
+  rows.slice(0,20).forEach((w,i)=> {
+    var serving=w.serving||0, zombie=w.zombie||0, stake=Math.floor(w.active_stake||0);
+    html+=`<tr data-href="/compute/consumers/wallet/${w.wallet}"><td class="rank${i<3?' top':''}">${i+1}</td><td><a href="/compute/consumers/wallet/${w.wallet}"><span class="addr-full">${esc(w.wallet)}</span><span class="addr-short">${short(w.wallet)}</span></a> <a href="/compute/consumers/wallet/${w.wallet}" onclick="event.stopPropagation()" style="color:var(--cyan);font-size:0.65rem;margin-left:0.3rem;">detail</a> <a href="${BASESCAN}${w.wallet}" target="_blank" onclick="event.stopPropagation()" style="color:var(--text-muted);font-size:0.65rem;">↗</a></td><td class="num">${fmt(w.total_sessions||0)}</td><td class="num${serving>0?' green':''}">${serving}</td><td class="num">${zombie>0?`<span style="color:var(--yellow)">${zombie}</span>`:'0'}</td><td class="num mor">${fmt(stake)}</td></tr>`;
+  });
+  html+='</tbody></table></div>';
+  document.getElementById('cons-lb').innerHTML=html;
+}
+function sortCons(key) { if(consSort===key){consSortDir*=-1;}else{consSort=key;consSortDir=1;} renderConsumerTable(); }
+function renderConsumers() {
+  renderConsumerTable();
+  // Gas
+  var g=F.gas||{};
+  if(g.gas?.perSessionLifecycle?.avgEth){document.getElementById('gas-cost').textContent=`${(g.gas.perSessionLifecycle.avgEth).toFixed(6)} ETH`;document.getElementById('gas-usd').textContent=`$${(g.gas.perSessionLifecycle.avgEth*2100).toFixed(3)}`;}
+  if(g.sessions?.avgDurationMins)document.getElementById('gas-dur').textContent=`${g.sessions.avgDurationMins} min`;
+  // Active wallets - use leaderboard data (consistent with the table above)
+  var wg=document.getElementById('wallets-grid');wg.innerHTML='';
+  var wallets=(F.leaderboard?.wallets?.allTime||[]).filter((w)=> (w.serving||0)>0);
+  if(!wallets.length){wg.innerHTML='<div style="padding:1rem;color:var(--text-muted);">No wallets with active sessions</div>';} else {
+    wallets.slice(0,6).forEach((w)=> {var c=document.createElement('div');c.className='wallet-card';c.setAttribute('data-href',`/compute/consumers/wallet/${w.wallet}`);c.innerHTML=`<div class="wallet-addr">${esc(short(w.wallet))}</div><div class="wallet-stats"><span>Sessions: <span class="wallet-stat-val" style="color:var(--green)">${w.serving||0}</span></span><span>MOR: <span class="wallet-stat-val" style="color:var(--mor)">${fmt(Math.floor(w.active_stake||0))}</span></span></div>`;wg.appendChild(c);});
+  }
+  filterSessions();
+}
+var sessFilter='active';
+function setSessFilter(f){sessFilter=f;document.querySelectorAll('.sess-f').forEach((b)=> {var on=b.getAttribute('data-f')===f;b.classList.toggle('active',on);b.setAttribute('aria-pressed',on?'true':'false');});filterSessions();}
+function filterSessions(){
+  var f=sessFilter;
+  var filtered=allSessions;
+  if(f==='active')filtered=allSessions.filter((s)=> s.is_active);
+  else if(f==='closed')filtered=allSessions.filter((s)=> !s.is_active);
+  var list=document.getElementById('sessions-list');list.innerHTML='';
+  if(!filtered.length){list.innerHTML='<div style="padding:1rem;color:var(--text-muted);">No sessions</div>';return;}
+  filtered.slice(0,20).forEach((s)=> {
+    var mor=(s.stake&&s.stake!=='0')?(Number(BigInt(s.stake))/1e18).toFixed(2):'0';
+    var badge=s.is_active?'<span class="badge badge-active">Active</span>':'<span class="badge badge-closed">Closed</span>';
+    var c=document.createElement('div');c.className='session-card';
+    c.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center;"><span style="font-size:0.7rem;font-weight:500;">${esc(modelName(s.model_id))}</span>${badge}</div><div style="display:flex;gap:0.75rem;margin-top:0.2rem;font-size:0.65rem;"><a href="/compute/consumers/wallet/${s.user_address}" style="color:var(--cyan);">${esc(short(s.user_address))}</a><span style="color:var(--mor);">${mor} MOR</span><span style="color:var(--text-muted);margin-left:auto;">${fmtTime(s.opened_at)}</span></div>`;
+    list.appendChild(c);
+  });
+}
+
+// ─── Sessions view (/compute/sessions) ───
+// Seeds instantly from the fatboy blob (same 20 rows the consumers tab shows),
+// then lazily upgrades to the paged /mor/v1/sessions feed the first time the
+// view is shown - no extra API load for visitors who never open this tab.
+// Browse cap: 10 pages x 100 rows = 1,000 sessions in the UI, then a friendly
+// notice points at the filters, the API, and the open dataset. The cap always
+// lands BEFORE the per-minute rate budget can (10 paging calls << 60/min), so
+// a normal browser never sees a raw 429 mid-scroll.
+var SX_PAGE_LIMIT=100,SX_MAX_PAGES=10;
+var sxRows=allSessions.map(sxNorm),sxFilter='all',sxModel='all',sxPage=0,sxHasMore=false,sxLoading=false,sxLoaded=false,sxTotal=0,sxActive=0;
+function sxNorm(s){return{model:s.model_id||s.modelId||'',prov:s.provider||'',user:s.user_address||s.userAddress||'',stake:s.stake||'0',active:s.is_active!=null?!!s.is_active:!!s.isActive,opened:s.opened_at||s.openedAt||0,closed:s.closed_at||s.closedAt||0}}
+function sxDur(s){var end=s.active?Math.floor(Date.now()/1000):(s.closed||s.opened);var d=Math.max(0,end-(s.opened||end));if(!s.opened)return '-';if(d<60)return d+'s';if(d<3600)return Math.floor(d/60)+'m';if(d<86400)return Math.floor(d/3600)+'h '+Math.floor((d%3600)/60)+'m';return Math.floor(d/86400)+'d '+Math.floor((d%86400)/3600)+'h'}
+function setSxFilter(f){sxFilter=f;document.querySelectorAll('.sx-f').forEach((b)=> {var on=b.getAttribute('data-f')===f;b.classList.toggle('active',on);b.setAttribute('aria-pressed',on?'true':'false');});renderSx();}
+// Model filter: pills built client-side from the rows already fetched (no
+// extra API load). Top models by session count, most active first.
+function setSxModel(m){sxModel=m;renderSxModelPills();renderSx();}
+function renderSxModelPills(){
+  var wrap=document.getElementById('sx-models');if(!wrap)return;
+  var counts={};sxRows.forEach((s)=> {if(s.model)counts[s.model]=(counts[s.model]||0)+1;});
+  var tops=Object.keys(counts).sort((a,b)=> counts[b]-counts[a]).slice(0,8);
+  if(tops.length<2){wrap.style.display='none';return;}
+  wrap.style.display='flex';
+  var html='<button type="button" class="lb-tab'+(sxModel==='all'?' active':'')+'" aria-pressed="'+(sxModel==='all')+'" onclick="setSxModel(\'all\')">All models</button>';
+  tops.forEach((m)=> {
+    var on=sxModel===m;
+    html+='<button type="button" class="lb-tab'+(on?' active':'')+'" aria-pressed="'+on+'" onclick="setSxModel(\''+esc(m)+'\')">'+esc(modelName(m))+' <span style="color:var(--text-muted);font-weight:400;">'+counts[m]+'</span></button>';
+  });
+  wrap.innerHTML=html;
+}
+function renderSx(){
+  var tb=document.getElementById('sx-body');if(!tb)return;
+  var rows=sxRows;
+  if(sxFilter==='active')rows=rows.filter((s)=> s.active);
+  else if(sxFilter==='closed')rows=rows.filter((s)=> !s.active);
+  if(sxModel!=='all')rows=rows.filter((s)=> s.model===sxModel);
+  if(!rows.length){tb.innerHTML='<tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:1.2rem;">No '+(sxFilter==='all'?'':sxFilter+' ')+'sessions'+(sxModel!=='all'?' for this model in the loaded pages':' loaded')+'</td></tr>';}
+  else{
+    tb.innerHTML=rows.map((s)=> {
+      var mor=(s.stake&&s.stake!=='0')?(Number(BigInt(s.stake))/1e18).toFixed(2):'0.00';
+      var badge=s.active?'<span class="badge badge-active">Active</span>':'<span class="badge badge-closed">Closed</span>';
+      return '<tr><td><a href="/analytics/overview#models" style="color:var(--cyan);">'+esc(modelName(s.model))+'</a></td>'+
+        '<td>'+(s.prov?'<a href="/compute/providers/'+s.prov+'" style="color:var(--link);">'+short(s.prov)+'</a>':'-')+'</td>'+
+        '<td>'+(s.user?'<a href="/compute/consumers/wallet/'+s.user+'" style="color:var(--cyan);">'+short(s.user)+'</a>':'-')+'</td>'+
+        '<td class="num mor">'+mor+'</td><td>'+badge+'</td>'+
+        '<td class="num" style="color:var(--text-muted);">'+fmtTime(s.opened)+'</td>'+
+        '<td class="num">'+sxDur(s)+'</td></tr>';
+    }).join('');
+  }
+  var cnt=document.getElementById('sx-count');
+  if(cnt)cnt.textContent=sxTotal?fmt(sxActive)+' active of '+fmt(sxTotal)+' all time, newest first':'newest first';
+  // Browse cap: at page 10 swap the Load more button for the friendly notice.
+  var atCap=sxPage>=SX_MAX_PAGES;
+  var more=document.getElementById('sx-more');
+  if(more)more.style.display=(sxHasMore&&!atCap)?'inline-flex':'none';
+  var cap=document.getElementById('sx-cap');
+  if(cap)cap.style.display=(sxHasMore&&atCap)?'block':'none';
+}
+function fetchSxPage(page){
+  if(sxLoading||page>SX_MAX_PAGES)return;sxLoading=true;
+  var more=document.getElementById('sx-more');if(more&&page>1){more.disabled=true;more.textContent='Loading...';}
+  apiFetch('/mor/v1/sessions?limit='+SX_PAGE_LIMIT+'&page='+page).then((r)=> r.json()).then((d)=> {
+    var rows=(d.sessions||[]).map(sxNorm);
+    sxRows=page===1?rows:sxRows.concat(rows);
+    sxPage=page;sxHasMore=!!(d.pagination&&d.pagination.hasMore);sxTotal=d.total||0;sxActive=d.active||0;sxLoaded=true;
+    renderSxModelPills();
+    renderSx();
+  }).catch(()=> {}).finally(()=> {sxLoading=false;if(more){more.disabled=false;more.textContent='Load more';}});
+}
+function ensureSx(){if(!sxLoaded&&!sxLoading)fetchSxPage(1);}
+function loadMoreSx(){fetchSxPage(sxPage+1);}
+
+// ─── Calculator ───
+function updateCalc(v){v=parseInt(v, 10);var secs=(v*SF)/(2/86400);var h=Math.floor(secs/3600);var m=Math.floor((secs%3600)/60);document.getElementById('calc-mor').textContent=`${v} MOR`;document.getElementById('calc-dur').textContent=(h>24?`${Math.floor(h/24)}d ${h%24}h`:`${h}h ${m}m`);document.querySelectorAll('.dur-preset').forEach((b)=> {b.classList.remove('active');});}
+function _setCalc(v){document.getElementById('calc-slider').value=v;updateCalc(v);document.querySelectorAll('.dur-preset').forEach((b)=> {if(parseInt(b.getAttribute('onclick').match(/\d+/)[0], 10)===v)b.classList.add('active');});}
+
+// ─── Init ───
+function showView(name){document.querySelectorAll('.view').forEach((v)=> {v.classList.remove('active');});var el=document.getElementById(`view-${name}`);if(el)el.classList.add('active');if(name==='sessions')ensureSx();}
+renderNetwork();renderProviders();renderConsumers();renderSxModelPills();renderSx();
+var _segs=window.location.pathname.split('/').filter(Boolean);var initView=(_segs[0]==='compute'?_segs[1]:_segs[0])||'network';
+showView(initView);
+
+// Background skinny refresh (30s)
+// Background refresh - only update what actually changes frequently
+setInterval(()=> {apiFetch('/mor/v1/ui-init').then((r)=> r.json()).then((d)=> {
+  F=d;MODELS=d.models||{};allSessions=d.consumers?.sessions||[];SF=d.economics?.stakingFactor||SF;
+  renderNetwork(); // Sync bar + economics change frequently
+  // Providers and consumers DOM stay as-is - structure doesn't change every 30s
+}).catch(()=> {});},30000);
+
+// Network sync refresh (10s) - also refreshes Diamond upgrade status
+setInterval(()=> {fetch('/health').then((r)=> r.json()).then((d)=> {
+  if(d.currentBlock>0){F.sync={currentBlock:d.currentBlock,syncedBlock:d.syncedBlock,blocksBehind:d.blocksBehind};renderNetwork();}
+  var du=d.extended?.contracts?.diamond?.upgrades;
+  var el=document.getElementById('diamond-upgrade-status');
+  if(el&&du){
+    if(du.last){
+      var ts=du.last.timestamp;var ago=Math.floor(Date.now()/1000)-ts;
+      var agoStr=ago<3600?`${Math.floor(ago/60)}m ago`:ago<86400?`${Math.floor(ago/3600)}h ago`:`${Math.floor(ago/86400)}d ago`;
+      el.innerHTML=`<span style="color:var(--yellow);">Last upgrade: block ${(du.last.block||0).toLocaleString()} (${agoStr}) &middot; ${du.totalSeen} total</span>`;
+    } else {
+      el.innerHTML='<span style="color:var(--text-muted);">No contract upgrades detected</span>';
+    }
+  }
+}).catch(()=> {});},10000);
+
+// Load Diamond upgrade history for Network view
+(()=> {
+  apiFetch('/mor/v1/upgrades').then((r)=> r.json()).then((d)=> {
+    if(!d.upgrades||!d.upgrades.length)return;
+    var el=document.getElementById('upgrade-list');
+    var wrap=document.getElementById('upgrade-history');
+    if(!el||!wrap)return;
+    wrap.style.display='block';
+    var h='<div class="lb-scroll"><table class="lb-table"><thead><tr><th>Block</th><th>Tx</th><th class="num">Facets</th><th>Time</th></tr></thead><tbody>';
+    d.upgrades.forEach((u)=> {
+      var txShort=u.txHash?`${u.txHash.slice(0,10)}...`:'?';
+      h+=`<tr><td>${u.block.toLocaleString()}</td>`;
+      h+=`<td><a href="https://basescan.org/tx/${esc(u.txHash)}" target="_blank" style="color:var(--cyan);">${esc(txShort)}</a></td>`;
+      h+=`<td class="num">${u.facetCount}</td>`;
+      h+=`<td>${fmtTime(u.timestamp)}</td></tr>`;
+    });
+    h+='</tbody></table></div>';
+    el.innerHTML=h;
+  }).catch(()=> {});
+})();
+</script>

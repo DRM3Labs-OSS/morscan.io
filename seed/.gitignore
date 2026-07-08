@@ -1,0 +1,9 @@
+# Large per-table SQL data is not committed; seed from the published snapshot
+# (see ../docs/SEED.md). These patterns keep any local dumps out of git.
+sessions.sql
+mor_holders.sql
+builder_subnets.sql
+builder_stakes.sql
+builder_events.sql
+sync_state.sql
+builder_sync_state.sql

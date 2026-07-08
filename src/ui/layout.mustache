@@ -1,0 +1,583 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{title}}</title>
+  <meta name="description" content="{{description}}">
+  <link rel="icon" href="/favicon.ico" sizes="any">
+  <link rel="icon" type="image/png" sizes="48x48" href="/favicon.png">
+  <link rel="icon" type="image/svg+xml" href="/morscan-icon.svg">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <!-- Machine-readable guide for AI agents/crawlers (also in sitemap.xml + robots.txt). -->
+  <link rel="llms" type="text/plain" href="/llms.txt">
+  <meta property="og:title" content="{{title}}">
+  <meta property="og:description" content="{{description}}">
+  <meta property="og:image" content="{{ogImage}}">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:url" content="{{ogUrl}}">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="MorScan">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="{{title}}">
+  <meta name="twitter:description" content="{{description}}">
+  <meta name="twitter:image" content="{{ogImage}}">
+  <!-- IBM Plex Mono self-hosted at /fonts/ (SIL OFL 1.1, src/fonts/OFL.txt) - fleet console convention, no third-party font host. -->
+  <style>
+    @font-face { font-family: 'IBM Plex Mono'; font-style: normal; font-weight: 400; font-display: swap; src: url('/fonts/ibm-plex-mono-400.woff2') format('woff2'); }
+    @font-face { font-family: 'IBM Plex Mono'; font-style: normal; font-weight: 500; font-display: swap; src: url('/fonts/ibm-plex-mono-500.woff2') format('woff2'); }
+    @font-face { font-family: 'IBM Plex Mono'; font-style: normal; font-weight: 600; font-display: swap; src: url('/fonts/ibm-plex-mono-600.woff2') format('woff2'); }
+    @font-face { font-family: 'IBM Plex Mono'; font-style: normal; font-weight: 700; font-display: swap; src: url('/fonts/ibm-plex-mono-700.woff2') format('woff2'); }
+  </style>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; border-radius: 0 !important; }
+    button, input, select, textarea { font-family: inherit; }
+    /* Keyboard focus - visible green ring on every focusable control */
+    :focus-visible { outline: 2px solid var(--green); outline-offset: 2px; }
+    /* Skip link - visually hidden until keyboard focus, then a clear pill */
+    .skip-link { position: absolute; left: -9999px; top: 0; z-index: 100; background: var(--green); color: var(--bg-primary); font-weight: 700; font-size: 0.8rem; padding: 0.6rem 1rem; text-decoration: none; }
+    .skip-link:focus { left: 0.5rem; top: 0.5rem; }
+    /* Honor reduced-motion: stop the pulse/shimmer loops and smooth scrolling */
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
+    }
+    /* Sortable table headers act as buttons */
+    th[onclick], [role="button"] { cursor: pointer; }
+    /* Table row hover - subtle lift so the eye can track a row across wide tables */
+    table tbody tr:hover td { background: rgba(255,255,255,0.03); }
+    :root {
+      /* IBM Plex Mono self-hosted (fleet console convention).
+         REVERT = remove the @font-face block + restore: ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace */
+      --mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+      --bg-primary: #0c0a09; --bg-secondary: #1c1917; --bg-card: #292524; --border: #44403c;
+      --text-primary: #fafaf9; --text-secondary: #e7e5e4; --text-muted: #c7c2bc;
+      --green: #22c55e; --green-dim: #14352a; --yellow: #facc15; --red: #f87171;
+      --cyan: #22d3ee; --link: #67e8f9; --purple: #c4b5fd; --orange: #f97316;
+      --orange-dim: rgba(249, 115, 22, 0.15); --blue: #60a5fa; --silver: #d6d3d1; --mor: #22c55e;
+      /* Aliases for legacy page styles */
+      --bg: #0c0a09; --card: #1c1917; --text: #fafaf9;
+      --dim: #d6d3d1; --muted: #c7c2bc; --amber: #f59e0b; --text-dim: #d6d3d1;
+    }
+    body {
+      font-family: var(--mono); background: var(--bg-primary); color: var(--text-primary);
+      min-height: 100vh; line-height: 1.6; font-size: 14px;
+    }
+    html, body { overflow-x: hidden; }
+    /* text-size-adjust 100%: stop mobile browsers (iOS text inflation, Android
+       font boosting) from enlarging text past the layout and clipping cards. */
+    html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+    a { color: var(--cyan); text-decoration: none; }
+    .container { max-width: 1200px; margin: 0 auto; padding: 2rem; overflow-x: hidden; }
+    header { display: flex; flex-direction: column; gap: 1rem; margin-bottom: 0; padding-bottom: 1.5rem; border-bottom: 1px solid var(--border); }
+    .header-top { display: flex; align-items: center; gap: 1rem 1.25rem; flex-wrap: wrap; }
+    .logo { display: flex; align-items: center; gap: 0.75rem; margin-right: auto; }
+    .logo-icon { font-size: 1.5rem; }
+    .logo h1 { font-size: 1.85rem; font-weight: 700; color: var(--green); }
+    /* Price block - min-width reserved so the client price refresh never reflows */
+    .header-price { text-align: right; line-height: 1; white-space: nowrap; min-width: 6.5rem; }
+    .header-actions { display: flex; align-items: center; gap: 0.75rem; }
+    /* GitHub link - compact icon button, top-right of the header near price/wallet. */
+    .hdr-github { display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 36px; min-height: 36px; flex: 0 0 auto; color: var(--text-muted); }
+    .hdr-github:hover, .hdr-github:focus-visible { color: var(--green); }
+    .hdr-github svg { display: block; }
+    .subtitle { color: var(--text-secondary); font-size: 0.9rem; text-transform: uppercase; letter-spacing: 0.1em; }
+    /* Support is a quiet ghost link in the header - present but not competing with
+       the wallet control for attention (support is featured properly elsewhere). */
+    .stake-cta { color: var(--text-muted); padding: 0.4rem 0.35rem; font-size: 0.68rem; font-weight: 600; text-decoration: none; letter-spacing: 0.04em; white-space: nowrap; display: inline-flex; align-items: center; min-height: 34px; }
+    .stake-cta:hover, .stake-cta:focus-visible { color: var(--green); }
+    /* Header wallet - a single compact trigger (dropdown when connected). Populated
+       client-side (header is edge-cached, never SSRs a per-user address). min-width
+       reserves space for the widest state and the slot renders nothing until
+       /console/wallet/status resolves, so there is no flash and no reflow. */
+    .hdr-wallet { display: flex; align-items: center; justify-content: flex-end; white-space: nowrap; min-width: 9.75rem; min-height: 2.25rem; }
+    .hdr-wallet-menu { position: relative; }
+    .hdr-wallet-trigger { display: inline-flex; align-items: center; gap: 0.45rem; font-family: inherit; background: transparent; border: 1px solid var(--border); color: var(--text-secondary); padding: 0.4rem 0.6rem; min-height: 36px; cursor: pointer; font-size: 0.72rem; }
+    .hdr-wallet-trigger:hover, .hdr-wallet-trigger:focus-visible, .hdr-wallet-trigger[aria-expanded="true"] { border-color: var(--green); color: var(--text-primary); }
+    .hdr-wallet-dot { width: 7px; height: 7px; background: var(--green); box-shadow: 0 0 6px var(--green); flex: 0 0 auto; }
+    .hdr-wallet-addr { font-size: 0.72rem; color: inherit; font-variant-numeric: tabular-nums; }
+    .hdr-caret { color: var(--text-muted); flex: 0 0 auto; transition: transform 0.15s; }
+    .hdr-wallet-trigger[aria-expanded="true"] .hdr-caret { transform: rotate(180deg); color: var(--green); }
+    /* Connect (signed-out) trigger - a direct link to the console. */
+    .hdr-connect { display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.68rem; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--text-secondary); border: 1px solid var(--border); padding: 0.4rem 0.65rem; min-height: 36px; }
+    .hdr-connect svg { flex: 0 0 auto; }
+    .hdr-connect:hover, .hdr-connect:focus-visible { border-color: var(--green); color: var(--green); }
+    .hdr-connect:hover svg, .hdr-connect:focus-visible svg { stroke: var(--green); }
+    /* Wallet dropdown - on-brand dark/green/mono panel. Absolute so it never shifts layout. */
+    .hdr-wallet-pop { position: absolute; right: 0; top: calc(100% + 6px); min-width: 12.5rem; background: var(--bg-secondary); border: 1px solid var(--green); box-shadow: 0 10px 30px rgba(0,0,0,0.6); z-index: 60; padding: 0.3rem; display: flex; flex-direction: column; }
+    .hdr-wallet-pop[hidden] { display: none; }
+    .hdr-pop-label { font-size: 0.58rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-muted); padding: 0.45rem 0.55rem 0.15rem; }
+    .hdr-pop-id { font-size: 0.72rem; color: var(--text-secondary); font-variant-numeric: tabular-nums; padding: 0 0.55rem 0.5rem; margin-bottom: 0.25rem; border-bottom: 1px solid var(--border); word-break: break-all; white-space: normal; }
+    .hdr-pop-item { font-family: inherit; text-align: left; background: transparent; border: none; color: var(--text-secondary); font-size: 0.72rem; padding: 0 0.55rem; cursor: pointer; text-decoration: none; display: flex; align-items: center; min-height: 40px; }
+    .hdr-pop-item:hover, .hdr-pop-item:focus-visible { background: var(--green-dim); color: var(--green); outline: none; }
+    .hdr-pop-disconnect:hover, .hdr-pop-disconnect:focus-visible { color: var(--red); background: rgba(248,113,113,0.12); }
+    .plane-tabs { display: flex; gap: 0; margin-bottom: -1px; position: relative; z-index: 1; }
+    .plane-tabs a {
+      color: var(--text-secondary); text-decoration: none; font-size: 0.85rem; font-weight: 600;
+      padding: 0.5rem 1.25rem; border-bottom: 2px solid transparent;
+      text-transform: uppercase; letter-spacing: 0.08em; background: transparent;
+    }
+    .plane-tabs a:hover { color: var(--text-primary); }
+    .plane-tabs a.active { color: var(--green); border-bottom-color: var(--green); }
+    .plane-tabs::after { content: ''; flex: 1; border-bottom: 1px solid var(--border); }
+    nav { display: flex; gap: 0.5rem; }
+    nav a { color: var(--text-muted); text-decoration: none; font-size: 0.8rem; padding: 0.5rem 1rem; border-bottom: 2px solid transparent; }
+    nav a:hover { color: var(--text-primary); }
+    nav a.active { color: var(--green); border-bottom-color: var(--green); }
+    nav a.logout { margin-left: auto; border: none; padding: 0.5rem; color: var(--text-muted); display: flex; align-items: center; }
+    nav a.logout:hover { color: var(--red); background: none; }
+    /* Horizontal tab scrollers - no wrap, no visible scrollbar, subtle edge fade */
+    .plane-tabs, header nav { overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+    .plane-tabs::-webkit-scrollbar, header nav::-webkit-scrollbar { display: none; }
+    .plane-tabs.fade-r, header nav.fade-r { -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 28px), transparent); mask-image: linear-gradient(90deg, #000 calc(100% - 28px), transparent); }
+    .plane-tabs.fade-l, header nav.fade-l { -webkit-mask-image: linear-gradient(90deg, transparent, #000 28px); mask-image: linear-gradient(90deg, transparent, #000 28px); }
+    .plane-tabs.fade-l.fade-r, header nav.fade-l.fade-r { -webkit-mask-image: linear-gradient(90deg, transparent, #000 28px, #000 calc(100% - 28px), transparent); mask-image: linear-gradient(90deg, transparent, #000 28px, #000 calc(100% - 28px), transparent); }
+    .stat-bar { display: flex; align-items: center; gap: 1.5rem; flex-wrap: wrap; padding: 0.6rem 0; margin-bottom: 1.5rem; border-bottom: 1px solid var(--border); font-size: 0.7rem; }
+    .stat-bar-item { display: flex; align-items: baseline; gap: 0.4rem; }
+    .stat-bar-label { color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; font-size: 0.65rem; }
+    .stat-bar-value { font-weight: 600; color: var(--text-primary); font-variant-numeric: tabular-nums; font-size: 0.75rem; }
+    .stat-bar-value.green { color: var(--green); }
+    /* Contract banner + sync bar - shared across all planes */
+    .contract-banner { display: flex; align-items: center; gap: 0.75rem; padding: 0.6rem 1rem; background: var(--bg-secondary); border: 1px solid var(--border); margin-bottom: 0; font-size: 0.7rem; flex-wrap: wrap; }
+    .contract-banner a { color: var(--cyan); }
+    .contract-links { margin-left: auto; display: flex; gap: 0.5rem; }
+    .contract-links a { color: var(--text-muted); border: 1px solid var(--border); padding: 0.2rem 0.4rem; font-size: 0.65rem; text-decoration: none; }
+    .contract-links a:hover { border-color: var(--green); color: var(--text-primary); }
+    .sync-bar { display: flex; align-items: center; gap: 0.75rem; background: var(--bg-secondary); border: 1px solid var(--border); padding: 0.6rem 1rem; margin-bottom: 1.5rem; font-size: 0.7rem; flex-wrap: wrap; }
+    .sync-label { font-size: 0.65rem; color: var(--text-muted); text-transform: uppercase; }
+    .sync-val { font-weight: 600; font-variant-numeric: tabular-nums; }
+    .sync-badge { font-size: 0.65rem; font-weight: 600; padding: 0.2rem 0.4rem; background: var(--green-dim); color: var(--green); margin-left: auto; }
+    .sync-badge.behind { background: #1c1917; color: #9ca3af; }
+    .sync-note { font-size: 0.65rem; color: var(--text-muted); width: 100%; text-align: center; padding-top: 0.4rem; border-top: 1px solid var(--border); margin-top: 0.4rem; }
+    /* Global "indexing full history" strip - pinned at the VERY TOP of every app
+       page, above the header, while the historical backfill runs; auto-hides once
+       caught up: live at the head, still indexing the full history.
+       Numbers straight from /health. */
+    #syncBanner { display: none; background: #0c0a09; border-bottom: 1px solid rgba(34,197,94,0.35); margin: 0; overflow: hidden; }
+    #syncBanner.on { display: block; }
+    #syncBanner .sb-row { display: flex; align-items: center; gap: 0.6rem; padding: 0.5rem 1.25rem; font-size: 0.72rem; color: var(--text-secondary); letter-spacing: 0.01em; flex-wrap: wrap; }
+    #syncBanner .sb-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green); flex: 0 0 auto; box-shadow: 0 0 0 0 rgba(34,197,94,0.55); animation: sbPulse 1.9s ease-out infinite; }
+    .sb-tag { font-size: 0.62rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--green); background: var(--green-dim); padding: 0.15rem 0.4rem; flex: 0 0 auto; }
+    #syncBanner .sb-text { color: var(--text-secondary); }
+    #syncBanner .sb-text b, .sb-card-line b { color: var(--green); font-weight: 600; }
+    .sync-bar .sb-card-line { width: 100%; text-align: left; font-size: 0.7rem; color: var(--text-secondary); padding-top: 0.45rem; border-top: 1px solid var(--border); margin-top: 0.45rem; }
+    @keyframes sbPulse { 0% { box-shadow: 0 0 0 0 rgba(34,197,94,0.5); } 70% { box-shadow: 0 0 0 6px rgba(34,197,94,0); } 100% { box-shadow: 0 0 0 0 rgba(34,197,94,0); } }
+    @media (prefers-reduced-motion: reduce) { #syncBanner .sb-dot { animation: none; } }
+    @media (max-width: 768px) { #syncBanner .sb-row { font-size: 0.66rem; padding: 0.45rem 0.7rem; gap: 0.45rem; } }
+    /* Global table scroll - all tables slide right on narrow views */
+    table { display: table; }
+    .table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; max-width: 100%; }
+    .table-scroll > table { width: 100%; }
+    .addr-full { display: inline; } .addr-short { display: none; }
+    @media (max-width: 768px) {
+      .addr-full { display: none; } .addr-short { display: inline; }
+      .contract-banner { flex-wrap: wrap; }
+      /* Finger-friendly tabs: nowrap scroll rows, >=40px tall tap targets */
+      .plane-tabs a, header nav a { white-space: nowrap; flex: 0 0 auto; display: inline-flex; align-items: center; min-height: 40px; }
+      .plane-tabs a { font-size: 0.7rem; padding: 0.4rem 0.75rem; letter-spacing: 0.04em; }
+      /* Mobile header: logo + compact price on row 1, support + wallet on row 2. */
+      .header-top { align-items: center; gap: 0.6rem 0.75rem; }
+      .header-price { min-width: 0; }
+      .header-price-mcap { display: none !important; }
+      .header-actions { gap: 0.5rem; }
+      .hdr-wallet { min-width: 9.25rem; }
+      .sync-bar { flex-wrap: wrap; gap: 0.5rem; font-size: 0.65rem; }
+      /* Mobile net - wide content scrolls inside its own box, never the page */
+      pre, code { max-width: 100%; overflow-x: auto; }
+      img, video { max-width: 100%; height: auto; }
+    }
+    /* Footer - condensed to two quiet lines: brand + nav, then a collapsed
+       credit/license line, then a small honest build stamp. Links wrap cleanly
+       with >=40px tap targets and no horizontal wobble at phone width. */
+    .site-footer { margin-top: 3rem; padding-top: 1.5rem; border-top: 1px solid var(--border); text-align: center; padding-bottom: 2rem; max-width: 100%; }
+    .footer-nav { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 0 0.15rem; max-width: 100%; }
+    .footer-brand { display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.5rem 0.4rem; color: var(--text-secondary); font-weight: 600; letter-spacing: 0.02em; font-size: 0.75rem; }
+    .footer-brand svg { display: block; }
+    .footer-logo { display: inline-flex; align-items: center; justify-content: center; min-height: 40px; padding: 0.4rem; margin-bottom: 0.3rem; }
+    .footer-logo svg { display: block; filter: drop-shadow(0 0 10px rgba(34,197,94,0.4)); }
+    .footer-drm3 { display: inline-flex; align-items: center; justify-content: center; min-height: 40px; padding: 0.4rem 0.6rem; margin-top: 0.9rem; opacity: 0.85; transition: opacity 0.15s; }
+    .footer-drm3:hover, .footer-drm3:focus-visible { opacity: 1; }
+    .footer-drm3 img { display: block; height: 26px; width: auto; }
+    .footer-nav a { display: inline-flex; align-items: center; min-height: 40px; padding: 0.5rem 0.5rem; color: #c7c2bc; font-size: 0.72rem; }
+    .footer-nav a:hover, .footer-nav a:focus-visible { color: var(--green); }
+    .footer-sep { color: #6b6660; font-size: 0.72rem; user-select: none; }
+    .footer-credit { margin: 0.75rem auto 0; max-width: 44rem; font-size: 0.66rem; line-height: 1.55; color: #c7c2bc; }
+    .footer-credit a { color: #c7c2bc; text-decoration: underline; }
+    .footer-credit a:hover, .footer-credit a:focus-visible { color: var(--green); }
+    .footer-stamp { margin: 0.45rem 0 0; font-size: 0.6rem; color: #8a8580; }
+    .footer-alpha { margin: 0.45rem auto 0; max-width: 46rem; font-size: 0.62rem; line-height: 1.5; color: #c7c2bc; }
+    /* Open-alpha marker - quiet mono green pill beside the wordmark. Honest
+       framing, never alarming. */
+    .alpha-tag { display: inline-flex; align-items: center; align-self: center; font-size: 0.5rem; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--green); border: 1px solid var(--green); padding: 0.12rem 0.34rem; line-height: 1; }
+    @media (max-width: 500px) {
+      .container { padding: 1rem; }
+      .plane-tabs a { font-size: 0.65rem; padding: 0.4rem 0.6rem; }
+      nav a { font-size: 0.65rem; padding: 0.4rem 0.6rem; }
+      .stat-bar { gap: 0.5rem; font-size: 0.65rem; }
+      .stat-bar-item { gap: 0.2rem; }
+      .stat-bar-label { font-size: 0.65rem; }
+      .contract-links { margin-left: 0; margin-top: 0.3rem; }
+      .logo h1 { font-size: 1.35rem; }
+      .logo-icon { width: 46px; height: auto; }
+      .stake-cta { font-size: 0.64rem; padding: 0.4rem 0.3rem; letter-spacing: 0.03em; }
+      .header-actions { gap: 0.45rem; }
+      .hdr-wallet { min-width: 9rem; }
+      .hdr-wallet-trigger { font-size: 0.66rem; padding: 0.4rem 0.5rem; }
+      .hdr-wallet-addr { font-size: 0.66rem; }
+      .hdr-connect { font-size: 0.63rem; padding: 0.4rem 0.5rem; }
+    }
+    /* Skeleton loading */
+    .skeleton { position: relative; overflow: hidden; background: var(--bg-secondary); border: 1px solid var(--border); }
+    .skeleton::after {
+      content: ''; position: absolute; inset: 0; animation: shimmer 1.5s infinite;
+      background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.03) 50%, transparent 100%);
+    }
+    @keyframes shimmer { 0% { transform: translateX(-100%); } 100% { transform: translateX(100%); } }
+    .skel-row { display: flex; gap: 1rem; margin-bottom: 1rem; }
+    .skel-card { height: 80px; flex: 1; }
+    .skel-line { height: 14px; margin-bottom: 0.6rem; }
+    .skel-line.w60 { width: 60%; }
+    .skel-line.w40 { width: 40%; }
+    .skel-line.w80 { width: 80%; }
+    .skel-table-row { height: 44px; margin-bottom: 4px; }
+    {{{pageStyles}}}
+  </style>
+  {{{headScripts}}}
+</head>
+<body>
+  <a class="skip-link" href="#page-content">Skip to content</a>
+  {{#useUnifiedHeader}}
+  <div id="syncBanner" role="status" aria-live="polite">
+    <div class="sb-row"><span class="sb-dot"></span><span class="sb-tag" id="sbTag">Live</span><span class="sb-text" id="sbText">Checking sync status</span></div>
+  </div>
+  {{/useUnifiedHeader}}
+  <div class="container">
+    {{#useUnifiedHeader}}
+    {{{headerHtml}}}
+    {{/useUnifiedHeader}}
+    <main id="page-content" tabindex="-1">{{{content}}}</main>
+  </div>
+  <script>
+    // Scroll-to-top on full-page navigation - skip back/forward (browser restores) and #hash anchors
+    window.addEventListener('pageshow', function() {
+      try {
+        if (location.hash) return;
+        var n = (performance.getEntriesByType('navigation') || [])[0];
+        if (n && n.type === 'back_forward') return;
+      } catch (e) {}
+      window.scrollTo(0, 0);
+    });
+
+    // SPA tab navigation - CSS display swap, no iframes, no fetches
+    // showView is defined in app.html, called from here. Canonical URLs are
+    // /compute/<view>; the view name is the subtab (second) segment.
+    function pathToView(pathname) {
+      var segs = pathname.split('/').filter(Boolean);
+      return (segs[0] === 'compute' ? segs[1] : segs[0]) || 'network';
+    }
+    document.querySelectorAll('nav a:not(.logout)').forEach(function(a) {
+      a.addEventListener('click', function(e) {
+        var view = pathToView(new URL(a.href).pathname);
+        if (document.getElementById('view-' + view)) {
+          e.preventDefault();
+          if (typeof showView === 'function') showView(view);
+          document.querySelectorAll('nav a').forEach(function(t) { t.classList.remove('active'); t.removeAttribute('aria-current'); });
+          a.classList.add('active');
+          a.setAttribute('aria-current', 'page');
+          history.pushState(null, '', '/compute/' + view);
+          window.scrollTo(0, 0);
+        }
+      });
+    });
+
+    // Back/forward
+    window.addEventListener('popstate', function() {
+      var view = pathToView(window.location.pathname);
+      if (typeof showView === 'function') showView(view);
+      document.querySelectorAll('nav a').forEach(function(t) { t.classList.remove('active'); t.removeAttribute('aria-current'); });
+      var el = document.querySelector('nav a[href="/compute/' + view + '"]');
+      if (el) { el.classList.add('active'); el.setAttribute('aria-current', 'page'); }
+    });
+
+    // Keyboard support for sortable table headers and div-buttons: Enter/Space activates.
+    // Also make onclick-only headers focusable and expose them as buttons to AT.
+    // Make sortable column headers focusable. Keep the native columnheader role
+    // (which permits aria-sort) - just add tabindex so keyboard users can reach them.
+    function a11yThead(root) {
+      (root || document).querySelectorAll('th[onclick], .an-tbl th, .lb-table th[onclick]').forEach(function(th) {
+        if (th.getAttribute('tabindex') === null) th.setAttribute('tabindex', '0');
+      });
+      // Correct table semantics: every column header advertises its scope.
+      (root || document).querySelectorAll('thead th:not([scope])').forEach(function(th) {
+        th.setAttribute('scope', 'col');
+      });
+    }
+    a11yThead(document);
+    // Re-scan after async table renders.
+    new MutationObserver(function(muts) {
+      for (var i = 0; i < muts.length; i++) if (muts[i].addedNodes.length) { a11yThead(document); break; }
+    }).observe(document.body, { childList: true, subtree: true });
+    document.addEventListener('keydown', function(e) {
+      if (e.key !== 'Enter' && e.key !== ' ' && e.key !== 'Spacebar') return;
+      var t = e.target;
+      if (t && t.matches && (t.matches('th[onclick], th[tabindex], .an-tbl th') || (t.getAttribute('role') === 'button' && t.tagName !== 'BUTTON'))) {
+        e.preventDefault();
+        t.click();
+      }
+    });
+
+    // Tab scrollers - edge-fade hints + scroll the active tab into view on load
+    (function() {
+      function scroller(el) {
+        if (!el) return;
+        function fades() {
+          var max = el.scrollWidth - el.clientWidth;
+          el.classList.toggle('fade-l', max > 4 && el.scrollLeft > 4);
+          el.classList.toggle('fade-r', max > 4 && el.scrollLeft < max - 4);
+        }
+        el.addEventListener('scroll', fades, { passive: true });
+        window.addEventListener('resize', fades);
+        var a = el.querySelector('a.active');
+        if (a) el.scrollLeft = Math.max(0, a.offsetLeft - (el.clientWidth - a.offsetWidth) / 2);
+        fades();
+      }
+      scroller(document.querySelector('.plane-tabs'));
+      scroller(document.querySelector('header nav'));
+    })();
+
+    // Global event delegation
+    document.addEventListener('click', function(e) {
+      var h = e.target.closest('[data-expandable]');
+      if (h) { h.closest('.provider-card').classList.toggle('expanded'); return; }
+      var c = e.target.closest('[data-href]');
+      if (c) { window.location.href = c.getAttribute('data-href'); return; }
+    });
+
+    // Prefetch detail pages on hover
+    var pf = {};
+    document.addEventListener('mouseover', function(e) {
+      var el = e.target.closest('[data-href]');
+      if (!el) return;
+      var href = el.getAttribute('data-href');
+      if (!href || pf[href]) return;
+      pf[href] = true;
+      var l = document.createElement('link'); l.rel = 'prefetch'; l.href = href;
+      document.head.appendChild(l);
+    });
+    // ─── Shared sync bar - polls /health every 5s ───
+    (function(){
+      var API_KEY = window.MORSCAN_API_KEY || '';
+      var hdrs = API_KEY ? {'X-Morscan-Key': API_KEY} : {};
+      var plane = '{{#plane_builder}}builder{{/plane_builder}}{{#plane_holders}}holders{{/plane_holders}}{{#plane_compute}}compute{{/plane_compute}}';
+      if (plane === 'api') return;
+      function updateSync(){
+        fetch('/health',{headers:hdrs,cache:'no-store'}).then(function(r){return r.json();}).then(function(h){
+          var fmt = function(n){return n ? n.toLocaleString() : '-';};
+          var synced = h.syncedBlock || (h.extended||{}).syncedBlock || 0;
+          var lastTs = h.lastSyncTimestamp || (h.extended||{}).lastSyncTs || null;
+          var ce = document.getElementById('sync-chain');
+          if(ce){
+            var ago = '';
+            if(lastTs){
+              var secs = Math.floor((Date.now() - new Date(lastTs).getTime()) / 1000);
+              if(secs < 60) ago = ' · ' + secs + 's ago';
+              else if(secs < 3600) ago = ' · ' + Math.floor(secs/60) + 'm ago';
+              else ago = ' · ' + Math.floor(secs/3600) + 'h ago';
+            }
+            ce.textContent = fmt(synced) + ago;
+          }
+          var badge = document.getElementById('sync-badge');
+          if(badge){
+            var age = Date.now() - new Date(lastTs).getTime();
+            if(lastTs && age < 60000){badge.textContent='Live';badge.className='sync-badge';}
+            else{badge.textContent='Stale';badge.className='sync-badge behind';}
+          }
+          var fe = document.getElementById('sync-fill');
+          if(fe) fe.style.width = (lastTs && (Date.now()-new Date(lastTs).getTime())<60000 ? '100' : '30') + '%';
+        }).catch(function(){});
+      }
+      updateSync();
+      setInterval(updateSync, 5000);
+    })();
+    // ─── Global sync status strip - polls /health every ~25s ───
+    // Pinned at the very top of every app page. Leads with the primary truth
+    // (synced to the chain head, recent data complete) and scopes the caveat to
+    // exactly the datasets whose DEEP history is still backfilling, per plane.
+    // No ETA: the backfill is deliberately throttled to stay on free RPC tiers,
+    // so any time estimate advertises the throttle, not sync capability.
+    // Auto-hides once every archive is complete and the head is caught up.
+    (function(){
+      var el = document.getElementById('syncBanner');
+      if (!el) return;
+      var elText = document.getElementById('sbText'), elTag = document.getElementById('sbTag');
+      function show(on){ el.classList.toggle('on', !!on); }
+      // Per-plane archive coverage from /health coverage.datasets. A plane is
+      // done when its `complete` flag is set OR its pct reaches 100; done planes
+      // drop off the line, so the moment the last one finishes the caveat text
+      // goes empty and the whole strip auto-hides (no redeploy needed).
+      function archiveText(cov){
+        var ds = (cov && cov.datasets) || {};
+        var names = { builder: 'builder', sessions: 'compute sessions', holders: 'MOR holders' };
+        var parts = [];
+        for (var k in names) {
+          var d = ds[k];
+          if (!d || d.pct == null) continue;
+          var pct = Number(d.pct);
+          var done = !!d.complete || pct >= 100;
+          if (!done) parts.push(names[k] + ' archive <b>' + Math.floor(pct) + '%</b>');
+        }
+        return parts.join(' &middot; ');
+      }
+      // If the page has the block-status card (.sync-bar), the status lives
+      // there as an extra line and the standalone strip stays hidden.
+      function renderCard(tag, html){
+        var bar = document.querySelector('.sync-bar');
+        if (!bar) return false;
+        var line = document.getElementById('sbCardLine');
+        if (!line) {
+          bar.insertAdjacentHTML('beforeend',
+            '<div class="sb-card-line" id="sbCardLine" role="status" aria-live="polite">' +
+            '<span class="sb-tag" id="sbCardTag"></span> <span id="sbCardText"></span></div>');
+          line = document.getElementById('sbCardLine');
+        }
+        document.getElementById('sbCardTag').textContent = tag;
+        document.getElementById('sbCardText').innerHTML = html;
+        line.style.display = 'block';
+        return true;
+      }
+      function hideCardLine(){ var l = document.getElementById('sbCardLine'); if (l) l.style.display = 'none'; }
+      function render(h){
+        var cov = h && h.coverage;
+        var behind = (h && typeof h.blocksBehind === 'number') ? h.blocksBehind : null;
+        var indexing = !!(h && (h.backfillIndexing || (cov && cov.indexing)));
+        if (behind != null && behind > 500) {
+          var bText = 'Catching up to the chain head &middot; <b>' + behind.toLocaleString() + '</b> blocks behind';
+          if (renderCard('Syncing', bText)) { show(false); return; }
+          elTag.textContent = 'Syncing';
+          elText.innerHTML = bText;
+          show(true); return;
+        }
+        if (indexing) {
+          var arch = archiveText(cov);
+          if (!arch) { show(false); hideCardLine(); return; }
+          var text = 'Synced to the chain head, recent data complete &middot; deep history still filling in: ' + arch;
+          if (renderCard('Live', text)) { show(false); return; }
+          elTag.textContent = 'Live';
+          elText.innerHTML = text;
+          show(true); return;
+        }
+        if (cov && !indexing && behind != null && behind <= 500) { show(false); hideCardLine(); }
+      }
+      function poll(){
+        fetch('/health?_=' + Date.now(), { cache: 'no-store', headers: { 'accept':'application/json' } })
+          .then(function(r){ return r.json(); }).then(render).catch(function(){});
+      }
+      poll();
+      setInterval(poll, 25000);
+    })();
+    // ─── Header MOR price - sync header + stat bar to the live /mor/v1/price ───
+    // Pages are edge-cached so the SSR price can be stale; this pulls the fresh
+    // on-chain value immediately on load (and every 60s) so the header ALWAYS
+    // matches the body, and clears the "delayed" marker unless the feed is stale.
+    (function(){
+      function updatePrice(){
+        fetch('/mor/v1/price',{cache:'no-store'}).then(function(r){return r.json()}).then(function(d){
+          if(!d.usd||d.usd<=0)return;
+          var usd='$'+d.usd.toFixed(2);
+          var el=document.getElementById('header-price-val');
+          if(el)el.textContent=usd;
+          var sb=document.getElementById('stat-mor');
+          if(sb)sb.textContent=usd;
+          var se=document.getElementById('header-price-stale');
+          if(se)se.style.display=d.stale?'inline':'none';
+          var ch=d.change24h||0;
+          var ce=document.getElementById('header-price-change');
+          if(ce){ce.textContent=(ch>=0?'+':'')+ch.toFixed(2)+'% (24h)';ce.style.color=ch>=0?'var(--green)':'var(--red)';}
+          var me=document.getElementById('header-price-mcap');
+          if(me){var t=(d.marketCap>=1e6)?'MCap $'+(d.marketCap/1e6).toFixed(1)+'M':'';me.textContent=t;me.style.display=t?'block':'none';}
+        }).catch(function(){});
+      }
+      updatePrice();
+      setInterval(updatePrice,60000);
+    })();
+    // ─── Header wallet - compact trigger; dropdown menu when connected ───
+    // Header is edge-cached, so wallet state is filled client-side from the
+    // no-store status probe. The slot reserves its width and stays empty until
+    // the probe resolves, so there is no flash and no reflow. Connected users get
+    // a single compact trigger that opens an on-brand keyboard-accessible menu
+    // (wallet id + Console + Disconnect); signed-out users get a Connect link.
+    (function(){
+      var slot=document.getElementById('hdr-wallet');
+      if(!slot)return;
+      var WALLET_ICON='<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" aria-hidden="true" focusable="false"><rect x="1.5" y="4" width="13" height="8.5"/><path d="M1.5 6.5h13" stroke-opacity=".55"/><circle cx="11.8" cy="9.8" r="0.85" fill="currentColor" stroke="none"/></svg>';
+      var CARET='<svg class="hdr-caret" width="10" height="10" viewBox="0 0 10 10" aria-hidden="true" focusable="false"><path d="M1 3.2 5 7l4-3.8" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>';
+      function wireMenu(trig,pop){
+        function items(){return Array.prototype.slice.call(pop.querySelectorAll('[role="menuitem"]'));}
+        function onKey(e){
+          if(e.key==='Escape'){e.preventDefault();close(true);return;}
+          var it=items(),idx=it.indexOf(document.activeElement);
+          if(e.key==='ArrowDown'){e.preventDefault();it[(idx+1)%it.length].focus();}
+          else if(e.key==='ArrowUp'){e.preventDefault();it[idx<=0?it.length-1:idx-1].focus();}
+        }
+        function outside(e){if(!pop.contains(e.target)&&e.target!==trig&&!trig.contains(e.target))close(false);}
+        function open(){pop.hidden=false;trig.setAttribute('aria-expanded','true');var it=items();if(it.length)it[0].focus();document.addEventListener('mousedown',outside);document.addEventListener('keydown',onKey);}
+        function close(focusTrig){pop.hidden=true;trig.setAttribute('aria-expanded','false');document.removeEventListener('mousedown',outside);document.removeEventListener('keydown',onKey);if(focusTrig)trig.focus();}
+        trig.addEventListener('click',function(){pop.hidden?open():close(true);});
+        trig.addEventListener('keydown',function(e){if((e.key==='ArrowDown'||e.key==='Enter'||e.key===' ')&&pop.hidden){e.preventDefault();open();}});
+      }
+      // Slot stays empty (width already reserved) until status resolves.
+      fetch('/console/wallet/status',{cache:'no-store'}).then(function(r){return r.json()}).then(function(d){
+        while(slot.firstChild)slot.removeChild(slot.firstChild);
+        if(d&&d.wallet){
+          var a=String(d.wallet);
+          var short=a.slice(0,6)+'...'+a.slice(-4);
+          var wrap=document.createElement('div');wrap.className='hdr-wallet-menu';
+          var trig=document.createElement('button');trig.type='button';trig.className='hdr-wallet-trigger';
+          trig.setAttribute('aria-haspopup','menu');trig.setAttribute('aria-expanded','false');
+          trig.setAttribute('aria-label','Wallet '+short+', open wallet menu');
+          trig.innerHTML='<span class="hdr-wallet-dot" aria-hidden="true"></span><span class="hdr-wallet-addr">'+short+'</span>'+CARET;
+          var pop=document.createElement('div');pop.className='hdr-wallet-pop';pop.setAttribute('role','menu');pop.hidden=true;
+          var lbl=document.createElement('div');lbl.className='hdr-pop-label';lbl.textContent='Connected wallet';
+          var idl=document.createElement('div');idl.className='hdr-pop-id';idl.textContent=a;idl.title=a;
+          var con=document.createElement('a');con.className='hdr-pop-item';con.setAttribute('role','menuitem');con.href='/console';con.textContent='Console';
+          var disc=document.createElement('button');disc.type='button';disc.className='hdr-pop-item hdr-pop-disconnect';disc.setAttribute('role','menuitem');disc.textContent='Disconnect';
+          disc.addEventListener('click',function(){disc.disabled=true;fetch('/console/wallet/disconnect',{method:'POST',cache:'no-store'}).then(function(){location.href='/';}).catch(function(){location.href='/';});});
+          pop.appendChild(lbl);pop.appendChild(idl);pop.appendChild(con);pop.appendChild(disc);
+          wrap.appendChild(trig);wrap.appendChild(pop);
+          wireMenu(trig,pop);
+          slot.appendChild(wrap);
+        }else{
+          var link=document.createElement('a');link.className='hdr-connect';link.href='/console';
+          link.setAttribute('aria-label','Connect wallet');
+          link.innerHTML=WALLET_ICON+'<span>Connect wallet</span>';
+          slot.appendChild(link);
+        }
+      }).catch(function(){});
+    })();
+  </script>
+  <footer class="site-footer">
+    <a href="/" class="footer-logo" aria-label="MorScan home"><svg width="56" height="25" viewBox="0 0 89 40" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false"><path d="M44.5031 36.7108L52.2884 27.0574V39.5L75.154 30.3296L78.4294 22.9099L58.8453 30.8065V28.0173L80.2346 19.2454L83.6775 11.7472L58.7647 21.8776V19.1669L85.7246 7.99814L89 0.5L56.3826 13.818C56.3826 13.818 53.5973 14.8563 52.369 16.8486L44.5031 26.5805L36.6372 16.8486C35.4089 14.8563 32.6236 13.818 32.6236 13.818L0 0.5L3.27539 7.99814L30.2415 19.1608V21.8715L5.32871 11.7472L8.77159 19.2454L30.1609 28.0173V30.8065L10.5768 22.9099L13.8522 30.3296L36.7178 39.5V27.0574L44.5031 36.7108Z" fill="#22c55e"/></svg></a>
+    <nav class="footer-nav" aria-label="Footer">
+      <a href="/about">About</a>
+      <span class="footer-sep" aria-hidden="true">&middot;</span>
+      <a href="/terms">Terms</a>
+      <span class="footer-sep" aria-hidden="true">&middot;</span>
+      <a href="/privacy">Privacy</a>
+      <span class="footer-sep" aria-hidden="true">&middot;</span>
+      <a href="/health">Status</a>
+      <span class="footer-sep" aria-hidden="true">&middot;</span>
+      <a href="/stake">Support</a>
+      <span class="footer-sep" aria-hidden="true">&middot;</span>
+      <a href="/contribute">Contribute</a>
+      <span class="footer-sep" aria-hidden="true">&middot;</span>
+      <a href="https://github.com/DRM3Labs-OSS/morscan.io/issues" target="_blank" rel="noopener">Feedback</a>
+    </nav>
+    <p class="footer-credit">Developed, maintained, and operated by <a href="https://drm3.network" target="_blank" rel="noopener">DRM3 Labs</a> &middot; Fair Source (FSL-1.1-MIT), pull requests welcome.</p>
+    <a href="https://drm3.network" class="footer-drm3" target="_blank" rel="noopener" aria-label="DRM3 Labs"><img src="/drm3-icon-transparent-white-consumer-128.png" alt="DRM3 Labs" width="40" height="40"></a>
+    <p class="footer-stamp">{{{buildStamp}}}</p>
+    <p class="footer-alpha">Open alpha, no warranties expressed or implied. Data is served as-is from on-chain events; verify it with the provenance receipts. Not financial advice.</p>
+  </footer>
+  <script src="/webmcp.js" defer></script>
+  {{{bodyScripts}}}
+</body>
+</html>

@@ -1,0 +1,57 @@
+{
+  "schema": "drm3-keys/v2",
+  "service": "morscan",
+  "product": "MorScan",
+  "algorithm": "Ed25519",
+  "current": [
+    {
+      "path": "morscan/cache",
+      "key": "ed25519:0e527e8231e412dc11520aa7c36a1c573953cde6ad8f0052fcff0b7420b67ae3",
+      "valid_from": "2026-07-03T16:38:59Z",
+      "expected_valid_until": "2027-07-03T16:38:59Z",
+      "status": "current",
+      "note": "Per-row receipt signing. Successor of cashew/cache after the MORscan rename (same mnemonic, new derivation path)."
+    },
+    {
+      "path": "morscan/signer",
+      "key": "ed25519:916517322512e7d2f067549e93a81a84036dbb338bb79ab5c35e9aa519112485",
+      "valid_from": "2026-07-03T16:38:59Z",
+      "expected_valid_until": "2027-07-03T16:38:59Z",
+      "status": "current",
+      "note": "Service-level attestation signing. Successor of cashew/signer after the MORscan rename (same mnemonic, new derivation path)."
+    }
+  ],
+  "history": [
+    {
+      "path": "cashew/cache",
+      "key": "ed25519:89090fe36afcb5b2e55f7f2da535271e0cf24e007ba2cd467c69c10b3fe697ae",
+      "valid_from": "2026-01-01T00:00:00Z",
+      "valid_until": "2026-07-03T16:38:59Z",
+      "expected_valid_until": "2027-01-01T00:00:00Z",
+      "status": "superseded",
+      "rotation_reason": "morscan rename: derivation paths moved to morscan/*",
+      "note": "Initial production key. Scheduled annual rotation."
+    },
+    {
+      "path": "cashew/signer",
+      "key": "ed25519:a8c6e811f1767114601547dc5587f5ca0e68c967bb09287731f173c7f6e7aa61",
+      "valid_from": "2026-01-01T00:00:00Z",
+      "valid_until": "2026-07-03T16:38:59Z",
+      "expected_valid_until": "2027-01-01T00:00:00Z",
+      "status": "superseded",
+      "rotation_reason": "morscan rename: derivation paths moved to morscan/*",
+      "note": "Initial production signer. Scheduled annual rotation."
+    }
+  ],
+  "latest_attestation": {
+    "id": "rcpt_196e45b76cdb9506",
+    "merkle_root": "sha256:95e1749a9db13534a834b4c8e9a0c54d398ab74da7fd4eb3d19f266fc51f6500",
+    "receipt_count": 12,
+    "from_timestamp": "2026-07-08T00:33:21.613+00:00",
+    "to_timestamp": "2026-07-08T00:34:14.008+00:00",
+    "signature": "ed25519:77b1ea13f080846df1dca6c5c575c56c45b0ccdeee4960ac9dfdc6cd4e3f94cd6b31470babfd135bbf96e031e3cb9e6bfa340df84e159b66c7d0fb29dc6ab305",
+    "public_key": "ed25519:916517322512e7d2f067549e93a81a84036dbb338bb79ab5c35e9aa519112485",
+    "created_at": "2026-07-08 00:34:19"
+  },
+  "published": "2026-07-08T00:34:22.592Z"
+}

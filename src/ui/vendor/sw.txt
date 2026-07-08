@@ -1,0 +1,21 @@
+// MorScan Service Worker - minimal, just handles cache versioning
+// Tab pages load fast from server SSR (<100ms). No prefetch needed.
+
+const CACHE_NAME = 'morscan-v1';
+
+self.addEventListener('install', function(e) {
+  self.skipWaiting();
+  // Clear old caches
+  e.waitUntil(
+    caches.keys().then(function(names) {
+      return Promise.all(
+        names.filter(function(n) { return n !== CACHE_NAME; })
+          .map(function(n) { return caches.delete(n); })
+      );
+    })
+  );
+});
+
+self.addEventListener('activate', function(e) {
+  e.waitUntil(self.clients.claim());
+});

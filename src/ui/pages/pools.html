@@ -1,0 +1,139 @@
+<style>
+  .pools-grid { display: grid; grid-template-columns: 1fr; gap: 1rem; margin-top: 1rem; }
+  .pool-card {
+    background: var(--bg-secondary); border: 1px solid var(--border); padding: 1.2rem;
+    display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 1rem; align-items: center;
+  }
+  .pool-card.clickable { cursor: pointer; }
+  .pool-card.clickable:hover { border-color: var(--green); }
+  .pool-name { font-size: 0.95rem; font-weight: 600; color: var(--text-primary); }
+  .pool-id { font-size: 0.65rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.08em; margin-top: 2px; }
+  .pool-desc { font-size: 0.65rem; color: var(--text-secondary); margin-top: 4px; line-height: 1.5; }
+  .pool-contract { color: var(--green); text-decoration: none; font-family: var(--mono); font-size: 0.65rem; }
+  .pool-contract:hover { text-decoration: underline; }
+  .pool-docs { color: var(--green); text-decoration: none; font-size: 0.65rem; margin-left: 6px; }
+  .pool-docs:hover { text-decoration: underline; }
+  .pool-note { font-size: 0.7rem; color: var(--text-secondary); padding: 12px 16px; line-height: 1.5; }
+  .pool-emission-bar { height: 4px; background: var(--bg-card); margin-top: 6px; display: none; }
+  .pool-emission-fill { height: 100%; background: var(--green); transition: width 0.3s; }
+  .pool-metric-label { font-size: 0.65rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em; }
+  .pool-metric-value { font-size: 0.9rem; font-weight: 600; color: var(--green); margin-top: 2px; font-variant-numeric: tabular-nums; }
+  .pool-metric-value.na { color: var(--text-muted); font-size: 0.75rem; }
+  .pool-derived-note { font-size: 0.65rem; color: var(--text-secondary); margin-top: 2px; }
+  .pool-link-arrow { font-size: 0.7rem; color: var(--text-muted); text-align: right; }
+  .pool-card.clickable:hover .pool-link-arrow { color: var(--green); }
+  .pools-header {
+    display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 1rem; padding: 0 1.2rem;
+    font-size: 0.65rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.08em;
+  }
+  .pools-total {
+    margin-top: 1.5rem; padding: 1rem 1.2rem; background: var(--bg-secondary); border: 1px solid var(--border);
+    display: flex; gap: 2rem; flex-wrap: wrap; font-size: 0.75rem;
+  }
+  .pools-total-item { display: flex; align-items: baseline; gap: 0.4rem; }
+  .pools-total-label { font-size: 0.65rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em; }
+  .pools-total-value { font-weight: 600; color: var(--green); font-variant-numeric: tabular-nums; font-size: 0.85rem; }
+  @media (max-width: 768px) {
+    .pool-card { grid-template-columns: 1fr 1fr; }
+    .pools-header { display: none; }
+  }
+  @media (max-width: 500px) {
+    .pool-card { grid-template-columns: 1fr; gap: 0.6rem; }
+  }
+</style>
+
+<div class="pools-header">
+  <span>Pool</span>
+  <span>Staked</span>
+  <span>Daily Emissions</span>
+  <span>APR</span>
+</div>
+<div class="pools-grid" id="pools-grid">
+  <div class="skeleton skel-card" style="height:72px;"></div>
+  <div class="skeleton skel-card" style="height:72px;"></div>
+  <div class="skeleton skel-card" style="height:72px;"></div>
+  <div class="skeleton skel-card" style="height:72px;"></div>
+  <div class="skeleton skel-card" style="height:72px;"></div>
+</div>
+<div class="pools-total" id="pools-total" style="display:none;"></div>
+
+<script>
+(() => {
+  var data = window.__POOLS_DATA__;
+  if (!data) return;
+
+  function fmt(n) { return n != null ? Number(n).toLocaleString(undefined, {maximumFractionDigits: 0}) : '-'; }
+
+  // Hydrate stat bar
+  var el;
+  if (data.totals) {
+    el = document.getElementById('stat-pools-total');
+    if (el) el.textContent = `${fmt(data.totals.allPoolsMor)} MOR`;
+    el = document.getElementById('stat-total-supply');
+    if (el) el.textContent = data.totals.totalSupplyMor ? `${fmt(data.totals.totalSupplyMor)} MOR` : '-';
+  }
+
+  // Render pool cards
+  var grid = document.getElementById('pools-grid');
+  if (!grid || !data.pools) return;
+  grid.innerHTML = '';
+
+  data.pools.forEach((p) => {
+    var card = document.createElement('div');
+    var clickable = p.detailUrl ? ' clickable' : '';
+    card.className = `pool-card${clickable}`;
+    if (p.detailUrl) card.setAttribute('data-href', p.detailUrl);
+
+    var stakedHtml = p.stakedMor != null
+      ? '<span class="pool-metric-value">' + fmt(p.stakedMor) + ' MOR</span>' +
+        (p.source ? `<div class="pool-derived-note">${p.source}</div>` : '')
+      : '<span class="pool-metric-value na">Not indexed</span>';
+
+    var _aprHtml = p.apr != null
+      ? `<span class="pool-metric-value">${p.apr}</span>`
+      : '<span class="pool-metric-value na">-</span>';
+
+    var arrowHtml = p.detailUrl
+      ? '<span class="pool-link-arrow">&rarr;</span>'
+      : '';
+
+    var contractHtml = p.contract
+      ? `<a href="https://${p.chain === 'Arbitrum' ? 'arbiscan.io' : 'basescan.org'}/address/${p.contract}" target="_blank" rel="noopener" class="pool-contract">${p.chain} &middot; ${p.contract.slice(0,6)}...${p.contract.slice(-4)}</a>`
+      : '';
+
+    var docsHtml = p.docsUrl
+      ? ` <a href="${p.docsUrl}" target="_blank" rel="noopener" class="pool-docs">Docs</a>`
+      : '';
+
+    card.innerHTML =
+      '<div>' +
+        '<div class="pool-name">' + p.name + docsHtml + '</div>' +
+        (p.desc ? `<div class="pool-desc">${p.desc}</div>` : '') +
+        (contractHtml ? `<div class="pool-desc">${contractHtml}</div>` : '') +
+      '</div>' +
+      '<div><div class="pool-metric-label">Staked</div>' + stakedHtml + '</div>' +
+      (arrowHtml ? `<div style="display:flex;align-items:center;justify-content:flex-end;">${arrowHtml}</div>` : '');
+
+    grid.appendChild(card);
+  });
+
+  // Totals bar
+  if (data.totals) {
+    var totals = document.getElementById('pools-total');
+    if (totals) {
+      totals.style.display = 'flex';
+      var supplyHtml = data.totals.totalSupplyMor ? `${fmt(data.totals.totalSupplyMor)} MOR` : '-';
+      totals.innerHTML =
+        `<div class="pools-total-item"><span class="pools-total-label">Total Supply (Base)</span><span class="pools-total-value">${supplyHtml}</span></div>`;
+    }
+  }
+
+  // Note about unindexed pools
+  if (data.note) {
+    var noteEl = document.createElement('div');
+    noteEl.className = 'pool-note';
+    noteEl.innerHTML = `${data.note} <a href="https://dashboard.mor.org" target="_blank" rel="noopener" style="color:var(--green);">Morpheus Dashboard</a>`;
+    grid.parentNode.insertBefore(noteEl, grid.nextSibling);
+  }
+})();
+</script>

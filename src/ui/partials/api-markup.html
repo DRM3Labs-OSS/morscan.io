@@ -1,0 +1,109 @@
+
+<!-- Key bar -->
+<div class="key-bar">
+  <label for="api-key" style="color:var(--text-muted);">API Key:</label>
+  <input type="text" id="api-key" class="key-input" spellcheck="false" autocomplete="off" placeholder="mor_... (or connect your wallet)">
+  <span style="color:var(--text-muted);font-size:0.65rem;">sent as <code style="background:var(--bg-card);padding:0.1rem 0.3rem;">X-Morscan-Key</code></span>
+  <span id="key-hint" aria-live="polite" style="display:none;flex-basis:100%;color:var(--text-muted);font-size:0.65rem;line-height:1.5;"></span>
+  <a id="key-cta" href="/console" style="display:none;border:1px solid var(--green);color:var(--green);padding:0.35rem 0.7rem;font-size:0.65rem;font-weight:600;text-decoration:none;white-space:nowrap;">Connect wallet to get your free key &rarr;</a>
+</div>
+
+<!-- Live capacity: stake -> caps + remaining budget. Shown when a key is set. -->
+<div class="cap-strip" id="cap-strip" style="display:none" aria-live="polite">
+  <div class="cap-cell"><span class="cap-lbl">Your stake</span><span class="cap-val" id="cap-stake">-</span></div>
+  <div class="cap-cell"><span class="cap-lbl">Per minute</span><span class="cap-val" id="cap-min">-</span></div>
+  <div class="cap-cell"><span class="cap-lbl">Today</span><span class="cap-val" id="cap-day">-</span></div>
+  <div class="cap-cell"><span class="cap-lbl">This month</span><span class="cap-val" id="cap-month">-</span></div>
+  <div class="cap-note">Only <b>METERED</b> calls draw down your budget (a flat 1 per call). FREE calls (health, capacity, price without a key) never count. Press RUN on a metered endpoint and watch Per minute tick down.</div>
+</div>
+
+<!-- Tabs -->
+<div class="api-tabs" style="display:none">
+  <button type="button" class="api-tab active" onclick="apiTab('playground')">Playground</button>
+  <button type="button" class="api-tab" onclick="apiTab('docs')">OpenAPI Docs</button>
+</div>
+
+<!-- Playground -->
+<div id="sec-playground">
+<div class="api-grid">
+  <div class="api-sidebar">
+    <div id="ep-sidebar"></div>
+    <div class="term-box">
+      <div style="color:var(--text-primary);font-weight:600;margin-bottom:0.4rem;">Terminology</div>
+      <div class="term-def"><span style="color:var(--cyan);">Provider</span> - AI inference node</div>
+      <div class="term-def"><span style="color:var(--cyan);">Bid</span> - price offer (MOR/sec)</div>
+      <div class="term-def"><span style="color:var(--cyan);">Session</span> - MOR staked for access</div>
+      <div style="margin-top:0.4rem;color:var(--yellow);">Rate limits: your key's per-minute budget (60/min free, scales with stake) plus 100 req/min per IP</div>
+    </div>
+  </div>
+
+  <div class="api-panel">
+    <!-- Wallet config -->
+    <div class="wallet-config" style="display:flex;align-items:center;gap:0.5rem;padding:0.5rem 1rem;border:1px solid var(--border);margin-bottom:0.75rem;font-size:0.7rem;flex-wrap:wrap;">
+      <label for="cfg-wallet" style="color:var(--text-muted);white-space:nowrap;text-transform:uppercase;letter-spacing:0.05em;font-size:0.65rem;">Wallet</label>
+      <input type="text" id="cfg-wallet" spellcheck="false" placeholder="0x..." style="flex:1;min-width:200px;background:var(--bg-primary);border:1px solid var(--border);color:var(--cyan);font-family:monospace;font-size:0.7rem;padding:0.3rem 0.5rem;">
+      <span style="color:var(--dim);font-size:0.65rem;" class="wallet-hint">Used in endpoints with {wallet}</span>
+    </div>
+    <!-- Request -->
+    <div class="pnl">
+      <div class="pnl-hdr">
+        <span class="pnl-title">Request</span>
+        <span class="req-meter" id="req-meter"></span>
+      </div>
+      <div id="ep-detail" style="padding:0.5rem 1rem;font-size:0.65rem;color:var(--text-muted);line-height:1.5;border-bottom:1px solid var(--border);display:none;"></div>
+      <div class="req-bar">
+        <span id="req-badge" class="ep-method get">GET</span>
+        <input type="text" id="req-url" class="req-url" spellcheck="false" aria-label="Request URL">
+        <button type="button" class="btn-run" id="btn-run" onclick="runReq()">RUN</button>
+      </div>
+      <div class="pnl-hdr" style="border-top:1px solid var(--border);">
+        <span class="pnl-title">Headers</span>
+        <button type="button" class="btn" onclick="copyCurl(this)">Copy cURL</button>
+      </div>
+      <div class="code" id="req-hdrs" style="padding:0.5rem 1rem;"></div>
+    </div>
+
+    <!-- Response -->
+    <div class="pnl">
+      <div class="pnl-hdr">
+        <span class="pnl-title">Response</span>
+        <div class="pnl-meta" role="status" aria-live="polite" aria-label="Response status">
+          <span class="st" id="r-status">-</span>
+          <span class="tm" id="r-time">-</span>
+          <span class="sz" id="r-size">-</span>
+        </div>
+      </div>
+      <div class="pnl-hdr" style="background:var(--bg-secondary);">
+        <span class="pnl-title">Headers</span>
+      </div>
+      <div class="resp-hdrs" id="r-hdrs"></div>
+      <div class="pnl-hdr" style="background:var(--bg-secondary);">
+        <span class="pnl-title">Body</span>
+        <button type="button" class="btn" onclick="copyJson(this)">Copy JSON</button>
+      </div>
+      <div class="code" id="r-body" role="region" aria-label="Response body" aria-live="polite" tabindex="0">Select an endpoint and press RUN</div>
+    </div>
+
+    <!-- cURL -->
+    <div class="pnl">
+      <div class="pnl-hdr">
+        <span class="pnl-title">cURL</span>
+        <button type="button" class="btn" onclick="copyCurl(this)">Copy</button>
+      </div>
+      <div class="code" id="curl-out" style="font-size:0.65rem;color:var(--text-secondary);">Select an endpoint to see the cURL command</div>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- OpenAPI Docs - our own renderer, no Swagger UI -->
+<div id="sec-docs" style="display:none;">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
+    <span style="font-size:0.8rem;color:var(--text-muted);">OpenAPI 3.1 Specification</span>
+    <a href="/openapi.json" target="_blank" style="font-size:0.7rem;color:var(--cyan);text-decoration:none;">Download JSON &rarr;</a>
+  </div>
+  <div id="openapi-docs" style="font-size:0.75rem;line-height:1.5;">
+    <div class="skeleton skel-line w80" style="margin:2rem;"></div><div class="skeleton skel-line w60" style="margin:0 2rem;"></div><div class="skeleton skel-line w40" style="margin:0 2rem;"></div>
+  </div>
+</div>
+

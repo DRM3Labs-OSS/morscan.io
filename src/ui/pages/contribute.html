@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Contribute to MorScan - Fair Source Morpheus Explorer</title>
+  <meta name="description" content="MorScan is Fair Source under FSL-1.1-MIT. Issues and pull requests are welcome. Run it locally in minutes and help build the block explorer for the Morpheus AI network.">
+  <meta name="keywords" content="MorScan Fair Source, contribute, Morpheus explorer, pull requests, FSL-1.1-MIT, Cloudflare Worker, D1">
+  <link rel="canonical" href="{{BASE_URL}}/contribute">
+  <meta property="og:title" content="Contribute to MorScan">
+  <meta property="og:description" content="MorScan is Fair Source under FSL-1.1-MIT. Issues and pull requests are welcome. Run it locally in minutes.">
+  <meta property="og:image" content="{{BASE_URL}}/og/about.png">
+  <meta property="og:url" content="{{BASE_URL}}/contribute">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="MorScan">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Contribute to MorScan">
+  <meta name="twitter:description" content="MorScan is Fair Source under FSL-1.1-MIT. Issues and pull requests are welcome.">
+  <meta name="twitter:image" content="{{BASE_URL}}/og/about.png">
+  <link rel="icon" href="/favicon.ico" sizes="any">
+  <link rel="icon" type="image/png" sizes="48x48" href="/favicon.png">
+  <link rel="icon" type="image/svg+xml" href="/morscan-icon.svg">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"MorScan","item":"{{BASE_URL}}/"},{"@type":"ListItem","position":2,"name":"Contribute","item":"{{BASE_URL}}/contribute"}]}</script>
+  <!-- IBM Plex Mono self-hosted at /fonts/ (SIL OFL 1.1, src/fonts/OFL.txt) - fleet console convention, no third-party font host. -->
+  <style>
+    @font-face { font-family: 'IBM Plex Mono'; font-style: normal; font-weight: 400; font-display: swap; src: url('/fonts/ibm-plex-mono-400.woff2') format('woff2'); }
+    @font-face { font-family: 'IBM Plex Mono'; font-style: normal; font-weight: 500; font-display: swap; src: url('/fonts/ibm-plex-mono-500.woff2') format('woff2'); }
+    @font-face { font-family: 'IBM Plex Mono'; font-style: normal; font-weight: 600; font-display: swap; src: url('/fonts/ibm-plex-mono-600.woff2') format('woff2'); }
+    @font-face { font-family: 'IBM Plex Mono'; font-style: normal; font-weight: 700; font-display: swap; src: url('/fonts/ibm-plex-mono-700.woff2') format('woff2'); }
+  </style>
+  <style>
+    html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+    * { margin: 0; padding: 0; box-sizing: border-box; border-radius: 0; }
+    button, input, select, textarea { font-family: inherit; }
+    :root { /* IBM Plex Mono self-hosted (fleet console convention). REVERT = remove the @font-face block + restore: ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace */ --mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace; --bg: #0c0a09; --panel: #12100f; --border: #44403c; --text: #fafaf9; --sub: #d6d3d1; --muted: #c7c2bc; --green: #22c55e; }
+    html, body { overflow-x: hidden; }
+    body { font-family: var(--mono); background: var(--bg); color: var(--text); min-height: 100vh; line-height: 1.6; }
+    .page { max-width: 720px; margin: 0 auto; padding: 3rem 1.25rem 4rem; }
+    .back { font-size: 0.7rem; color: var(--green); text-decoration: none; }
+    .kicker { font-size: 0.65rem; letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted); margin: 2rem 0 0.5rem; }
+    h1 { font-size: 1.7rem; color: var(--green); margin-bottom: 0.6rem; }
+    .lede { font-size: 0.88rem; color: var(--sub); margin-bottom: 1.6rem; max-width: 60ch; }
+    h2 { font-size: 0.75rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); margin: 2.4rem 0 0.7rem; }
+    p, li { font-size: 0.78rem; color: var(--sub); margin-bottom: 0.7rem; }
+    ul { list-style: none; margin-bottom: 0.7rem; }
+    li { padding-left: 1.1rem; position: relative; margin-bottom: 0.45rem; }
+    li::before { content: ">"; position: absolute; left: 0; color: var(--green); }
+    a { color: var(--green); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    strong { color: var(--text); font-weight: 600; }
+    .cta-row { display: flex; flex-wrap: wrap; gap: 0.7rem; margin: 1.6rem 0 0.4rem; }
+    .btn { display: inline-flex; align-items: center; gap: 0.45em; font-size: 0.8rem; font-weight: 600; padding: 0.6rem 1rem; border: 1px solid var(--border); color: var(--text); text-decoration: none; }
+    .btn:hover { border-color: var(--green); text-decoration: none; }
+    .btn.primary { background: var(--green); color: #0c0a09; border-color: var(--green); }
+    .btn.primary:hover { background: #4ade80; }
+    .btn svg { display: block; }
+    pre { background: var(--panel); border: 1px solid var(--border); padding: 1rem 1.1rem; overflow-x: auto; margin: 0.6rem 0 1rem; }
+    pre code { font-family: inherit; font-size: 0.76rem; color: var(--sub); line-height: 1.7; white-space: pre; }
+    .cmt { color: var(--muted); }
+    .card { background: var(--panel); border: 1px solid var(--border); padding: 1rem 1.15rem; margin-top: 1.2rem; }
+    .card p { margin-bottom: 0; }
+    .foot { margin-top: 3rem; padding-top: 1.2rem; border-top: 1px solid var(--border); font-size: 0.65rem; color: var(--muted); text-align: center; }
+    :focus-visible { outline: 2px solid var(--green); outline-offset: 2px; }
+    /* Skip link - visually hidden until keyboard focus */
+    .skip-link { position: absolute; left: -9999px; top: 0; z-index: 100; background: var(--green); color: #0c0a09; font-weight: 700; font-size: 0.8rem; padding: 0.6rem 1rem; text-decoration: none; }
+    .skip-link:focus { left: 0.5rem; top: 0.5rem; }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
+    }
+
+    /* Footer - condensed two quiet lines: brand + nav, then a collapsed
+       credit/license line, plus the build stamp. No stray mark, >=40px tap
+       targets, links wrap cleanly with no horizontal wobble on mobile. */
+    .site-footer { margin-top: 3rem; padding-top: 1.5rem; border-top: 1px solid #44403c; text-align: center; padding-bottom: 2rem; max-width: 100%; }
+    .footer-nav { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 0 0.15rem; max-width: 100%; }
+    .footer-brand { display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.5rem 0.4rem; color: #e7e5e4; font-weight: 600; letter-spacing: 0.02em; font-size: 0.75rem; text-decoration: none; }
+    .footer-brand svg { display: block; }
+    .footer-logo { display: inline-flex; align-items: center; justify-content: center; min-height: 40px; padding: 0.4rem; margin-bottom: 0.3rem; }
+    .footer-logo svg { display: block; filter: drop-shadow(0 0 10px rgba(34,197,94,0.4)); }
+    .footer-drm3 { display: inline-flex; align-items: center; justify-content: center; min-height: 40px; padding: 0.4rem 0.6rem; margin-top: 0.9rem; opacity: 0.85; transition: opacity 0.15s; }
+    .footer-drm3:hover, .footer-drm3:focus-visible { opacity: 1; }
+    .footer-drm3 img { display: block; height: 26px; width: auto; }
+    .footer-nav a { display: inline-flex; align-items: center; min-height: 40px; padding: 0.5rem 0.5rem; color: #c7c2bc; font-size: 0.72rem; text-decoration: none; }
+    .footer-nav a:hover, .footer-nav a:focus-visible { color: var(--green); }
+    .footer-sep { color: #6b6660; font-size: 0.72rem; user-select: none; }
+    .footer-credit { margin: 0.75rem auto 0.45rem; max-width: 44rem; font-size: 0.66rem; line-height: 1.55; color: #c7c2bc; }
+    .footer-credit a { color: #c7c2bc; text-decoration: underline; }
+    .footer-credit a:hover, .footer-credit a:focus-visible { color: var(--green); }
+  </style>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+  <div class="page">
+    <a class="back" href="/">&larr; Back to explorer</a>
+    <main id="main" tabindex="-1">
+    <div class="kicker">Fair Source</div>
+    <h1>Contribute to MorScan</h1>
+    <p class="lede">MorScan is source-open, and we love pull requests. It is the same code that runs this site, so anything you fix or build here ships for everyone. Come poke at it.</p>
+
+    <div class="cta-row">
+      <a class="btn primary" href="https://github.com/DRM3Labs-OSS/morscan.io" target="_blank" rel="noopener"><svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82a7.6 7.6 0 0 1 4 0c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>View the repo</a>
+      <a class="btn" href="https://github.com/DRM3Labs-OSS/morscan.io/issues" target="_blank" rel="noopener">Browse issues</a>
+      <a class="btn" href="https://github.com/DRM3Labs-OSS/morscan.io/blob/main/CONTRIBUTING.md" target="_blank" rel="noopener">CONTRIBUTING.md</a>
+    </div>
+
+    <h2>The license, plainly</h2>
+    <p>MorScan is licensed under <a href="https://github.com/DRM3Labs-OSS/morscan.io/blob/main/LICENSE" target="_blank" rel="noopener">FSL-1.1-MIT</a>, Sentry's Fair Source license with an MIT future grant: free to use, fork, and self-host; no competing hosted service for 2 years; every release becomes MIT after two years, guaranteed. For contributors that changes nothing: fork, branch, send a PR, and your work is welcome.</p>
+    <p>Want more than the license grants? If you want to offer MorScan as a hosted service, embed it in a commercial product, or take MIT rights ahead of the two-year date, commercial licenses are available: <a href="mailto:morscan@drm3.io">morscan@drm3.io</a>. Self-hosting and building your own providers never need one.</p>
+
+    <h2>Run it locally</h2>
+    <p>One small codebase. You need Node.js 22+ and npm; the stack details live in the <a href="https://github.com/DRM3Labs-OSS/morscan.io#readme" target="_blank" rel="noopener">README</a>.</p>
+    <pre><code>git clone https://github.com/DRM3Labs-OSS/morscan.io.git
+cd morscan.io
+npm install
+
+npm run dev        <span class="cmt"># local worker at http://localhost:8787</span>
+
+<span class="cmt"># before you open a PR, keep these green:</span>
+npm run typecheck  <span class="cmt"># tsc --noEmit</span>
+npm run lint       <span class="cmt"># biome lint src/</span>
+npm run build      <span class="cmt"># wrangler deploy --dry-run</span></code></pre>
+    <p>First-run setup (account id, D1 database, env vars) is in <a href="https://github.com/DRM3Labs-OSS/morscan.io/blob/main/docs/GETTING_STARTED.md" target="_blank" rel="noopener">docs/GETTING_STARTED.md</a>. The explorer runs without provenance signing, so you do not need any secrets to get a working local instance.</p>
+
+    <h2>What is welcome</h2>
+    <ul>
+      <li><strong>Bug fixes.</strong> Something looks wrong or a number is off? A focused fix with a note on how you checked it is the best kind of PR.</li>
+      <li><strong>New handlers and views.</strong> Another slice of Morpheus activity worth surfacing? The routing and handler pattern is small and easy to extend.</li>
+      <li><strong>Performance.</strong> The stack is vanilla TypeScript with Canvas charts and a seven-package runtime. Making it leaner and faster is always in scope.</li>
+      <li><strong>Docs and examples.</strong> Clearer getting-started steps, API examples, and architecture notes help everyone who comes next.</li>
+      <li><strong>Ideas.</strong> Not sure yet? Open an issue and describe the problem. Small, focused proposals are easiest to move on.</li>
+    </ul>
+
+    <h2>Feedback and feature requests</h2>
+    <p>Comments, concerns, feedback, and feature requests all live in one place: <a href="https://github.com/DRM3Labs-OSS/morscan.io/issues" target="_blank" rel="noopener">open a GitHub issue</a>. Say what you saw and what you expected - a number that looks off, a page that reads wrong, a dataset you wish existed. We read every issue.</p>
+
+    <p>Style and workflow details are in <a href="https://github.com/DRM3Labs-OSS/morscan.io/blob/main/CONTRIBUTING.md" target="_blank" rel="noopener">CONTRIBUTING.md</a>; CI runs the same checks you run locally. Security issues go through <a href="https://github.com/DRM3Labs-OSS/morscan.io/blob/main/SECURITY.md" target="_blank" rel="noopener">SECURITY.md</a>, not a public issue.</p>
+
+    <div class="card">
+      <p>Ready? Fork the repo, branch from <code>main</code>, and open a pull request describing the change and how you verified it. If you are looking for a first task, the <a href="https://github.com/DRM3Labs-OSS/morscan.io/issues" target="_blank" rel="noopener">open issues</a> are a good place to start. We read them, and we mean it when we say contributions are welcome.</p>
+    </div>
+    </main>
+
+    <footer class="site-footer">
+      <a href="/" class="footer-logo" aria-label="MorScan home"><svg width="56" height="25" viewBox="0 0 89 40" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false"><path d="M44.5031 36.7108L52.2884 27.0574V39.5L75.154 30.3296L78.4294 22.9099L58.8453 30.8065V28.0173L80.2346 19.2454L83.6775 11.7472L58.7647 21.8776V19.1669L85.7246 7.99814L89 0.5L56.3826 13.818C56.3826 13.818 53.5973 14.8563 52.369 16.8486L44.5031 26.5805L36.6372 16.8486C35.4089 14.8563 32.6236 13.818 32.6236 13.818L0 0.5L3.27539 7.99814L30.2415 19.1608V21.8715L5.32871 11.7472L8.77159 19.2454L30.1609 28.0173V30.8065L10.5768 22.9099L13.8522 30.3296L36.7178 39.5V27.0574L44.5031 36.7108Z" fill="#22c55e"/></svg></a>
+      <nav class="footer-nav" aria-label="Footer">
+        <a href="/about">About</a>
+        <span class="footer-sep" aria-hidden="true">&middot;</span>
+        <a href="/terms">Terms</a>
+        <span class="footer-sep" aria-hidden="true">&middot;</span>
+        <a href="/privacy">Privacy</a>
+        <span class="footer-sep" aria-hidden="true">&middot;</span>
+        <a href="/health">Status</a>
+        <span class="footer-sep" aria-hidden="true">&middot;</span>
+        <a href="/stake">Support</a>
+        <span class="footer-sep" aria-hidden="true">&middot;</span>
+        <a href="/contribute">Contribute</a>
+        <span class="footer-sep" aria-hidden="true">&middot;</span>
+        <a href="https://github.com/DRM3Labs-OSS/morscan.io/issues" target="_blank" rel="noopener">Feedback</a>
+      </nav>
+      <p class="footer-credit">Developed, maintained, and operated by <a href="https://drm3.network" target="_blank" rel="noopener">DRM3 Labs</a> &middot; Fair Source (FSL-1.1-MIT), pull requests welcome.</p>
+      <a href="https://drm3.network" class="footer-drm3" target="_blank" rel="noopener" aria-label="DRM3 Labs"><img src="/drm3-icon-transparent-white-consumer-128.png" alt="DRM3 Labs" width="40" height="40"></a>
+      <p style="margin:0;font-size:0.6rem;color:#8a8580;">MorScan &middot; &copy; 2026</p>
+    </footer>
+  </div>
+  <script src="/webmcp.js" defer></script>
+</body>
+</html>

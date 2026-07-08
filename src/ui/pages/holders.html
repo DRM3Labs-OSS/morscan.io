@@ -1,0 +1,226 @@
+<!-- Holders page - content fragment for layout.mustache -->
+<style>
+    .section-title { font-size:0.65rem; text-transform:uppercase; letter-spacing:0.12em; color:var(--dim); margin-bottom:0.75rem; }
+    .hero { margin-bottom:2rem; }
+    .hero h2 { font-size:1.5rem; font-weight:700; margin-bottom:0.5rem; }
+    .hero p { font-size:0.8rem; color:var(--muted); line-height:1.6; max-width:600px; }
+    .holders-table { width:100%; border-collapse:collapse; font-size:0.75rem; }
+    .holders-table th {
+      text-align:left; padding:0.5rem 0.75rem; font-size:0.65rem; text-transform:uppercase;
+      letter-spacing:0.1em; color:var(--dim); border-bottom:1px solid var(--border); cursor:pointer; user-select:none;
+    }
+    .holders-table th:hover { color:var(--text); }
+    .holders-table th .sort-arrow { font-size:0.65rem; margin-left:0.3rem; }
+    .holders-table td { padding:0.5rem 0.75rem; border-bottom:1px solid rgba(41,37,36,0.3); }
+    .holders-table tr:hover { background:rgba(255,255,255,0.02); }
+    .wallet-link { color:var(--cyan); text-decoration:none; font-family:monospace; font-size:0.7rem; }
+    .wallet-link:hover { text-decoration:underline; }
+    .balance { font-weight:600; color:var(--green); text-align:right; }
+    .eth-bal { color:var(--muted); text-align:right; }
+    .rank { color:var(--dim); text-align:center; width:3rem; }
+    .badge { display:inline-block; font-size:0.65rem; padding:0.1rem 0.35rem; border:1px solid var(--border); text-align:center; text-transform:uppercase; letter-spacing:0.05em; }
+    .badge-provider { color:var(--cyan); border-color:rgba(34,211,238,0.3); }
+    .badge-consumer { color:var(--green); border-color:var(--green); }
+    .badge-staker { color:var(--amber); border-color:rgba(245,158,11,0.3); }
+    .badge-holder { color:var(--dim); border-color:rgba(120,113,108,0.3); }
+    .pagination { display:flex; justify-content:center; gap:0.5rem; margin-top:1.5rem; }
+    .pagination a { padding:0.3rem 0.75rem; font-size:0.7rem; border:1px solid var(--border); color:var(--text); text-decoration:none; }
+    .pagination a:hover { border-color:var(--green); }
+    .pagination a.active { border-color:var(--green); color:var(--green); }
+    .loading { text-align:center; padding:3rem; color:var(--muted); font-size:0.8rem; }
+    .role-tabs { display:flex; flex-wrap:wrap; gap:0.25rem; margin-bottom:0.75rem; }
+    .role-f { font-family:inherit; font-size:0.65rem; padding:0.3rem 0.6rem; background:none; border:1px solid var(--border); color:var(--muted); cursor:pointer; min-height:32px; }
+    .role-f:hover, .role-f:focus-visible { border-color:var(--green); color:var(--text); }
+    .role-f.active { border-color:var(--green); color:var(--green); }
+    @media(max-width:768px) {
+      .wallet-link { font-size:0.65rem; }
+      .holders-table { font-size:0.65rem; min-width:520px; }
+      .holders-table td, .holders-table th { padding:0.35rem 0.4rem; }
+      .badge { font-size:0.65rem; padding:0.05rem 0.25rem; }
+    }
+    @media(max-width:500px) {
+      .wallet-link { font-size:0.65rem; }
+      .eth-bal { display:none; }
+    }
+</style>
+
+<div id="holdersContent"><div class="skeleton skel-table-row"></div><div class="skeleton skel-table-row"></div><div class="skeleton skel-table-row"></div><div class="skeleton skel-table-row"></div><div class="skeleton skel-table-row"></div><div class="skeleton skel-table-row"></div></div>
+
+<script>
+(()=> {
+  var API_KEY = window.MORSCAN_API_KEY || '';
+  var headers = API_KEY ? {'X-Morscan-Key': API_KEY} : {};
+  var MODE = window.__HOLDERS_MODE__ || 'holders';
+  var API_PATH = MODE === 'dust' ? '/mor/v1/holders/dust' : '/mor/v1/holders';
+  var allHolders = [];
+  var coverage = null; // holder-history indexing coverage (from API)
+  // Default: rank by MOR balance, highest first (#1 holds the most). The old
+  // role-priority default made rank order look wrong (a small holder above a
+  // large one), so balance is the honest primary sort.
+  var sortCol = 'morBalance';
+  var sortDir = -1; // -1 = desc
+  // Browse cap: 10 pages x 100 rows = 1,000 holders in the UI; past that a
+  // friendly notice points at the role filter, the API, and the open dataset.
+  var MAX_PAGES = 10;
+  var curPage = 1;
+  var roleFilter = 'all';
+
+  function sortBy(col) {
+    if (sortCol === col) { sortDir *= -1; } else { sortCol = col; sortDir = -1; }
+    renderTable();
+  }
+  window.sortBy = sortBy;
+
+  // Role filter over the already-fetched page (client-side, no extra API load).
+  function setRole(r) {
+    roleFilter = r;
+    document.querySelectorAll('.role-f').forEach((b)=> {
+      var on = b.getAttribute('data-r') === r;
+      b.classList.toggle('active', on);
+      b.setAttribute('aria-pressed', on ? 'true' : 'false');
+    });
+    renderTable();
+  }
+  window.setRole = setRole;
+  function roleMatch(h) {
+    if (roleFilter === 'all') return true;
+    if (roleFilter === 'consumer') return !!h.isConsumer;
+    if (roleFilter === 'provider') return !!h.isProvider;
+    if (roleFilter === 'staker') return !!h.isStaker;
+    if (roleFilter === 'holder') return !h.isConsumer && !h.isProvider && !h.isStaker;
+    return true;
+  }
+
+  function roleScore(h) { return (h.isStaker ? 4 : 0) + (h.isProvider ? 2 : 0) + (h.isConsumer ? 1 : 0); }
+  function _stakedScore(h) { return parseFloat(h.activeStakeMor || '0') + parseFloat(h.builderStakeMor || '0'); }
+
+  function renderTable() {
+    var sorted = allHolders.filter(roleMatch).sort((a,b)=> {
+      // Default: roles first, then MOR balance as tiebreaker
+      if (sortCol === 'default') {
+        var ra = roleScore(a), rb = roleScore(b);
+        if (ra !== rb) return rb - ra; // roles DESC always
+        var ma = parseFloat(a.morBalance || '0'), mb = parseFloat(b.morBalance || '0');
+        if (ma < mb) return -sortDir;
+        if (ma > mb) return sortDir;
+        return 0;
+      }
+      // MOR Balance: sort purely by balance
+      if (sortCol === 'morBalance') {
+        var ma = parseFloat(a.morBalance || '0'), mb = parseFloat(b.morBalance || '0');
+        if (ma < mb) return -sortDir;
+        if (ma > mb) return sortDir;
+        return 0;
+      }
+      var va, vb;
+      if (sortCol === 'wallet') { va = a[sortCol]; vb = b[sortCol]; }
+      else if (sortCol === 'roles') { va = roleScore(a); vb = roleScore(b); }
+      else { va = parseFloat(a[sortCol] || '0'); vb = parseFloat(b[sortCol] || '0'); }
+      if (va < vb) return -sortDir;
+      if (va > vb) return sortDir;
+      return 0;
+    });
+
+    var arrow = (col) => sortCol === col ? (sortDir < 0 ? ' ▼' : ' ▲') : '';
+    var asort = (col) => sortCol === col ? ' aria-sort="' + (sortDir < 0 ? 'descending' : 'ascending') + '"' : '';
+
+    var pills = '';
+    if (MODE !== 'dust') {
+      var roles = [['all','All'],['consumer','Consumers'],['provider','Providers'],['staker','Stakers'],['holder','Holders only']];
+      pills = '<div class="role-tabs" role="group" aria-label="Filter holders by role">' + roles.map((r)=> {
+        var on = roleFilter === r[0];
+        return '<button type="button" class="role-f' + (on ? ' active' : '') + '" data-r="' + r[0] + '" aria-pressed="' + on + '" onclick="setRole(\'' + r[0] + '\')">' + r[1] + '</button>';
+      }).join('') + '</div>';
+    }
+
+    var html;
+    if (MODE === 'dust') {
+      html = '<div class="table-scroll"><table class="holders-table"><thead><tr>' +
+        '<th class="rank">#</th>' +
+        '<th>Wallet</th>' +
+        '<th>Balance (wei)</th>' +
+        '</tr></thead><tbody>';
+      sorted.forEach((h, i)=> {
+        var wei = h.morBalanceWei || '0';
+        var status = `<span style="color:var(--dim)">${wei} wei</span>`;
+        html += '<tr>' +
+          '<td class="rank">' + (h.rank != null ? h.rank : (i + 1)) + '</td>' +
+          '<td><a class="wallet-link" href="https://basescan.org/address/' + h.wallet + '" target="_blank" rel="noopener">' + h.wallet + '</a></td>' +
+          '<td>' + status + '</td>' +
+          '</tr>';
+      });
+    } else {
+      html = '<div class="table-scroll"><table class="holders-table"><thead><tr>' +
+        '<th class="rank">#</th>' +
+        '<th onclick="sortBy(\'wallet\')"' + asort('wallet') + '>Wallet<span class="sort-arrow">' + arrow('wallet') + '</span></th>' +
+        '<th onclick="sortBy(\'roles\')"' + asort('roles') + '>Roles<span class="sort-arrow">' + arrow('roles') + '</span></th>' +
+        '<th style="text-align:right" onclick="sortBy(\'morBalance\')"' + asort('morBalance') + '>MOR Balance<span class="sort-arrow">' + arrow('morBalance') + '</span></th>' +
+        '<th style="text-align:right" onclick="sortBy(\'ethBalance\')"' + asort('ethBalance') + '>ETH<span class="sort-arrow">' + arrow('ethBalance') + '</span></th>' +
+        '</tr></thead><tbody>';
+      sorted.forEach((h, i)=> {
+        var roles = [];
+        if (h.isConsumer) roles.push('<span class="badge badge-consumer">consumer</span>');
+        if (h.isProvider) roles.push('<span class="badge badge-provider">provider</span>');
+        if (h.isStaker) roles.push('<span class="badge badge-staker">staker</span>');
+        if (!roles.length) roles.push('<span class="badge badge-holder">holder</span>');
+        html += '<tr>' +
+          '<td class="rank">' + (h.rank != null ? h.rank : (i + 1)) + '</td>' +
+          '<td><a class="wallet-link" href="https://basescan.org/address/' + h.wallet + '" target="_blank" rel="noopener">' + h.wallet + '</a></td>' +
+          '<td>' + roles.join(' ') + '</td>' +
+          '<td class="balance">' + parseFloat(h.morBalance).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2}) + '</td>' +
+          '<td class="eth-bal">' + parseFloat(h.ethBalance).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2}) + '</td>' +
+          '</tr>';
+      });
+    }
+    html += '</tbody></table></div>';
+    document.getElementById('holdersContent').innerHTML = pills + html + pagHtml;
+  }
+
+  var pagHtml = '';
+  function load(page) {
+    page = page || 1;
+    curPage = page;
+    fetch(`${API_PATH}?page=${page}&limit=100`, {headers: headers})
+      .then((r)=> r.json())
+      .then((d)=> {
+        coverage = d.coverage || null;
+        // Stat bar - honest: show the live count, flagged as still-indexing when
+        // the full-history re-scan has not reached ~100% yet.
+        var sbHolders = document.getElementById('stat-bar-holders');
+        if (sbHolders) {
+          var base = (d.total != null ? d.total : 0).toLocaleString();
+          sbHolders.textContent = (coverage && coverage.indexing)
+            ? base + ' (indexing ' + (coverage.pct != null ? coverage.pct.toFixed(0) : '0') + '%)'
+            : base;
+        }
+        var sbDust = document.getElementById('stat-bar-dust');
+        if (sbDust && d.dustHolders != null) sbDust.textContent = d.dustHolders.toLocaleString();
+        allHolders = d.holders || [];
+        var totalMor = 0;
+        allHolders.forEach((h)=> { totalMor += parseFloat(h.morBalance || '0'); });
+        var morText = totalMor > 1000 ? `${Math.floor(totalMor).toLocaleString()} MOR` : `${totalMor.toFixed(2)} MOR`;
+        var sbMor = document.getElementById('stat-bar-total-mor'); if (sbMor) sbMor.textContent = morText;
+
+        // Pagination capped at the 10-page browse limit; past it, a friendly
+        // notice replaces deeper paging (the API and dataset carry the full set).
+        pagHtml = '';
+        if (d.pagination && d.pagination.totalPages > 1) {
+          pagHtml = '<div class="pagination">';
+          for (var p = 1; p <= Math.min(d.pagination.totalPages, MAX_PAGES); p++) {
+            pagHtml += `<a href="#" onclick="loadPage(${p});return false" class="${p === page ? 'active' : ''}"${p === page ? ' aria-current="page"' : ''}>${p}</a>`;
+          }
+          pagHtml += '</div>';
+          if (d.pagination.totalPages > MAX_PAGES) {
+            pagHtml += '<div role="note" aria-live="polite" style="border:1px solid var(--border);border-left:3px solid var(--green);background:var(--bg-secondary);padding:0.85rem 1rem;font-size:0.7rem;color:var(--muted);line-height:1.6;margin-top:0.9rem;">Showing the first 1,000 holders. That is the browse limit. Refine with a role filter or column sort to find a specific one, or pull the full set from the <a href="/api/playground" style="color:var(--green);text-decoration:none;">API</a> or the <a href="https://github.com/DRM3Labs-OSS/morpheus-ai-base-data" target="_blank" rel="noopener" style="color:var(--green);text-decoration:none;">open dataset</a>.</div>';
+          }
+        }
+        renderTable();
+      })
+      .catch(()=> {
+        document.getElementById('holdersContent').innerHTML = '<div class="loading">Failed to load holders</div>';
+      });
+  }
+  window.loadPage = load;
+  load(1);
+})();
+</script>

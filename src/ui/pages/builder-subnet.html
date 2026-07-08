@@ -1,0 +1,281 @@
+<style>
+  .section-title { font-size: 0.75rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 0.75rem; margin-top: 1.5rem; }
+  .subnet-header { margin-top: 1.5rem; }
+  .subnet-header h2 { font-size: 1.1rem; font-weight: 700; margin: 0 0 0.25rem 0; }
+  .subnet-header .subnet-meta { font-size: 0.65rem; color: var(--text-muted); line-height: 1.6; overflow-wrap: anywhere; word-break: break-all; }
+  .subnet-header .subnet-meta a { color: var(--green); text-decoration: none; }
+  .subnet-header .subnet-meta a:hover { text-decoration: underline; }
+  .detail-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 0.75rem; margin-top: 1rem; }
+  .detail-card { background: var(--bg-secondary); border: 1px solid var(--border); padding: 0.75rem 1rem; }
+  .detail-card .label { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-muted); font-weight: 600; }
+  .detail-card .value { font-size: 1rem; font-weight: 700; margin-top: 0.25rem; font-variant-numeric: tabular-nums; }
+  .staker-table { width: 100%; border-collapse: collapse; font-size: 0.75rem; }
+  .staker-table th { text-align: left; padding: 0.5rem 0.75rem; border-bottom: 1px solid var(--border); color: var(--text-muted); font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.1em; font-weight: 600; }
+  .staker-table td { padding: 0.6rem 0.75rem; border-bottom: 1px solid var(--border); }
+  .staker-table td:last-child, .staker-table th:last-child { text-align: right; }
+  .staker-table tr:hover { background: var(--bg-secondary); }
+  .staker-table .mono { font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .event-table { width: 100%; border-collapse: collapse; font-size: 0.75rem; }
+  .event-table th { text-align: left; padding: 0.5rem 0.75rem; border-bottom: 1px solid var(--border); color: var(--text-muted); font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.1em; font-weight: 600; }
+  .event-table td { padding: 0.5rem 0.75rem; border-bottom: 1px solid var(--border); }
+  .event-table tr:hover { background: var(--bg-secondary); }
+  .event-table .mono { font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .event-table td:last-child { text-align: right; white-space: nowrap; }
+  @media (max-width: 600px) { .event-table td:last-child .date-time { display: block; } .event-table { min-width: 460px; } }
+  .event-type { font-weight: 600; text-transform: uppercase; font-size: 0.65rem; letter-spacing: 0.05em; padding: 0.15rem 0.4rem; display: inline-block; }
+  .event-type.deposit { color: var(--green); background: var(--green-dim); }
+  .event-type.withdraw { color: var(--red, #ef4444); background: #1a0808; }
+  .event-type.claim { color: var(--yellow, #f59e0b); background: #2a2008; }
+  .self-stake { font-size: 0.65rem; color: var(--yellow, #f59e0b); text-transform: uppercase; letter-spacing: 0.05em; margin-left: 0.35rem; opacity: 0.8; }
+  .addr { font-family: ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace; font-size: 0.65rem; color: var(--text-muted); word-break: break-all; overflow-wrap: anywhere; }
+  .addr a { color: var(--green); text-decoration: none; }
+  .addr a:hover { text-decoration: underline; }
+  .back-link { font-size: 0.7rem; color: var(--green); text-decoration: none; margin-top: 1rem; display: inline-block; }
+  .back-link:hover { text-decoration: underline; }
+  .builder-profile { display: flex; gap: 1rem; align-items: flex-start; margin-top: 1rem; padding: 1rem; background: var(--bg-secondary); border: 1px solid var(--border); }
+  .builder-profile-logo { width: 56px; height: 56px; border-radius: 8px; object-fit: contain; flex-shrink: 0; background: var(--bg-primary); }
+  .builder-profile-logo-none { width: 56px; height: 56px; border-radius: 8px; flex-shrink: 0; background: linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-primary) 100%); border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; }
+  .builder-profile-logo-none::after { content: ''; display: block; width: 20px; height: 20px; border-radius: 50%; background: var(--border); opacity: 0.5; }
+  .builder-profile-info { flex: 1; min-width: 0; }
+  .builder-profile-name { font-size: 0.9rem; font-weight: 700; color: var(--text-primary); }
+  .builder-profile-desc { font-size: 0.65rem; color: var(--text-muted); line-height: 1.6; margin-top: 0.25rem; white-space: pre-line; }
+  .builder-profile-link { font-size: 0.65rem; color: var(--green); text-decoration: none; margin-top: 0.25rem; display: inline-block; }
+  .builder-profile-link:hover { text-decoration: underline; }
+  @media (max-width: 600px) {
+    /* Each staker becomes a compact card. The address + staked amount are the
+       signal (large, high-contrast); the field labels are quiet secondary text
+       aligned opposite their value. Tight vertical rhythm, admin tag pinned right. */
+    .staker-table, .staker-table tbody, .staker-table tr, .staker-table td { display: block; }
+    .staker-table thead { display: none; }
+    .staker-table tr { padding: 0.7rem 0.85rem; margin-bottom: 0.5rem; border: 1px solid var(--border); background: var(--bg-secondary); }
+    .staker-table tr:hover { background: var(--bg-secondary); }
+    .staker-table td { padding: 0; border: none; }
+    .staker-table td::before { content: none; }
+    /* Wallet - the primary line: address large + green, admin badge to the right. */
+    .staker-table td[data-label="Wallet"] { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; margin-bottom: 0.5rem; padding-bottom: 0.5rem; border-bottom: 1px solid var(--border); }
+    .staker-table td[data-label="Wallet"].addr { font-size: 0.8rem; }
+    .staker-table td[data-label="Wallet"].addr a { color: var(--green); }
+    .staker-table td[data-label="Wallet"] .self-stake { flex: 0 0 auto; margin-left: 0; font-size: 0.55rem; font-weight: 700; color: var(--yellow, #f59e0b); border: 1px solid currentColor; padding: 0.08rem 0.35rem; letter-spacing: 0.08em; opacity: 1; }
+    /* Amount + Date - label left (secondary), value right. Amount is emphasized. */
+    .staker-table td[data-label="Amount"],
+    .staker-table td[data-label="Date"] { display: flex; align-items: baseline; justify-content: space-between; gap: 0.75rem; padding: 0.18rem 0; text-align: right; }
+    .staker-table td[data-label="Amount"]::before,
+    .staker-table td[data-label="Date"]::before { content: attr(data-label); font-size: 0.6rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em; flex: 0 0 auto; }
+    .staker-table td[data-label="Amount"] { font-size: 0.95rem; font-weight: 700; }
+    .staker-table td[data-label="Date"] { font-size: 0.72rem; color: var(--text-secondary); }
+  }
+</style>
+
+<a href="/builder/subnets" class="back-link">&larr; All Subnets</a>
+
+<div id="builder-profile" style="display:none;"></div>
+
+<div class="subnet-header">
+  <h2 id="subnet-name"><span class="skeleton skel-line w60" style="display:inline-block;height:1.2rem;"></span></h2>
+  <div class="subnet-meta" id="subnet-meta-block" style="display:none;">
+    <div>ID: <span id="subnet-id" class="addr"></span></div>
+    <div>Admin: <span id="subnet-admin" class="addr"></span></div>
+    <div>Claim Admin: <span id="subnet-claim-admin" class="addr"></span></div>
+    <div>Network: <span id="subnet-network"></span></div>
+  </div>
+</div>
+
+<div class="detail-grid" id="detail-grid">
+  <div class="detail-card"><div class="label">Pending Rewards</div><div class="value" id="d-pending" style="color:var(--green)"><span class="skeleton skel-line w80" style="display:inline-block;height:1rem;"></span></div></div>
+  <div class="detail-card"><div class="label">Total Claimed</div><div class="value" id="d-claimed" style="color:#fbbf24"><span class="skeleton skel-line w60" style="display:inline-block;height:1rem;"></span></div></div>
+  <div class="detail-card"><div class="label">Total Rewards</div><div class="value" id="d-total-rewards" style="color:var(--green)"><span class="skeleton skel-line w60" style="display:inline-block;height:1rem;"></span></div></div>
+  <div class="detail-card"><div class="label">Pool Share</div><div class="value" id="d-pool-share" style="color:#67e8f9"><span class="skeleton skel-line w40" style="display:inline-block;height:1rem;"></span></div></div>
+</div>
+
+<div id="stakers-section">
+  <div class="section-title" style="margin-top:2rem;">Top Stakers</div>
+  <div class="skeleton skel-table-row" style="margin-bottom:4px;"></div>
+  <div class="skeleton skel-table-row" style="margin-bottom:4px;"></div>
+  <div class="skeleton skel-table-row" style="margin-bottom:4px;"></div>
+</div>
+
+<div id="events-section">
+  <div class="section-title" style="margin-top:2rem;">Recent Activity</div>
+  <div class="skeleton skel-table-row" style="margin-bottom:4px;"></div>
+  <div class="skeleton skel-table-row" style="margin-bottom:4px;"></div>
+  <div class="skeleton skel-table-row" style="margin-bottom:4px;"></div>
+  <div class="skeleton skel-table-row" style="margin-bottom:4px;"></div>
+  <div class="skeleton skel-table-row" style="margin-bottom:4px;"></div>
+</div>
+
+<script>
+(async () => {
+  function escHtml(s) { var d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+  // Honest failure state: never leave skeletons spinning. Clear every
+  // placeholder and show a plain message with a retry, so a slow/failing/
+  // rate-limited data call resolves to something honest instead of a page
+  // that pulses forever.
+  function failState(msg, status) {
+    document.getElementById('subnet-name').textContent = status === 429 ? 'Too many requests' : 'Could not load this subnet';
+    var mb = document.getElementById('subnet-meta-block'); if (mb) mb.style.display = 'none';
+    ['d-pending', 'd-claimed', 'd-total-rewards', 'd-pool-share'].forEach(function (idv) { var el = document.getElementById(idv); if (el) el.textContent = '-'; });
+    var note = status === 429
+      ? 'The shared demo key is rate limited right now. This clears on its own in under a minute - retry shortly.'
+      : 'We could not reach the subnet data endpoint. It may be a brief network hiccup.';
+    var block = '<div style="margin-top:2rem;padding:1.5rem;background:var(--bg-secondary);border:1px solid var(--border);text-align:center;">' +
+      '<div style="font-size:0.8rem;color:var(--text-primary);font-weight:600;">' + escHtml(msg) + '</div>' +
+      '<div style="font-size:0.7rem;color:var(--text-muted);margin-top:0.5rem;line-height:1.6;">' + note + '</div>' +
+      '<button type="button" id="subnet-retry" style="margin-top:1rem;padding:0.5rem 1.5rem;background:var(--green);color:#000;font-weight:700;font-size:0.75rem;border:none;cursor:pointer;letter-spacing:0.05em;">Retry</button>' +
+      '</div>';
+    var stk = document.getElementById('stakers-section'); if (stk) stk.innerHTML = '';
+    var ev = document.getElementById('events-section'); if (ev) ev.innerHTML = block;
+    var rb = document.getElementById('subnet-retry'); if (rb) rb.onclick = function () { location.reload(); };
+  }
+
+  var D = window.__SUBNET_DATA__;
+  var failMsg = null, failStatus = 0;
+  if (!D && window.__SUBNET_ID__) {
+    document.getElementById('subnet-name').textContent = 'Loading...';
+    var ctrl = new AbortController();
+    var timer = setTimeout(function () { ctrl.abort(); }, 8000);
+    try {
+      var key = window.MORSCAN_API_KEY || '';
+      var resp = await fetch('/mor/v1/builder/subnets/' + window.__SUBNET_ID__, { headers: { 'X-Morscan-Key': key }, signal: ctrl.signal });
+      if (resp.ok) { D = await resp.json(); }
+      else { failStatus = resp.status; failMsg = resp.status === 429 ? 'Rate limited' : ('Request failed (' + resp.status + ')'); }
+    } catch (e) {
+      failMsg = (e && e.name === 'AbortError') ? 'Request timed out' : 'Network error';
+    } finally { clearTimeout(timer); }
+  }
+  if (!D) {
+    failState(failMsg || 'Could not load subnet data', failStatus);
+    return;
+  }
+
+  var s = D.subnet;
+  var displayName = s.name || s.metadataName || '(unnamed)';
+  document.getElementById('subnet-name').textContent = displayName;
+  document.getElementById('subnet-id').textContent = s.subnetId;
+  var basescan = 'https://basescan.org/address/';
+  document.getElementById('subnet-admin').innerHTML = s.admin ? `<a href="${basescan}${s.admin}" target="_blank">${s.admin}</a>` : '(unknown)';
+  document.getElementById('subnet-claim-admin').innerHTML = s.claimAdmin && s.claimAdmin !== '0x0000000000000000000000000000000000000000'
+    ? `<a href="${basescan}${s.claimAdmin}" target="_blank">${s.claimAdmin}</a>` : '(same as admin)';
+  document.getElementById('subnet-network').textContent = 'Base';
+
+  // Builder profile - always show, with logo or placeholder
+  var prof = document.getElementById('builder-profile');
+  var lockDays = Math.round((s.withdrawLockPeriod || 604800) / 86400);
+  var logoImg = s.metadataLogo
+    ? `<img class="builder-profile-logo" loading="lazy" decoding="async" data-src="${escHtml(s.metadataLogo)}" data-retries="0" src="${escHtml(s.metadataLogo)}" alt="" onerror="var r=parseInt(this.dataset.retries||0);if(r<2){this.dataset.retries=r+1;var self=this,sep=self.dataset.src.indexOf('?')>=0?'&':'?';setTimeout(function(){self.src=self.dataset.src+sep+'r='+(r+1)},600*(r+1))}else{this.outerHTML='<div class=builder-profile-logo-none></div>'}">`
+    : '<div class="builder-profile-logo-none"></div>';
+  var html = '<div class="builder-profile">' +
+    logoImg +
+    '<div class="builder-profile-info">' +
+      '<div class="builder-profile-name">' + escHtml(displayName) + '</div>' +
+      (s.metadataDescription ? '<div class="builder-profile-desc">' + escHtml(s.metadataDescription) + '</div>' : '') +
+      (s.metadataUrl ? '<a class="builder-profile-link" href="' + escHtml(s.metadataUrl) + '" target="_blank">' + escHtml(s.metadataUrl) + ' &rarr;</a>' : '') +
+      '<div style="display:flex;gap:1rem;margin-top:0.5rem;font-size:0.65rem;color:var(--text-muted)">' +
+        '<span>Min deposit: <span style="color:var(--green)">' + fmtMor(s.minimalDeposit) + ' MOR</span></span>' +
+        '<span>Lock: <span style="color:var(--text-primary)">' + lockDays + ' days</span></span>' +
+      '</div>' +
+    '</div>' +
+    '<div style="text-align:center;padding:0 0.5rem;flex-shrink:0">' +
+      '<div class="mono" style="font-size:1.5rem;font-weight:700;color:var(--green)">' + (s.stakerCount || 0) + '</div>' +
+      '<div style="font-size:0.65rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.1em">Active Stakers</div>' +
+      '<div class="mono" style="font-size:0.75rem;font-weight:600;color:var(--green);margin-top:0.25rem">' + fmtMor(s.totalDeposited) + '</div>' +
+      '<div style="font-size:0.65rem;color:var(--text-muted)">MOR Staked</div>' +
+    '</div>' +
+  '</div>';
+  prof.innerHTML = html;
+  prof.style.display = 'block';
+
+  function fmtMor(v, dec) { var n = parseFloat(String(v).replace(/,/g, '')); if (isNaN(n)) return v; var d = dec != null ? dec : 2; var parts = n.toFixed(d).split('.'); parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ','); return parts.join('.'); }
+  function fmtDate(ts) { if (!ts || ts < 1000000000) return '-'; var d = new Date(ts * 1000); return '<span>' + d.toLocaleDateString(undefined, {year:'numeric',month:'short',day:'numeric'}) + '</span> <span class="date-time">' + d.toLocaleTimeString(undefined, {hour:'2-digit',minute:'2-digit'}) + '</span>'; }
+
+  document.getElementById('d-pending').textContent = `${fmtMor(s.pendingRewards)} MOR`;
+  document.getElementById('d-claimed').textContent = `${fmtMor(s.totalClaimed || '0')} MOR`;
+  var pendingN = parseFloat(String(s.pendingRewards).replace(/,/g,'')) || 0;
+  var claimedN = parseFloat(String(s.totalClaimed || '0').replace(/,/g,'')) || 0;
+  document.getElementById('d-total-rewards').textContent = `${fmtMor(String(pendingN + claimedN))} MOR`;
+  document.getElementById('d-pool-share').textContent = s.poolShare;
+
+  // Emissions section
+  if (s.estimatedDailyEmissions) {
+    var staked = parseFloat(String(s.totalDeposited).replace(/,/g, ''));
+    var daily = parseFloat(s.estimatedDailyEmissions);
+    var weekly = parseFloat(s.estimatedWeeklyEmissions);
+    var monthly = daily * 30;
+    var yearly = parseFloat(s.estimatedYearlyEmissions);
+    var morPrice = window.__MOR_PRICE__ || 0;
+    var pct = function(amt) { return staked > 0 ? ((amt / staked) * 100).toFixed(2) + '%' : '-'; };
+    var usd = function(amt) { if (!morPrice) return ''; var v = (amt * morPrice); return '$' + v.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2}) + ' USD'; };
+    var card = function(amt, label, yld) {
+      var usdStr = usd(amt);
+      return '<div style="background:var(--bg-secondary);border:1px solid var(--border);padding:0.75rem">' +
+        '<div class="mono" style="color:var(--green);font-size:1rem;font-weight:700">' + fmtMor(String(amt)) + ' MOR</div>' +
+        (usdStr ? '<div class="mono" style="color:var(--text-muted);font-size:0.7rem">' + usdStr + '</div>' : '') +
+        '<div style="color:var(--text-muted);font-size:0.65rem;margin-top:0.15rem">' + label + '</div>' +
+        '<div class="mono" style="color:#fbbf24;font-size:0.75rem;font-weight:600;margin-top:0.25rem">' + yld + '</div>' +
+      '</div>';
+    };
+    var emHtml = '<div class="section-title" style="margin-top:2rem;">Estimated Emissions</div>' +
+      '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:0.75rem;margin-top:0.5rem">' +
+      card(daily, 'PER DAY', pct(daily)) +
+      card(weekly, 'PER WEEK', pct(weekly)) +
+      card(monthly, 'PER MONTH', pct(monthly)) +
+      card(yearly, 'PER YEAR · APR ' + (staked > 0 ? ((yearly / staked) * 100).toFixed(1) : '0') + '%', pct(yearly)) +
+      '</div>' +
+      '<div style="margin-top:0.5rem;font-size:0.65rem;color:var(--text-muted);line-height:1.6">' +
+        'Based on 18.6% builder pool weight (observed from on-chain distribution at ' +
+        '<a href="https://basescan.org/address/0x42BB446eAE6dca7723a9eBdb81EA88aFe77eF4B9" target="_blank" style="color:var(--green)">0x42BB...F4B9</a>), ' +
+        'total daily emission decay of 14,400 MOR minus ~2.47/day since launch (Feb 2024), ' +
+        'and this subnet\'s share of ' + s.poolShare + ' of total builder deposits. Estimates only.' +
+      '</div>';
+    document.getElementById('stakers-section').insertAdjacentHTML('beforebegin', emHtml);
+  }
+
+  // Stakers section - show table if we have individual data, otherwise show count
+  var stakers = (D.topStakers || []).slice(0, 10);
+  var section = document.getElementById('stakers-section');
+  if (stakers.length > 0) {
+    var html = '<div class="section-title" style="margin-top:2rem;">Top Stakers</div>' +
+      '<div class="table-scroll"><table class="staker-table"><thead><tr><th>Wallet</th><th style="text-align:right">Staked</th><th style="text-align:right">Last Deposit</th></tr></thead><tbody>';
+    html += stakers.map((st, i) => {
+      var isSelf = st.wallet && s.admin && st.wallet.toLowerCase() === s.admin.toLowerCase();
+      return '<tr>' +
+        '<td data-label="Wallet" class="addr"><a href="' + basescan + st.wallet + '" target="_blank">' + st.wallet.slice(0,6) + '...' + st.wallet.slice(-4) + '</a>' + (isSelf ? '<span class="self-stake">admin</span>' : '') + '</td>' +
+        '<td data-label="Amount" class="mono" style="color:var(--green);text-align:right">' + fmtMor(st.deposited) + ' MOR</td>' +
+        '<td data-label="Date" style="text-align:right">' + fmtDate(st.lastDepositAt) + '</td></tr>';
+    }).join('');
+    html += '</tbody></table></div>';
+    section.innerHTML = html;
+  }
+
+  // Events - proper table with aligned columns, show 15
+  var events = (D.recentEvents || []).slice(0, 15);
+  var evSection = document.getElementById('events-section');
+  if (events.length > 0) {
+    var evHtml = '<div class="section-title" style="margin-top:2rem;">Recent Activity</div>' +
+      '<div class="table-scroll"><table class="event-table"><thead><tr><th>Type</th><th>Wallet</th><th style="text-align:right">Amount</th><th style="text-align:right">Date</th></tr></thead><tbody>';
+    evHtml += events.map((e) => {
+      var typeClass = e.type === 'deposit' ? 'deposit' : e.type === 'withdraw' ? 'withdraw' : 'claim';
+      var isSelf = e.wallet && s.admin && e.wallet.toLowerCase() === s.admin.toLowerCase();
+      return '<tr>' +
+        '<td><span class="event-type ' + typeClass + '">' + e.type + '</span></td>' +
+        '<td class="addr"><a href="' + basescan + e.wallet + '" target="_blank">' + (e.wallet || '').slice(0,6) + '...' + (e.wallet || '').slice(-4) + '</a>' + (isSelf ? '<span class="self-stake">admin</span>' : '') + '</td>' +
+        '<td class="mono" style="color:var(--green);text-align:right">' + fmtMor(e.amount) + ' MOR</td>' +
+        '<td style="color:var(--text-muted);text-align:right">' + fmtDate(e.timestamp) + '</td>' +
+        '</tr>';
+    }).join('');
+    evHtml += '</tbody></table></div>';
+    evSection.innerHTML = evHtml;
+  }
+
+  // Stake CTA - deep-link straight to THIS subnet's staking page (by slug when derivable, else by subnet_id).
+  var _slug = String(displayName).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+  var stakeUrl = _slug
+    ? `https://dashboard.mor.org/builders/${_slug}?subnet_id=${s.subnetId}&amp;network=Base&amp;sort=totalStaked-desc`
+    : `https://dashboard.mor.org/builders?subnet_id=${s.subnetId}&amp;network=Base`;
+  var ctaHtml = '<div style="margin-top:2rem;text-align:center;padding:1.5rem;background:var(--bg-secondary);border:1px solid var(--border);">' +
+    '<div style="font-size:0.7rem;color:var(--text-muted);margin-bottom:0.5rem;">Want to support this builder?</div>' +
+    '<a href="' + stakeUrl + '" target="_blank" rel="noopener" aria-label="Stake MOR on ' + escHtml(displayName) + '" style="display:inline-block;padding:0.5rem 1.5rem;background:var(--green);color:#000;font-weight:700;font-size:0.75rem;text-decoration:none;letter-spacing:0.05em;">STAKE MOR</a>' +
+    '</div>';
+  evSection.insertAdjacentHTML('afterend', ctaHtml);
+})();
+</script>

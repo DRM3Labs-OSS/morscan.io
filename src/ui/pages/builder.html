@@ -1,0 +1,255 @@
+<style>
+  /* contract-banner, sync-bar, addr styles now in layout.mustache */
+  .section-title { font-size: 0.75rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 0.75rem; margin-top: 1.5rem; }
+  .subnet-table { width: 100%; border-collapse: collapse; font-size: 0.75rem; }
+  .subnet-table th { text-align: left; padding: 0.5rem 0.75rem; border-bottom: 1px solid var(--border); color: var(--text-muted); font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.1em; font-weight: 600; white-space: nowrap; cursor: pointer; user-select: none; }
+  .subnet-table th:hover { color: var(--green); }
+  .subnet-table th .sort-arrow { font-size: 0.65rem; margin-left: 0.25rem; }
+  .subnet-table td { padding: 0.6rem 0.75rem; border-bottom: 1px solid var(--border); }
+  .subnet-table tr:hover { background: var(--bg-secondary); cursor: pointer; }
+  .subnet-table .mono { font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .subnet-name-wrap { display: flex; align-items: center; gap: 0.5rem; }
+  .subnet-logo { width: 28px; height: 28px; border-radius: 6px; object-fit: contain; flex-shrink: 0; background: var(--bg-primary); }
+  .subnet-logo-none { width: 28px; height: 28px; border-radius: 6px; flex-shrink: 0; background: linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-primary) 100%); border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; }
+  .subnet-logo-none::after { content: ''; display: block; width: 10px; height: 10px; border-radius: 50%; background: var(--border); opacity: 0.5; }
+  .subnet-name { font-weight: 600; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 200px; }
+  .subnet-id { font-size: 0.65rem; color: var(--text-muted); }
+  .pool-share-bar { display: inline-block; height: 4px; background: var(--green); min-width: 2px; vertical-align: middle; }
+  .explainer { background: var(--bg-secondary); border: 1px solid var(--border); padding: 1rem; margin-bottom: 1rem; }
+  .explainer h3 { font-size: 0.75rem; font-weight: 600; margin-bottom: 0.5rem; }
+  .explainer p { font-size: 0.65rem; color: var(--text-muted); line-height: 1.6; margin-bottom: 0.3rem; }
+
+  /* Card grid - used on mobile + tablet (<1024px). Desktop keeps the table. */
+  .subnet-cards { display: none; }
+  .subnet-card {
+    display: grid;
+    grid-template-columns: 120px 1fr;
+    gap: 1rem;
+    padding: 0.85rem;
+    border: 1px solid var(--border);
+    background: var(--bg-secondary);
+    cursor: pointer;
+    transition: border-color 120ms ease;
+  }
+  .subnet-card:hover { border-color: var(--green); }
+  .subnet-card-img {
+    width: 120px;
+    height: 120px;
+    object-fit: cover;
+    background: var(--bg-primary);
+    flex-shrink: 0;
+  }
+  .subnet-card-img-none {
+    width: 120px;
+    height: 120px;
+    background: linear-gradient(135deg, var(--bg-primary) 0%, var(--bg-secondary) 100%);
+    border: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .subnet-card-img-none::after { content: ''; width: 18px; height: 18px; border-radius: 50%; background: var(--border); opacity: 0.4; }
+  .subnet-card-body { min-width: 0; display: flex; flex-direction: column; gap: 0.55rem; }
+  .subnet-card-name { font-weight: 600; font-size: 0.9rem; color: var(--text-primary); line-height: 1.2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .subnet-card-desc { font-size: 0.7rem; color: var(--text-muted); line-height: 1.45; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+  .subnet-card-stats { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.25rem 0.75rem; margin-top: auto; }
+  .subnet-card-stat { display: flex; flex-direction: column; gap: 0.15rem; min-width: 0; }
+  .subnet-card-stat-label { font-size: 0.65rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.08em; }
+  .subnet-card-stat-value { font-size: 0.75rem; font-weight: 600; color: var(--text-primary); font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .subnet-card-stat-value.green { color: var(--green); }
+
+  @media (max-width: 1023px) {
+    .subnet-table { display: none; }
+    .subnet-cards { display: grid; gap: 0.55rem; grid-template-columns: repeat(2, 1fr); }
+  }
+  @media (max-width: 640px) {
+    .subnet-cards { grid-template-columns: 1fr; }
+    .subnet-card { grid-template-columns: 104px 1fr; padding: 0.75rem; gap: 0.85rem; }
+    .subnet-card-img, .subnet-card-img-none { width: 104px; height: 104px; }
+    .subnet-card-name { font-size: 0.85rem; }
+    .subnet-card-stats { grid-template-columns: 1fr 1fr; }
+  }
+</style>
+
+<!-- Subnets -->
+<div style="margin-top:1.5rem;margin-bottom:0.75rem;">
+  <div class="section-title" style="margin:0 0 0.6rem;">Subnets</div>
+  <div style="position:relative;max-width:520px;">
+    <svg style="position:absolute;left:0.85rem;top:50%;transform:translateY(-50%);pointer-events:none" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+    <input type="text" id="subnet-search" placeholder="Search 280 subnets by name or ID..." autocomplete="off" spellcheck="false" style="width:100%;background:var(--bg-secondary);border:1px solid var(--green);color:var(--cyan,#22d3ee);font-family:inherit;font-size:0.85rem;padding:0.7rem 0.9rem 0.7rem 2.5rem;letter-spacing:0.02em;outline:none;">
+    <span id="subnet-search-count" style="position:absolute;right:0.9rem;top:50%;transform:translateY(-50%);font-size:0.6rem;color:var(--text-muted);pointer-events:none"></span>
+  </div>
+</div>
+<div class="table-scroll"><table class="subnet-table">
+  <thead><tr><th onclick="sortCol('name')">Subnet<span class="sort-arrow" id="sort-name"></span></th><th onclick="sortCol('staked')">Staked<span class="sort-arrow" id="sort-staked"></span></th><th onclick="sortCol('pool')">Pool %<span class="sort-arrow" id="sort-pool"></span></th><th onclick="sortCol('daily')">Est. Daily<span class="sort-arrow" id="sort-daily"></span></th></tr></thead>
+  <tbody id="subnet-tbody"><tr><td colspan="4" style="padding:0;"><div class="skeleton skel-table-row"></div><div class="skeleton skel-table-row"></div><div class="skeleton skel-table-row"></div></td></tr></tbody>
+</table></div>
+<!-- Mobile + tablet card grid - rendered in parallel to the table, shown via media query -->
+<div class="subnet-cards" id="subnet-cards"><div class="skeleton skel-card"></div><div class="skeleton skel-card"></div><div class="skeleton skel-card"></div></div>
+
+<!-- Explainers -->
+<div class="explainer" style="margin-top:1.5rem;"><h3>How Builder Staking Works</h3><p><strong style="color:var(--text-primary)">Stakers:</strong> Lock MOR on a subnet for 7 days. Earn the builder's native project tokens (not MOR). Each project sets its own token schedule.</p><p><strong style="color:var(--text-primary)">Builders:</strong> MOR staked on your subnet earns a proportional share of the network's builder emissions pool (currently ~{{DAILY_EMISSIONS}} MOR/day, set by the protocol), added to your project's AMM liquidity pool.</p><p><strong style="color:var(--text-primary)">Separate from inference.</strong> Holding MOR = compute access (stake it to open AI inference sessions). Staking on builders = supporting projects.</p></div>
+
+<script>
+(async () => {
+  var B = window.__BUILDER_DATA__;
+  function fmt(n) { return new Intl.NumberFormat().format(n); }
+  function fmtMor(s) { var parts = String(s).split('.'); parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ','); return parts.join('.'); }
+
+  if (!B) {
+    try {
+      var resp = await fetch('/mor/v1/builder/all', { headers: { 'X-Morscan-Key': window.MORSCAN_API_KEY || '' } });
+      if (!resp.ok) throw new Error(`API error: ${resp.status}`);
+      B = await resp.json();
+    } catch (e) {
+      document.getElementById('subnet-tbody').innerHTML = `<tr><td colspan="5" style="text-align:center;color:var(--red);padding:2rem;">${e.message}</td></tr>`;
+      return;
+    }
+  }
+
+  // Contract banner
+  if (B.contract) {
+    var addr = B.contract;
+    var basescan = `https://basescan.org/address/${addr}`;
+    // Update shared layout contract banner
+    var cl = document.getElementById('contract-link'); if (cl) { cl.href = basescan; }
+    var cf = document.getElementById('contract-addr-full'); if (cf) cf.textContent = addr;
+    var cs = document.getElementById('contract-addr-short'); if (cs) cs.textContent = `${addr.slice(0, 6)}...${addr.slice(-4)}`;
+    var cr = document.getElementById('contract-read'); if (cr) cr.href = `${basescan}#readContract`;
+    var cw = document.getElementById('contract-write'); if (cw) cw.href = `${basescan}#writeContract`;
+  }
+
+  // Sync bar populated by shared layout script
+
+  // Stat bar - all builder metrics live here
+  var sbSubnets = document.getElementById('stat-bar-subnets');
+  var sbStaked = document.getElementById('stat-bar-staked');
+  var sbAllPools = document.getElementById('stat-bar-all-pools');
+  var sbApr = document.getElementById('stat-bar-apr');
+  var sbDaily = document.getElementById('stat-bar-daily');
+  var sbPending = document.getElementById('stat-bar-pending');
+  if (sbSubnets) sbSubnets.textContent = B.subnetCount;
+  if (sbStaked) sbStaked.textContent = `${fmtMor(B.totalDeposited)} MOR`;
+  if (sbAllPools) sbAllPools.textContent = B.allPoolsTotal ? `${fmtMor(B.allPoolsTotal)} MOR` : '-';
+  if (sbApr) sbApr.textContent = B.apr;
+  if (sbDaily) sbDaily.textContent = `${fmt(B.dailyEmissions || {{DAILY_EMISSIONS}})} MOR`;
+  if (sbPending) sbPending.textContent = `${fmtMor(B.currentPendingRewards)} MOR`;
+
+  // Subnets table - sortable columns, green for non-zero values
+  var tbody = document.getElementById('subnet-tbody');
+  var allSubnets = B.subnets || [];
+  var currentSort = 'staked';
+  var sortAsc = false;
+  var searchQuery = '';
+
+  function morNum(s) { return parseFloat(String(s).replace(/,/g, '')) || 0; }
+  function green(val) { return val > 0 ? 'color:var(--green)' : ''; }
+  // Compact number format for the card view - readable at 104px card width.
+  function fmtMorShort(s) {
+    var n = morNum(s);
+    if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(n >= 10_000_000 ? 1 : 2)}M`;
+    if (n >= 1_000) return `${(n / 1_000).toFixed(n >= 10_000 ? 1 : 2)}K`;
+    return n.toFixed(2);
+  }
+
+  function getSorted() {
+    var list = allSubnets.slice();
+    if (searchQuery) {
+      var q = searchQuery;
+      list = list.filter((s) => (s.name || '').toLowerCase().indexOf(q) !== -1 || (s.subnetId || '').toLowerCase().indexOf(q) !== -1);
+      var _cc = document.getElementById('subnet-search-count'); if (_cc) _cc.textContent = list.length + ' match' + (list.length === 1 ? '' : 'es');
+    } else {
+      var _cc2 = document.getElementById('subnet-search-count'); if (_cc2) _cc2.textContent = '';
+    }
+    list.sort((a, b) => {
+      var r = 0;
+      if (currentSort === 'name') r = (a.name || '').toLowerCase().localeCompare((b.name || '').toLowerCase());
+      else if (currentSort === 'staked') r = morNum(a.totalDeposited) - morNum(b.totalDeposited);
+      else if (currentSort === 'pool') r = parseFloat(a.poolShare) - parseFloat(b.poolShare);
+      else if (currentSort === 'daily') r = morNum(a.estimatedDailyEmissions) - morNum(b.estimatedDailyEmissions);
+      return sortAsc ? r : -r;
+    });
+    return list;
+  }
+
+  var cardsEl = document.getElementById('subnet-cards');
+
+  function renderSubnets() {
+    var list = getSorted();
+    // Update sort arrows
+    ['name','staked','pool','daily'].forEach((c) => {
+      var el = document.getElementById(`sort-${c}`);
+      if (el) {
+        el.textContent = currentSort === c ? (sortAsc ? ' \u25B2' : ' \u25BC') : '';
+        var th = el.closest('th');
+        if (th) { if (currentSort === c) th.setAttribute('aria-sort', sortAsc ? 'ascending' : 'descending'); else th.removeAttribute('aria-sort'); }
+      }
+    });
+    if (list.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--text-muted);padding:2rem;">No subnets found.</td></tr>';
+      cardsEl.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:var(--text-muted);padding:2rem;">No subnets found.</div>';
+      return;
+    }
+
+    // Desktop table rows
+    tbody.innerHTML = list.map((s) => {
+      var share = parseFloat(s.poolShare) || 0;
+      var staked = morNum(s.totalDeposited);
+      var daily = morNum(s.estimatedDailyEmissions);
+      var barWidth = Math.max(2, Math.min(100, share));
+      var displayName = s.name || s.metadataName;
+      var logoHtml = s.metadataLogo
+        ? `<img class="subnet-logo" loading="lazy" decoding="async" data-src="${escHtml(s.metadataLogo)}" data-retries="0" src="${escHtml(s.metadataLogo)}" alt="" onerror="var r=parseInt(this.dataset.retries||0);if(r<3){this.dataset.retries=r+1;var self=this;setTimeout(function(){self.src=self.dataset.src+'?r='+r},1000*(r+1))}else{this.outerHTML='<div class=subnet-logo-none></div>'}">`
+        : '<div class="subnet-logo-none"></div>';
+      return '<tr onclick="window.location.href=\'/builder/subnet/' + s.subnetId + '\'">' +
+        '<td data-label="Subnet"><div class="subnet-name-wrap">' + logoHtml + '<div><div class="subnet-name">' + escHtml(displayName) + '</div><div class="subnet-id">' + s.subnetId.slice(0,10) + '...' + s.subnetId.slice(-6) + '</div></div></div></td>' +
+        '<td data-label="Staked" class="mono" style="' + green(staked) + '">' + fmtMor(s.totalDeposited) + ' MOR</td>' +
+        '<td data-label="Pool %" style="' + green(share) + '"><span class="pool-share-bar" style="width:' + barWidth + 'px"></span> ' + s.poolShare + '</td>' +
+        '<td data-label="Est. Daily" class="mono" style="' + green(daily) + '">' + fmtMor(s.estimatedDailyEmissions) + ' MOR</td>' +
+        '</tr>';
+    }).join('');
+
+    // Mobile + tablet cards - image left big square, name + desc + stats stacked right
+    cardsEl.innerHTML = list.map((s) => {
+      var staked = morNum(s.totalDeposited);
+      var share = parseFloat(s.poolShare) || 0;
+      var daily = morNum(s.estimatedDailyEmissions);
+      var displayName = s.name || s.metadataName;
+      var desc = s.metadataDescription || '';
+      var imgHtml = s.metadataLogo
+        ? `<img class="subnet-card-img" loading="lazy" decoding="async" data-src="${escHtml(s.metadataLogo)}" data-retries="0" src="${escHtml(s.metadataLogo)}" alt="" onerror="var r=parseInt(this.dataset.retries||0);if(r<3){this.dataset.retries=r+1;var self=this;setTimeout(function(){self.src=self.dataset.src+'?r='+r},1000*(r+1))}else{this.outerHTML='<div class=subnet-card-img-none></div>'}">`
+        : '<div class="subnet-card-img-none"></div>';
+      return '<div class="subnet-card" onclick="window.location.href=\'/builder/subnet/' + s.subnetId + '\'">' +
+        imgHtml +
+        '<div class="subnet-card-body">' +
+          '<div class="subnet-card-name">' + escHtml(displayName) + '</div>' +
+          (desc ? `<div class="subnet-card-desc">${escHtml(desc)}</div>` : '') +
+          '<div class="subnet-card-stats">' +
+            '<div class="subnet-card-stat"><div class="subnet-card-stat-label">Staked</div><div class="subnet-card-stat-value ' + (staked > 0 ? 'green' : '') + '">' + fmtMorShort(s.totalDeposited) + ' MOR</div></div>' +
+            '<div class="subnet-card-stat"><div class="subnet-card-stat-label">Pool %</div><div class="subnet-card-stat-value ' + (share > 0 ? 'green' : '') + '">' + s.poolShare + '</div></div>' +
+            '<div class="subnet-card-stat"><div class="subnet-card-stat-label">Est. Daily</div><div class="subnet-card-stat-value ' + (daily > 0 ? 'green' : '') + '">' + fmtMorShort(s.estimatedDailyEmissions) + ' MOR</div></div>' +
+          '</div>' +
+        '</div>' +
+      '</div>';
+    }).join('');
+  }
+
+  // Initial render sorted by name ascending
+  renderSubnets();
+
+  // Column sort - click toggles asc/desc, click different column sorts asc
+  window.sortCol = (col) => {
+    if (currentSort === col) { sortAsc = !sortAsc; }
+    else { currentSort = col; sortAsc = col === 'name'; } // name defaults asc, numbers default desc
+    renderSubnets();
+  };
+
+  // Search
+  document.getElementById('subnet-search').addEventListener('input', function() {
+    searchQuery = this.value.toLowerCase().trim();
+    renderSubnets();
+  });
+
+  function escHtml(s) { var d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+})();
+</script>

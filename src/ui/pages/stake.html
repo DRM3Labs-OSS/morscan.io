@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Support MorScan - Stake MOR</title>
+  <meta name="description" content="Support MorScan, the free community explorer for the Morpheus network. Staking MOR on the MorScan builder subnet funds its operations through builder emissions - it is not a donation, you keep your MOR.">
+  <meta name="keywords" content="MOR staking, stake MOR, Morpheus builder subnet, MOR emissions, support MorScan, decentralized AI, Base network AI">
+  <link rel="canonical" href="{{BASE_URL}}/stake">
+  <meta property="og:title" content="Support MorScan - Stake MOR">
+  <meta property="og:description" content="Support MorScan, the free community explorer for the Morpheus network. Stake MOR on the MorScan builder subnet - not a donation, you keep your MOR.">
+  <meta property="og:image" content="{{BASE_URL}}/og/stake.png">
+  <meta property="og:url" content="{{BASE_URL}}/stake">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="MorScan">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:image" content="{{BASE_URL}}/og/stake.png">
+  <link rel="icon" href="/favicon.ico" sizes="any">
+  <link rel="icon" type="image/png" sizes="48x48" href="/favicon.png">
+  <link rel="icon" type="image/svg+xml" href="/morscan-icon.svg">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"MorScan","item":"{{BASE_URL}}/"},{"@type":"ListItem","position":2,"name":"Support MorScan","item":"{{BASE_URL}}/stake"}]}</script>
+  <!-- IBM Plex Mono self-hosted at /fonts/ (SIL OFL 1.1, src/fonts/OFL.txt) - fleet console convention, no third-party font host. -->
+  <style>
+    @font-face { font-family: 'IBM Plex Mono'; font-style: normal; font-weight: 400; font-display: swap; src: url('/fonts/ibm-plex-mono-400.woff2') format('woff2'); }
+    @font-face { font-family: 'IBM Plex Mono'; font-style: normal; font-weight: 500; font-display: swap; src: url('/fonts/ibm-plex-mono-500.woff2') format('woff2'); }
+    @font-face { font-family: 'IBM Plex Mono'; font-style: normal; font-weight: 600; font-display: swap; src: url('/fonts/ibm-plex-mono-600.woff2') format('woff2'); }
+    @font-face { font-family: 'IBM Plex Mono'; font-style: normal; font-weight: 700; font-display: swap; src: url('/fonts/ibm-plex-mono-700.woff2') format('woff2'); }
+  </style>
+  <style>
+    html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+    * { margin: 0; padding: 0; box-sizing: border-box; border-radius: 0; }
+    button, input, select, textarea { font-family: inherit; }
+    :root { /* IBM Plex Mono self-hosted (fleet console convention). REVERT = remove the @font-face block + restore: ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace */ --mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace; --bg: #0c0a09; --bg2: #1c1917; --border: #44403c; --text: #fafaf9; --sub: #d6d3d1; --muted: #c7c2bc; --green: #22c55e; --green-dim: rgba(34,197,94,0.15); --cyan: #22d3ee; }
+    html, body { overflow-x: hidden; }
+    body { font-family: var(--mono); background: var(--bg); color: var(--text); min-height: 100vh; line-height: 1.6; }
+    .page { max-width: 680px; margin: 0 auto; padding: 3rem 1.25rem 4rem; }
+    .back { font-size: 0.7rem; color: var(--green); text-decoration: none; }
+    .kicker { font-size: 0.65rem; letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted); margin: 2rem 0 0.5rem; }
+    h1 { font-size: 1.6rem; color: var(--green); margin-bottom: 0.4rem; }
+    .lede { font-size: 0.78rem; color: var(--sub); margin-bottom: 1.6rem; }
+    .formula { border: 1px solid var(--green); background: var(--green-dim); padding: 0.85rem 1rem; font-size: 0.74rem; color: var(--text); margin-bottom: 1.6rem; }
+    .formula strong { color: var(--green); }
+    h2 { font-size: 0.75rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); margin: 2.2rem 0 0.6rem; }
+    h3 { font-size: 0.68rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--green); margin: 1.5rem 0 0.45rem; }
+    p, li { font-size: 0.76rem; color: var(--sub); margin-bottom: 0.7rem; }
+    ul { list-style: none; margin-bottom: 0.7rem; }
+    li { padding-left: 1.1rem; position: relative; margin-bottom: 0.35rem; }
+    li::before { content: ">"; position: absolute; left: 0; color: var(--green); }
+    a { color: var(--green); text-decoration: none; }
+    /* Inline prose links carry an underline so they are distinguishable without relying on color */
+    p a, li a, .lede a, .stats-note a, .sublink a, .ys-main a { text-decoration: underline; text-underline-offset: 2px; }
+    :focus-visible { outline: 2px solid var(--green); outline-offset: 2px; }
+    /* Skip link - visually hidden until keyboard focus */
+    .skip-link { position: absolute; left: -9999px; top: 0; z-index: 100; background: var(--green); color: var(--bg); font-weight: 700; font-size: 0.8rem; padding: 0.6rem 1rem; text-decoration: none; }
+    .skip-link:focus { left: 0.5rem; top: 0.5rem; }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
+    }
+    .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1px; background: var(--border); border: 1px solid var(--border); margin: 0.4rem 0 0.7rem; }
+    .stat { background: var(--bg2); padding: 0.75rem 0.9rem; }
+    .stat-val { display: block; font-size: 0.95rem; font-weight: 700; color: var(--green); font-variant-numeric: tabular-nums; }
+    .stat-label { display: block; font-size: 0.65rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; margin-top: 0.15rem; }
+    .stats-note { font-size: 0.65rem; color: var(--muted); margin-bottom: 0.7rem; }
+    .table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; max-width: 100%; border: 1px solid var(--border); background: var(--bg2); margin: 0.4rem 0 0.7rem; }
+    table { width: 100%; border-collapse: collapse; min-width: 480px; }
+    th { text-align: left; padding: 0.55rem 0.9rem; font-size: 0.65rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); border-bottom: 1px solid var(--border); }
+    td { padding: 0.5rem 0.9rem; font-size: 0.7rem; color: var(--sub); border-bottom: 1px solid rgba(68,64,60,0.35); font-variant-numeric: tabular-nums; }
+    tr:last-child td { border-bottom: none; }
+    th:not(:first-child), td:not(:first-child) { text-align: right; }
+    td:first-child { color: var(--text); }
+    tr.staked td:first-child { color: var(--green); font-weight: 600; }
+    .steps { counter-reset: step; list-style: none; margin: 0.4rem 0 0.7rem; }
+    .steps li { padding-left: 2rem; margin-bottom: 0.9rem; }
+    .steps li::before { counter-increment: step; content: counter(step) "."; color: var(--green); font-weight: 700; font-size: 0.78rem; left: 0.2rem; }
+    .btn { display: inline-block; padding: 0.6rem 1.1rem; font-family: inherit; font-size: 0.7rem; font-weight: 600; text-decoration: none; cursor: pointer; letter-spacing: 0.03em; background: var(--green); color: var(--bg); border: 1px solid var(--green); margin: 0.3rem 0; }
+    .btn:hover { opacity: 0.82; }
+    .sublink { display: block; font-size: 0.65rem; color: var(--muted); }
+    .sublink a { color: var(--green); }
+    .foot { margin-top: 3rem; padding-top: 1.2rem; border-top: 1px solid var(--border); font-size: 0.65rem; color: var(--muted); text-align: center; }
+    .foot a { color: var(--muted); margin: 0 0.5rem; }
+    .yourstake { border: 1px solid var(--border); background: var(--bg2); padding: 0.85rem 1rem; margin: 1.5rem 0; }
+    .yourstake.connected { border-color: var(--green); background: var(--green-dim); }
+    .ys-lead { font-size: 0.6rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); margin-bottom: 0.35rem; }
+    .ys-main { font-size: 0.76rem; color: var(--sub); margin: 0; }
+    .ys-main strong { color: var(--green); font-variant-numeric: tabular-nums; }
+    .ys-main a { color: var(--green); }
+    tr.you td { background: var(--green-dim); }
+    tr.you td:first-child { color: var(--green); font-weight: 700; }
+    .backers { list-style: none; margin: 0.5rem 0 0.7rem; border: 1px solid var(--border); background: var(--bg2); }
+    .backers li { display: flex; align-items: center; gap: 0.7rem; padding: 0.6rem 0.9rem; margin: 0; border-bottom: 1px solid rgba(68,64,60,0.35); font-size: 0.74rem; color: var(--sub); }
+    .backers li:last-child { border-bottom: none; }
+    .backers li::before { content: none; }
+    .backers li.top { background: var(--green-dim); }
+    .bk-rank { flex: 0 0 auto; width: 1.5rem; color: var(--muted); font-variant-numeric: tabular-nums; font-size: 0.7rem; }
+    .bk-addr { flex: 1; color: var(--green); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .bk-badge { flex: 0 0 auto; font-size: 0.55rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--green); border: 1px solid var(--green); padding: 0.06rem 0.32rem; }
+    .bk-amt { flex: 0 0 auto; color: var(--text); font-weight: 600; font-variant-numeric: tabular-nums; }
+    .bk-amt span { color: var(--muted); font-weight: 400; font-size: 0.62rem; margin-left: 0.25rem; }
+    .bk-empty { padding: 0.9rem; color: var(--muted); font-size: 0.74rem; }
+    .yourstake .btn { margin-top: 0.6rem; margin-bottom: 0; }
+    .bk-logo { flex: 0 0 auto; width: 24px; height: 24px; object-fit: contain; background: var(--bg); border: 1px solid var(--border); display: inline-block; }
+    .bk-name { flex: 1; min-width: 0; display: flex; flex-direction: column; overflow: hidden; }
+    .bk-name a { color: var(--green); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .bk-sub { font-size: 0.6rem; color: var(--muted); }
+    @media (max-width: 520px) {
+      .stats { grid-template-columns: 1fr 1fr; }
+      .stat:last-child { grid-column: 1 / -1; }
+    }
+  
+    /* Footer - condensed two quiet lines: brand + nav, then a collapsed
+       credit/license line, plus the build stamp. No stray mark, >=40px tap
+       targets, links wrap cleanly with no horizontal wobble on mobile. */
+    .site-footer { margin-top: 3rem; padding-top: 1.5rem; border-top: 1px solid #44403c; text-align: center; padding-bottom: 2rem; max-width: 100%; }
+    .footer-nav { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 0 0.15rem; max-width: 100%; }
+    .footer-brand { display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.5rem 0.4rem; color: #e7e5e4; font-weight: 600; letter-spacing: 0.02em; font-size: 0.75rem; text-decoration: none; }
+    .footer-brand svg { display: block; }
+    .footer-logo { display: inline-flex; align-items: center; justify-content: center; min-height: 40px; padding: 0.4rem; margin-bottom: 0.3rem; }
+    .footer-logo svg { display: block; filter: drop-shadow(0 0 10px rgba(34,197,94,0.4)); }
+    .footer-drm3 { display: inline-flex; align-items: center; justify-content: center; min-height: 40px; padding: 0.4rem 0.6rem; margin-top: 0.9rem; opacity: 0.85; transition: opacity 0.15s; }
+    .footer-drm3:hover, .footer-drm3:focus-visible { opacity: 1; }
+    .footer-drm3 img { display: block; height: 26px; width: auto; }
+    .footer-nav a { display: inline-flex; align-items: center; min-height: 40px; padding: 0.5rem 0.5rem; color: #c7c2bc; font-size: 0.72rem; text-decoration: none; }
+    .footer-nav a:hover, .footer-nav a:focus-visible { color: var(--green); }
+    .footer-sep { color: #6b6660; font-size: 0.72rem; user-select: none; }
+    .footer-credit { margin: 0.75rem auto 0.45rem; max-width: 44rem; font-size: 0.66rem; line-height: 1.55; color: #c7c2bc; }
+    .footer-credit a { color: #c7c2bc; text-decoration: underline; }
+    .footer-credit a:hover, .footer-credit a:focus-visible { color: var(--green); }
+  </style>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+  <div class="page">
+    <a class="back" href="/">&larr; Back to explorer</a>
+    <main id="main" tabindex="-1">
+    <div class="kicker">Support the project</div>
+    <h1>Support MorScan. Stake MOR.</h1>
+    <div class="lede">MorScan is free and open to everyone: no account, no paywall, source-open. Whether you are checking a subnet, a provider, or the models, browsing is always free. If it is useful to you, staking MOR on the MorScan subnet is how you keep it that way.</div>
+
+    <div class="formula"><strong>It is not a donation - you keep your MOR.</strong> Staking supports the project through builder emissions while your principal stays yours.</div>
+
+    <h2>Live subnet</h2>
+    <div class="stats">
+      <div class="stat"><span class="stat-val" id="st-dep">--</span><span class="stat-label">MOR staked</span></div>
+      <div class="stat"><span class="stat-val" id="st-stakers">--</span><span class="stat-label">Stakers</span></div>
+      <div class="stat"><span class="stat-val" id="st-emit">--</span><span class="stat-label">Est. daily emissions (MOR)</span></div>
+    </div>
+    <div class="stats-note">Live on-chain state of the MorScan subnet, straight from the <a href="/builder/subnet/0xe100f9d7c463008e46887113fa14bc0ba9caaf90d4465835795f53ebe5056059">Builder explorer</a>.</div>
+
+    <div class="yourstake" id="yourstake">
+      <div class="ys-lead">Your stake</div>
+      <p class="ys-main">Connect to get your free API key and appear on the backers wall when you stake.</p>
+      <a class="btn" href="/console">Connect wallet</a>
+    </div>
+
+    <h2>Where it goes</h2>
+    <p>Stake on the MorScan subnet earns the project a proportional share of the network's builder emissions pool (currently ~{{DAILY_EMISSIONS}} MOR/day network-wide, set by the protocol). Those emissions fund, concretely:</p>
+    <ul>
+      <li>Real-time sync infrastructure and RPC capacity</li>
+      <li>Hosting and the global edge that serves the explorer and API</li>
+      <li>Monitoring and uptime</li>
+      <li>Continued development: the explorer, the API, and new analytics</li>
+    </ul>
+    <p>That is what keeps the community's explorer free and running.</p>
+
+    <h2>What you get</h2>
+    <p>Staking is support first. What follows is the thank-you: capacity if you need it, recognition because the chain shows it, visibility for the biggest backers. The real return is the same for everyone - the tool stays free, live, and open.</p>
+
+    <h3>API capacity</h3>
+    <p><strong>1 MOR staked = 3 requests/min</strong> of burst capacity, plus daily and monthly volume caps that rise with your stake.</p>
+    <div class="table-scroll">
+      <table id="cap-table">
+        <thead><tr><th scope="col">Tier</th><th scope="col">Burst/min</th><th scope="col">Per day</th><th scope="col">Per month</th></tr></thead>
+        <tbody>
+          <tr data-min="0"><td>Connected wallet (free)</td><td>60</td><td>2,000</td><td>40,000</td></tr>
+          <tr class="staked" data-min="100"><td>100 MOR staked</td><td>300</td><td>5,000</td><td>100,000</td></tr>
+          <tr class="staked" data-min="500"><td>500 MOR</td><td>1,500</td><td>37,500</td><td>750,000</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>Capacity keeps scaling with stake - if you genuinely need more than this, stake more and it follows.</p>
+
+    <h3>Backers</h3>
+    <p>Every stake on the MorScan subnet is public on-chain, and here is the wall, ranked live. Each backer links to their wallet profile, and builders show their on-chain logo automatically. The biggest backer holds the top slot. Your stake shows on your <a href="/builder/subnet/0xe100f9d7c463008e46887113fa14bc0ba9caaf90d4465835795f53ebe5056059">subnet page</a> and wallet profile too.</p>
+    <ul class="backers" id="backers-list"><li class="bk-empty">Loading backers...</li></ul>
+    <p class="stats-note" id="backers-note" style="display:none"></p>
+
+    <h3>Sponsor visibility</h3>
+    <p>MorScan is where the Morpheus community looks every day, and the wall above is that recognition, live. If you are a builder, your logo already shows next to your stake, pulled straight from on-chain metadata. The top of the wall is claimable now, with a dedicated logo-and-link slot for the top backers.</p>
+
+    <h2>How to stake</h2>
+    <ol class="steps">
+      <li><strong>Connect your wallet</strong> at the <a href="/console">console</a>. That is the whole registration - one signed message, nothing spent - and it issues your personal API key at the free tier.</li>
+      <li><strong>Stake MOR on the MorScan subnet</strong> from that same wallet, via the <a href="https://dashboard.mor.org/builders/morscan?subnet_id=0xe100f9d7c463008e46887113fa14bc0ba9caaf90d4465835795f53ebe5056059&amp;network=Base&amp;sort=totalStaked-desc" target="_blank" rel="noopener">Morpheus dashboard</a>. You can inspect the subnet first on the <a href="/builder/subnet/0xe100f9d7c463008e46887113fa14bc0ba9caaf90d4465835795f53ebe5056059">Builder explorer</a>.</li>
+      <li><strong>Capacity follows automatically.</strong> Your key's limits re-check against your live on-chain stake every minute (and instantly on each connect). Unstake and they fall back; your principal stays yours throughout.</li>
+    </ol>
+    <a class="btn" href="https://dashboard.mor.org/builders/morscan?subnet_id=0xe100f9d7c463008e46887113fa14bc0ba9caaf90d4465835795f53ebe5056059&amp;network=Base&amp;sort=totalStaked-desc" target="_blank" rel="noopener">Stake on the MorScan subnet &rarr;</a>
+    <span class="sublink">No wallet or key yet? <a href="/console">Connect at the console</a> first.</span>
+
+    <h2>Good to know</h2>
+    <ul>
+      <li><strong>Unstaking from the MorScan subnet has a 90 day lock.</strong> That is this subnet's setting, chosen so the project can plan quarterly. It is not a protocol rule: the protocol minimum is 7 days and other subnets vary. Check any subnet's lock before staking.</li>
+      <li><strong>Caps, precisely.</strong> Per-minute limits are exact. Daily and monthly volume caps apply (the daily cap is 5% of the monthly cap) and are enforced within a few minutes. Burst capacity tops out at 10,000/min.</li>
+      <li><strong>Your MOR stays yours.</strong> Staking is support, not a payment or donation - your principal stays staked and withdrawable per the subnet terms.</li>
+    </ul>
+    </main>
+
+    <footer class="site-footer">
+      <a href="/" class="footer-logo" aria-label="MorScan home"><svg width="56" height="25" viewBox="0 0 89 40" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false"><path d="M44.5031 36.7108L52.2884 27.0574V39.5L75.154 30.3296L78.4294 22.9099L58.8453 30.8065V28.0173L80.2346 19.2454L83.6775 11.7472L58.7647 21.8776V19.1669L85.7246 7.99814L89 0.5L56.3826 13.818C56.3826 13.818 53.5973 14.8563 52.369 16.8486L44.5031 26.5805L36.6372 16.8486C35.4089 14.8563 32.6236 13.818 32.6236 13.818L0 0.5L3.27539 7.99814L30.2415 19.1608V21.8715L5.32871 11.7472L8.77159 19.2454L30.1609 28.0173V30.8065L10.5768 22.9099L13.8522 30.3296L36.7178 39.5V27.0574L44.5031 36.7108Z" fill="#22c55e"/></svg></a>
+      <nav class="footer-nav" aria-label="Footer">
+        <a href="/about">About</a>
+        <span class="footer-sep" aria-hidden="true">&middot;</span>
+        <a href="/terms">Terms</a>
+        <span class="footer-sep" aria-hidden="true">&middot;</span>
+        <a href="/privacy">Privacy</a>
+        <span class="footer-sep" aria-hidden="true">&middot;</span>
+        <a href="/health">Status</a>
+        <span class="footer-sep" aria-hidden="true">&middot;</span>
+        <a href="/stake">Support</a>
+        <span class="footer-sep" aria-hidden="true">&middot;</span>
+        <a href="/contribute">Contribute</a>
+        <span class="footer-sep" aria-hidden="true">&middot;</span>
+        <a href="https://github.com/DRM3Labs-OSS/morscan.io/issues" target="_blank" rel="noopener">Feedback</a>
+      </nav>
+      <p class="footer-credit">Developed, maintained, and operated by <a href="https://drm3.network" target="_blank" rel="noopener">DRM3 Labs</a> &middot; Fair Source (FSL-1.1-MIT), pull requests welcome.</p>
+      <a href="https://drm3.network" class="footer-drm3" target="_blank" rel="noopener" aria-label="DRM3 Labs"><img src="/drm3-icon-transparent-white-consumer-128.png" alt="DRM3 Labs" width="40" height="40"></a>
+      <p style="margin:0;font-size:0.6rem;color:#8a8580;">MorScan &middot; &copy; 2026</p>
+    </footer>
+  </div>
+  <script src="/webmcp.js" defer></script>
+  <script>
+    window.MORSCAN_API_KEY = "{{API_KEY}}";
+    (function(){
+      var SUBNET = '0xe100f9d7c463008e46887113fa14bc0ba9caaf90d4465835795f53ebe5056059';
+      var hdrs = window.MORSCAN_API_KEY ? { 'X-Morscan-Key': window.MORSCAN_API_KEY } : {};
+      function num(n) { return typeof n === 'string' ? parseFloat(n.replace(/,/g, '')) : n; }
+      function fmt(n) { var x = num(n); return isFinite(x) ? Math.round(x).toLocaleString('en-US') : '--'; }
+      function fmtEmit(n) { var x = num(n); return isFinite(x) ? (x >= 100 ? Math.round(x).toLocaleString('en-US') : x.toFixed(2)) : '--'; }
+      var shortAddr = function(a){ return a.slice(0,6) + '...' + a.slice(-4); };
+      var esc = function(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); };
+      // Deterministic color swatch for backers with no on-chain logo (address-derived identicon)
+      var colorFor = function(a){ var h = parseInt(a.slice(2,8), 16) % 360; return 'hsl(' + h + ',42%,30%)'; };
+
+      // Builder subnets: powers the live stat strip AND the admin->logo map for the backers wall
+      fetch('/mor/v1/builder/subnets', { headers: hdrs }).then(function(r){ return r.json(); }).then(function(d){
+        var subs = (d && d.subnets) || [];
+        var sn = subs.filter(function(s){ return String(s.subnetId).toLowerCase() === SUBNET; })[0];
+        if (sn) {
+          document.getElementById('st-dep').textContent = fmt(sn.totalDeposited);
+          document.getElementById('st-stakers').textContent = fmt(sn.stakerCount);
+          document.getElementById('st-emit').textContent = fmtEmit(sn.estimatedDailyEmissions);
+        }
+        // Map each subnet admin wallet to its on-chain logo/name so builder-backers show their brand.
+        var adminMap = {};
+        subs.forEach(function(s){
+          if (!s.admin) return;
+          var k = String(s.admin).toLowerCase();
+          if (!adminMap[k] || (s.metadataLogo && !adminMap[k].logo)) {
+            adminMap[k] = { logo: s.metadataLogo || '', name: s.metadataName || s.name || '' };
+          }
+        });
+        loadBackers(adminMap);
+      }).catch(function(){ loadBackers({}); });
+
+      // Backers wall - live stakers of the MorScan subnet, ranked, with builder logos where known
+      function loadBackers(adminMap){
+        fetch('/mor/v1/builder/subnets/' + SUBNET, { headers: hdrs }).then(function(r){ return r.json(); }).then(function(d){
+          var st = ((d && d.topStakers) || []).filter(function(s){ return num(s.deposited) > 0; });
+          var ul = document.getElementById('backers-list');
+          var note = document.getElementById('backers-note');
+          if (!ul) return;
+          if (!st.length) {
+            ul.innerHTML = '<li class="bk-empty">No backers yet. Be the first - the wall fills as the community stakes.</li>';
+            return;
+          }
+          ul.innerHTML = st.map(function(s, i){
+            var info = adminMap[String(s.wallet).toLowerCase()] || {};
+            var logo = info.logo
+              ? '<img class="bk-logo" src="' + esc(info.logo) + '" alt="' + (info.name ? esc(info.name) + ' logo' : '') + '" loading="lazy" onerror="this.outerHTML=\'<span class=&quot;bk-logo&quot; style=&quot;background:' + colorFor(s.wallet) + '&quot;></span>\'">'
+              : '<span class="bk-logo" style="background:' + colorFor(s.wallet) + '"></span>';
+            var name = info.name ? esc(info.name) : shortAddr(s.wallet);
+            var sub = info.name ? '<span class="bk-sub">' + shortAddr(s.wallet) + '</span>' : '';
+            var badge = i === 0 ? '<span class="bk-badge">Top backer</span>' : '';
+            return '<li class="' + (i === 0 ? 'top' : '') + '"><span class="bk-rank">' + (i+1) + '</span>' + logo +
+              '<span class="bk-name"><a href="/compute/consumers/wallet/' + s.wallet + '" title="' + s.wallet + '">' + name + '</a>' + sub + '</span>' +
+              badge + '<span class="bk-amt">' + fmt(s.deposited) + '<span>MOR</span></span></li>';
+          }).join('');
+          if (st.length <= 1 && note) {
+            note.textContent = 'Just ' + st.length + ' backer so far - an early spot near the top of the wall is yours for the taking.';
+            note.style.display = 'block';
+          }
+        }).catch(function(){
+          var ul = document.getElementById('backers-list');
+          if (ul) ul.innerHTML = '<li class="bk-empty">Backers wall is temporarily unavailable.</li>';
+        });
+      }
+
+      // Your stake row - personal band from the wallet session
+      var fmtStake = function(n){ var x = num(n); if (!isFinite(x)) return '0'; return x >= 100 ? Math.round(x).toLocaleString('en-US') : (Math.round(x*100)/100).toString(); };
+      function highlightTier(sm){
+        var rows = document.querySelectorAll('#cap-table tr[data-min]');
+        var best = null;
+        rows.forEach(function(r){ var m = parseFloat(r.getAttribute('data-min')); if (sm >= m && (!best || m > parseFloat(best.getAttribute('data-min')))) best = r; });
+        rows.forEach(function(r){ r.classList.remove('you'); });
+        if (best) best.classList.add('you');
+      }
+      fetch('/console/wallet/status', { headers: hdrs }).then(function(r){ return r.json(); }).then(function(d){
+        var band = document.getElementById('yourstake');
+        if (!band || !d || !d.wallet) return;
+        var sm = d.stakeMor || 0, c = d.caps || {};
+        band.className = 'yourstake connected';
+        band.innerHTML = '<div class="ys-lead">Your stake</div>' +
+          '<p class="ys-main"><strong>' + fmtStake(sm) + ' MOR</strong> staked - your capacity: <strong>' + fmt(c.burst) + '</strong>/min, <strong>' + fmt(c.daily) + '</strong>/day, <strong>' + fmt(c.monthly) + '</strong>/mo. ' +
+          '<a href="/compute/consumers/wallet/' + d.wallet + '">View your profile</a></p>';
+        highlightTier(sm);
+      }).catch(function(){});
+    })();
+  </script>
+</body>
+</html>

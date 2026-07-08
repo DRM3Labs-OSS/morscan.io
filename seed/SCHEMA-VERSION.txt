@@ -1,0 +1,6 @@
+seed_target_block: 48241881
+seed_target_date: 2026-07-05
+
+# Base block the current published snapshot targets. Seeding is done by importing
+# the signed morpheus-ai-base-data snapshot (scripts/import-seed.mjs); the first
+# sync after import resumes from watermark_block + 1. See ../docs/SEED.md.

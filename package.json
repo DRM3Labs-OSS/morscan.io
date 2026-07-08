@@ -1,0 +1,54 @@
+{
+  "name": "morscan",
+  "version": "2.29.0",
+  "license": "FSL-1.1-MIT",
+  "description": "MorScan - Morpheus blockchain explorer. Open core (FSL-1.1-MIT): consumable standalone (default export = reference composition) or as a dependency of a private composition repo via createMorscanApp. TypeScript source is the published surface; a Workers consumer bundles src/ directly (see docs/architecture/providers.md for the required wrangler rules).",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./app": "./src/app.ts",
+    "./providers": "./src/providers/index.ts",
+    "./package.json": "./package.json"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "stamp": "node scripts/stamp-build.mjs",
+    "predev": "node scripts/stamp-build.mjs",
+    "dev": "wrangler dev",
+    "prebuild": "node scripts/stamp-build.mjs",
+    "build": "wrangler deploy --dry-run",
+    "build:wc": "esbuild tools/wc-build/wc-entry.js --bundle --minify --format=iife --outfile=src/ui/vendor/wc-provider.txt --platform=browser --define:process.env.NODE_ENV=\"production\" --define:global=globalThis",
+    "predeploy": "node scripts/stamp-build.mjs",
+    "deploy": "wrangler deploy",
+    "db:create": "wrangler d1 create morscan",
+    "pretypecheck": "node scripts/stamp-build.mjs",
+    "typecheck": "tsc --noEmit",
+    "lint": "npx @biomejs/biome lint src/",
+    "lint:fix": "npx @biomejs/biome lint --write src/",
+    "format": "npx @biomejs/biome format --write src/",
+    "format:check": "npx @biomejs/biome format src/",
+    "verify:receipt": "node scripts/verify-receipt.mjs",
+    "test:unit": "vitest run"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.4.8",
+    "@cloudflare/workers-types": "^5.20260705.1",
+    "@playwright/test": "^1.61.1",
+    "esbuild": "^0.28.1",
+    "typescript": "^6.0.3",
+    "vitest": "^3.2.7",
+    "wrangler": "^4.108.0"
+  },
+  "dependencies": {
+    "@drm3labs-oss/provenance": "^0.2.0",
+    "@drm3labs-oss/rpc-pool": "^0.2.8",
+    "@noble/curves": "^2.2.0",
+    "@noble/hashes": "^2.2.0",
+    "@resvg/resvg-wasm": "^2.6.2",
+    "@walletconnect/ethereum-provider": "^2.23.10",
+    "mustache": "^4.2.0"
+  }
+}

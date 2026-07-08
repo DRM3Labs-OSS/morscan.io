@@ -1,0 +1,252 @@
+<script>
+var KEY = document.getElementById('api-key');
+var BASE = location.origin;
+var curPath = '/health';
+var curMethod = 'GET';
+var curDetail = '';
+var lastResp = null;
+
+// Init key. Some pages embed the shared public demo key (window.MORSCAN_API_KEY);
+// the standalone /api page embeds none (edge-cached; keys are personal). Either
+// way, ask the session endpoint for the visitor's OWN key and swap it in when
+// connected; label the field honestly so nobody mistakes the demo key for theirs.
+var DEMO_KEY = window.MORSCAN_API_KEY || '';
+var WALLET_KEY = '';
+var KEY_HINT = document.getElementById('key-hint');
+function setKeyHint(kind) {
+  if (!KEY_HINT) return;
+  if (kind === 'demo') {
+    KEY_HINT.textContent = 'Public demo key (shared, per-IP limited). Connect your wallet for your own key: 60/min plus volume caps, and stake to raise them.';
+    KEY_HINT.style.display = 'block';
+  } else if (kind === 'own') {
+    KEY_HINT.textContent = 'Your key';
+    KEY_HINT.style.display = 'block';
+  } else {
+    KEY_HINT.style.display = 'none';
+  }
+}
+function refreshKeyHint() {
+  var v = KEY.value.trim();
+  if (v && DEMO_KEY && v === DEMO_KEY) setKeyHint('demo');
+  else if (v && WALLET_KEY && v === WALLET_KEY) setKeyHint('own');
+  else setKeyHint('none');
+}
+KEY.value = DEMO_KEY;
+refreshKeyHint();
+KEY.addEventListener('input', refreshKeyHint);
+fetch('/console/wallet/status').then(function(r){ return r.ok ? r.json() : null; }).then(function(j){
+  if (j && j.key) {
+    WALLET_KEY = j.key;
+    KEY.value = j.key;
+    refreshKeyHint();
+    if (typeof updateReq === 'function') updateReq();
+    if (typeof loadCapacity === 'function') loadCapacity();
+  }
+  else if (!KEY.value) { document.getElementById('key-cta').style.display = 'inline-block'; }
+}).catch(function(){ if (!KEY.value) document.getElementById('key-cta').style.display = 'inline-block'; });
+
+// Endpoints grouped by resource
+var EPS = [
+  { group: 'Network', base: '', items: [
+    { m:'GET', p:'/health', d:'Sync status, block heights, counts',
+      detail:'Current sync state: chain block, indexed block, blocks behind, provider/bid/session counts, and staking factor. No API key required.' },
+    { m:'GET', p:'/mor/v1/price', d:'MOR/USD + ETH/USD (on-chain)',
+      detail:'MOR/USD read on-chain from the Base DEX (Uniswap v3 MOR/WETH pool), with ETH/USD from a Chainlink feed on Base. Provenance-signed. Includes USD price, 24h change, and market cap. Cached ~30s; CoinGecko is only a last-resort fallback if the on-chain read fails. Public market data: free and uncounted WITHOUT a key. If you send your key it routes through the metered path and counts as one call, so a playground RUN here does decrement.' },
+    { m:'GET', p:'/mor/v1/price/chart', d:'90-day price history',
+      detail:'Array of {t, v} objects. t is Unix timestamp in milliseconds, v is MOR price in USD. Our own recorded on-chain price history (backfilled from CoinGecko until we have enough of our own points).' },
+  ]},
+  { group: 'Account', base: '/mor/v1', items: [
+    { m:'GET', p:'/mor/v1/capacity', d:'Your remaining rate-limit capacity',
+      detail:'Your remaining capacity across all three windows (per-minute, day, month), plus your live MOR stake and wallet. Free and IP-rate-limited - it reports your quota without spending it, so checking never counts against your key. Only real data endpoints are metered (a flat 1 call each). The /console page has an interactive version of this.' },
+  ]},
+  { group: 'Marketplace', base: '/mor/v1', items: [
+    { m:'GET', p:'/mor/v1/all', d:'Full marketplace: providers + bids + economics',
+      detail:'Everything in one call: all providers with endpoints and stake, all active bids with model names and pricing, network economics (staking factor, compute balance), and response metadata.' },
+    { m:'GET', p:'/mor/v1/providers', d:'All registered providers',
+      detail:'List of all registered Morpheus AI inference providers. Each entry includes address, endpoint URL, stake amount, and registration timestamp.' },
+    { m:'GET', p:'/mor/v1/providers/{wallet}', d:'Provider detail dashboard',
+      detail:'Full dashboard for a single provider: all bids, active/closed sessions, reputation metrics (success rate, TPS, TTFT), model demand breakdown, and daily session history.' },
+    { m:'GET', p:'/mor/v1/bids', d:'Provider price offers per model',
+      detail:'All active bids (price offers) from providers. Each bid includes model ID, model name, price per second in MOR, and the provider address. Retracted bids are excluded.' },
+  ]},
+  { group: 'Models', base: '/mor/v1/models', items: [
+    { m:'GET', p:'/mor/v1/models', d:'All registered model names',
+      detail:'All models registered in the on-chain ModelRegistry. Returns model IDs with their human-readable names (e.g. "llama-3.3-70b", "qwen3-235b").' },
+    { m:'GET', p:'/mor/v1/models/demand', d:'Model demand heatmap',
+      detail:'Ranked model demand data: total sessions, active sessions, sessions in last 24h and 7d, unique users, provider count, and pricing ranges per model. Sorted by demand score.' },
+    { m:'GET', p:'/mor/v1/models/lookup', d:'Model ID → name mapping',
+      detail:'Simple key-value mapping of model IDs to human-readable names. Useful for resolving the hex model IDs returned by other endpoints.' },
+  ]},
+  { group: 'Sessions', base: '/mor/v1/sessions', items: [
+    { m:'GET', p:'/mor/v1/sessions', d:'All sessions (paginated)',
+      detail:'All MOR staking sessions, active and closed. Supports ?page=N&limit=N pagination. Each session includes user address, provider, model, stake amount, timestamps, and status.' },
+    { m:'GET', p:'/mor/v1/sessions/daily', d:'30-day daily session counts',
+      detail:'Daily session counts for the last 30 days plus economics trend data. Useful for charting network activity over time.' },
+    { m:'GET', p:'/mor/v1/sessions/analytics', d:'Per-wallet session analytics',
+      detail:'Precomputed per-wallet analytics from wallet_stats table: total sessions, active sessions, total MOR staked, active stake, and claimable stake.' },
+  ]},
+  { group: 'Wallets', base: '/mor/v1/wallet', items: [
+    { m:'GET', p:'/mor/v1/wallet/{wallet}', d:'Wallet detail',
+      detail:'Full wallet breakdown: active sessions, closed sessions, active stake, claimable stake, total MOR staked, session history.' },
+  ]},
+  { group: 'Reputation', base: '/mor/v1', items: [
+    { m:'GET', p:'/mor/v1/reputation', d:'All provider reputation scores',
+      detail:'Quality metrics for all providers: success rate, dispute count, early termination rate, average tokens per second (TPS), and time to first token (TTFT). Broken down per model.' },
+    { m:'GET', p:'/mor/v1/disputes', d:'Recent disputed sessions',
+      detail:'Sessions that were closed with a dispute (closeout_type = 1). Shows which providers had quality issues and on which models.' },
+  ]},
+  { group: 'Leaderboard', base: '/mor/v1', items: [
+    { m:'GET', p:'/mor/v1/leaderboard', d:'Top providers & wallets',
+      detail:'Top providers and consumer wallets ranked by activity. Supports ?period=weekly for 7-day rankings or all-time by default. Shows session counts, stake totals, and active sessions.' },
+  ]},
+  { group: 'Analytics', base: '/mor/v1', items: [
+    { m:'GET', p:'/mor/v1/analytics', d:'Gas costs & network economics',
+      detail:'Network-wide analytics: average gas cost per session (ETH and USD), average session duration, total sessions, and current network economics (staking factor, compute balance, daily budget).' },
+  ]},
+  { group: 'Holders', base: '/mor/v1/holders', items: [
+    { m:'GET', p:'/mor/v1/holders', d:'MOR token holders ranked by balance',
+      detail:'All wallets holding MOR on Base, ranked by balance. Includes consumer/provider/staker role badges. Supports ?page=N&limit=N (default 250).' },
+  ]},
+  { group: 'Builder Subnets', base: '/mor/v1/builder', items: [
+    { m:'GET', p:'/mor/v1/builder/subnets', d:'All subnets with pool share and emissions',
+      detail:'Every builder subnet: name, MOR staked, pool share percentage, estimated daily MOR emissions. Sorted by total deposited descending. Includes global stats (total staked, APR, daily emissions).' },
+    { m:'GET', p:'/mor/v1/builder/stats', d:'Global builder staking stats',
+      detail:'Aggregate builder stats: total MOR staked across all subnets, pool APR, daily emissions (the protocol\'s current builder emissions pool, live value), pending rewards, claimed rewards, and contract address.' },
+    { m:'GET', p:'/mor/v1/builder/all', d:'Full builder blob - stats + all subnets',
+      detail:'Combined response: global stats merged with all subnet data. One call for the entire builder plane. Used for SSR and dashboard rendering.' },
+    { m:'GET', p:'/mor/v1/builder/events', d:'Recent builder events (paginated)',
+      detail:'On-chain builder events: deposits, withdrawals, claims. Supports ?page=N&limit=N. Note: event capture limited by proxy contract, may not include all historical events.' },
+  ]},
+  { group: 'Builder Detail', base: '/mor/v1/builder', items: [
+    { m:'GET', p:'/mor/v1/builder/subnets/{wallet}', d:'Subnet detail - stakes, events',
+      detail:'Full detail for a single builder subnet: name, admin, deposits, pending rewards, top stakers, recent events. Replace {wallet} with a subnet ID (bytes32).' },
+    { m:'GET', p:'/mor/v1/builder/stakes/{wallet}', d:'Wallet builder positions',
+      detail:'All builder staking positions for a wallet: which subnets, how much staked, pool share, estimated daily emissions, lock status (7-day withdrawal lock).' },
+  ]},
+];
+
+// Metering class per endpoint: 'free' never counts, 'metered' draws 1 per call,
+// 'dual' is free without a key but metered when you send one (the price paths).
+function meterOf(path) {
+  if (path === '/health' || path === '/mor/v1/capacity') return 'free';
+  if (path === '/mor/v1/price' || path === '/mor/v1/price/chart') return 'dual';
+  if (path.indexOf('/mor/v1/') === 0) return 'metered';
+  return 'free';
+}
+function meterLabel(m) { return m === 'free' ? 'FREE' : m === 'dual' ? 'FREE / METERED' : 'METERED'; }
+function meterTitle(m) { return m === 'free' ? 'Free - never counts against your budget' : m === 'dual' ? 'Free without a key; metered (1 call) when you send one' : 'Metered - draws 1 call from your budget'; }
+
+// Build sidebar
+function buildSidebar() {
+  var sb = document.getElementById('ep-sidebar');
+  var html = '';
+  var mainGroups = EPS.filter((g)=> !g.footer);
+  var footerGroups = EPS.filter((g)=> g.footer);
+  function renderGroups(groups) {
+    groups.forEach((g) => {
+      var baseLabel = g.base ? ` <span style="color:var(--dim);font-weight:400;font-size:0.65rem;letter-spacing:0">${g.base}</span>` : '';
+      html += `<div class="ep-group-title">${g.group}${baseLabel}</div><div class="ep-list">`;
+      g.items.forEach((e) => {
+        var active = e.p === curPath ? ' active' : '';
+        var shortPath = g.base && e.p.startsWith(g.base) ? e.p.slice(g.base.length) || '/' : e.p;
+        html += `<div class="ep-item${active}" role="button" tabindex="0" aria-label="${esc(e.m)} ${esc(e.p)}" data-path="${e.p}" data-method="${e.m}" data-detail="${esc(e.detail || e.d)}">`;
+        var mt = meterOf(e.p);
+        html += `<div class="ep-row"><span class="ep-method ${e.m.toLowerCase()}">${e.m}</span><span class="ep-path">${shortPath}</span><span class="ep-meter ${mt}" title="${esc(meterTitle(mt))}">${meterLabel(mt)}</span></div>`;
+        html += `<div class="ep-desc">${e.d}</div></div>`;
+      });
+      html += '</div>';
+    });
+  }
+  renderGroups(mainGroups);
+  if (footerGroups.length) {
+    html += '<div style="border-top:1px solid var(--border);margin:1rem 0;padding-top:0.5rem;"></div>';
+    renderGroups(footerGroups);
+  }
+  sb.innerHTML = html;
+  sb.querySelectorAll('.ep-item').forEach((el) => {
+    el.addEventListener('click', () => {
+      curPath = el.dataset.path;
+      curMethod = el.dataset.method;
+      curDetail = el.dataset.detail || '';
+      sb.querySelectorAll('.ep-item').forEach((x) => { x.classList.remove('active'); });
+      el.classList.add('active');
+      updateReq();
+      clearResp();
+      document.getElementById('page-content').scrollIntoView({behavior:'smooth'});
+    });
+  });
+}
+
+// Escape HTML
+function esc(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+// Syntax highlight JSON
+function hlJson(obj, indent) {
+  indent = indent || 0;
+  var sp = '  '.repeat(indent);
+  if (obj === null) return '<span class="jl">null</span>';
+  if (typeof obj === 'boolean') return `<span class="jb">${obj}</span>`;
+  if (typeof obj === 'number') return `<span class="jn">${obj}</span>`;
+  if (typeof obj === 'string') return `<span class="js">"${esc(obj)}"</span>`;
+  if (Array.isArray(obj)) {
+    if (obj.length === 0) return '[]';
+    const items = obj.map((v) => `${sp}  ${hlJson(v, indent + 1)}`).join(',\n');
+    return `[\n${items}\n${sp}]`;
+  }
+  if (typeof obj === 'object') {
+    const keys = Object.keys(obj);
+    if (keys.length === 0) return '{}';
+    const entries = keys.map((k) => `${sp}  <span class="jk">"${esc(k)}"</span>: ${hlJson(obj[k], indent + 1)}`).join(',\n');
+    return `{\n${entries}\n${sp}}`;
+  }
+  return String(obj);
+}
+
+// Highlight headers
+function hlHdrs(text) {
+  return text.split('\n').map((line) => {
+    var i = line.indexOf(':');
+    if (i > 0) return `<span class="hk">${line.slice(0, i)}</span>:<span class="hv">${esc(line.slice(i + 1))}</span>`;
+    return line;
+  }).join('\n');
+}
+
+function fmtSize(b) {
+  if (b < 1024) return `${b} B`;
+  if (b < 1048576) return `${(b / 1024).toFixed(1)} KB`;
+  return `${(b / 1048576).toFixed(2)} MB`;
+}
+
+function getKey() { return KEY.value.trim(); }
+
+function resolvedPath() {
+  var w = document.getElementById('cfg-wallet').value.trim() || '{wallet}';
+  return curPath.replace(/\{wallet\}/g, w);
+}
+
+function updateReq() {
+  var full = BASE + resolvedPath();
+  document.getElementById('req-badge').textContent = curMethod;
+  document.getElementById('req-badge').className = `ep-method ${curMethod.toLowerCase()}`;
+  document.getElementById('req-url').value = full;
+
+  // Show endpoint description
+  var detailEl = document.getElementById('ep-detail');
+  if (curDetail) { detailEl.textContent = curDetail; detailEl.style.display = 'block'; }
+  else { detailEl.style.display = 'none'; }
+
+  var needsKey = curPath.startsWith('/mor/v1/');
+  var hdrs = `Accept: application/json\nX-Morscan-Key: ${getKey() || '(none)'}`;
+  if (!needsKey) hdrs += '  (not required for this endpoint)';
+  document.getElementById('req-hdrs').innerHTML = hlHdrs(hdrs);
+
+  // FREE vs METERED badge for the selected endpoint.
+  var meter = meterOf(curPath);
+  var rm = document.getElementById('req-meter');
+  if (rm) { rm.className = 'req-meter ' + meter; rm.textContent = meterLabel(meter); rm.title = meterTitle(meter); }
+
+  // Update cURL
+  var curl = `curl -s "${full}" \\\n  -H "Accept: application/json"`;
+  if (getKey()) curl += ` \\\n  -H "X-Morscan-Key: ${getKey()}"`;
+  document.getElementById('curl-out').textContent = curl;
+}

@@ -1,0 +1,183 @@
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+  <div class="page">
+    <a class="back" href="/">&larr; Back to explorer</a>
+    <main id="main" tabindex="-1">
+
+    <!-- ── Connect view (no session): the wallet front door ── -->
+    <div id="view-connect" style="display:{{CONNECT_DISPLAY}}">
+      <div class="connect-hero">
+        <div class="kicker">API Access</div>
+        <h1>Console</h1>
+        <div class="connect-copy">Browse the explorer free, no wallet needed. The <strong style="color:var(--text)">/mor/v1</strong> API needs a key. Connect a wallet to mint one free, then stake MOR to raise its limits.</div>
+
+        <!-- Public UI vs connected API: what connecting actually buys you. -->
+        <div class="vs" role="group" aria-label="Public access versus connected access">
+          <div class="vs-col">
+            <div class="vs-h">Public</div>
+            <div class="vs-sub">No wallet</div>
+            <ul class="vs-list">
+              <li>Full explorer and dashboards</li>
+              <li>Live charts and search</li>
+              <li class="vs-no">No programmatic API</li>
+            </ul>
+          </div>
+          <div class="vs-col vs-hi">
+            <div class="vs-h">Connected</div>
+            <div class="vs-sub">Free API key</div>
+            <ul class="vs-list">
+              <li class="vs-yes">Everything public, plus a key</li>
+              <li class="vs-yes">Metered /mor/v1 API access</li>
+              <li>60/min, 2,000/day, 40,000/mo</li>
+            </ul>
+          </div>
+        </div>
+
+        <div><button class="btn solid big" id="connect-btn" type="button">Connect wallet</button></div>
+        <div class="msg" id="connect-msg" role="status" aria-live="polite"></div>
+        <div id="wallet-choices" class="wallet-choices" role="group" aria-label="Choose how to connect" style="display:none"></div>
+
+        <!-- Staking in API terms: real caps from capsForStake (src/utils/stake-tier.ts). -->
+        <div class="tiers">
+          <div class="tiers-h">Stake MOR, raise your API caps</div>
+          <div class="tier-scroll">
+            <table class="tier-table">
+              <thead><tr><th scope="col">Stake</th><th scope="col">Per min</th><th scope="col">Per day</th><th scope="col">Per month</th></tr></thead>
+              <tbody>
+                <tr><td>Connected (0)</td><td>60</td><td>2,000</td><td>40,000</td></tr>
+                <tr><td>100 MOR</td><td>300</td><td>5,000</td><td>100,000</td></tr>
+                <tr><td>500 MOR</td><td>1,500</td><td>37,500</td><td>750,000</td></tr>
+                <tr><td>2,500 MOR</td><td>7,500</td><td>250,000</td><td>5,000,000</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="note" style="max-width:460px">Caps follow your live stake on the <a href="/stake">MorScan subnet</a> and re-check every minute. Your principal stays yours. See <a href="/stake">/stake</a>.</div>
+        </div>
+
+        <div class="mkt-wrap">{{PRICE_WIDGET}}</div>
+
+        <div class="keyalt">
+          <button type="button" class="keyalt-toggle" id="key-toggle">Have an API key? Sign in with it</button>
+          <div id="key-signin" style="display:none;margin-top:0.8rem;">
+            {{SSO_BUTTON}}
+            <input type="text" id="signin-key" class="keyalt-input" spellcheck="false" autocomplete="off" placeholder="mor_..." aria-label="API key">
+            <button type="button" class="btn solid" id="signin-btn" style="width:100%;margin-top:0.5rem;">Sign in</button>
+            <div class="msg" id="signin-msg" role="status" aria-live="polite"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Console view (session) ── -->
+    <div id="view-console" style="display:{{CONSOLE_DISPLAY}}">
+      <h1>Console</h1>
+      <div class="who">Signed in as <strong>{{IDENTITY_NAME}}</strong></div>
+
+      <div class="card" id="wallet-card" style="display:{{WALLET_ROW_DISPLAY}}">
+        <h2>Wallet</h2>
+        <div class="addr">{{WALLET_ADDR}}</div>
+        <div class="wstat">
+          <div><span class="v">{{STAKE_MOR}} MOR</span><span class="l">Staked on MorScan subnet</span></div>
+          <div><span class="v">{{CAPS_LINE}}</span><span class="l">Your capacity</span></div>
+        </div>
+        <div class="row">
+          <button class="btn danger big" id="disconnect-btn" type="button">Disconnect Wallet</button>
+        </div>
+        <div class="note">Capacity follows your live stake and re-checks every minute. Raise it by staking MOR on the <a href="/stake">MorScan subnet</a>; your principal stays yours.</div>
+        <div class="note" style="margin-top:0.6rem"><strong style="color:var(--text)">Capacity not updated?</strong> Re-checks run about once a minute, and instantly when you reconnect. Only MOR staked on the <a href="/builder/subnet/0xe100f9d7c463008e46887113fa14bc0ba9caaf90d4465835795f53ebe5056059">MorScan subnet</a> raises your capacity - stake on any other subnet does not count.</div>
+        <div class="row"><button class="btn" id="recheck-btn" type="button">Re-check now</button></div>
+      </div>
+
+      <div class="card">
+        <h2>Your API key</h2>
+        <div id="key-present" style="display:{{HAS_KEY_DISPLAY}}">
+          <div class="keybox">
+            <div class="keyval" id="keyval" data-key="{{KEY_VALUE}}">{{KEY_MASKED}}</div>
+            <button class="btn" id="reveal-btn" type="button" aria-pressed="false" aria-label="Show the full API key">Show</button>
+            <button class="btn" id="copy-btn" type="button" aria-label="Copy the API key">Copy</button>
+          </div>
+          <div class="row">
+            <button class="btn" id="rotate-btn" type="button">Rotate key</button>
+            <button class="btn danger" id="revoke-btn" type="button">Delete key</button>
+          </div>
+        </div>
+        <div id="key-absent" style="display:{{NO_KEY_DISPLAY}}">
+          <div class="note" style="margin-top:0">No API key yet. Create one - it is free and yours alone.</div>
+          <div class="row"><button class="btn solid" id="create-btn" type="button">Create my API key</button></div>
+        </div>
+        <div class="msg" id="msg" role="status" aria-live="polite"></div>
+        <div class="note">Current limits: <strong style="color:var(--text)">{{CAPS_LINE}}</strong>. Send the key as <code>X-Morscan-Key</code> on every request. Keep it secret; rotate it if it leaks. Need more? Stake MOR on the MorScan subnet - capacity scales with your stake. See <a href="/stake">/stake</a>.</div>
+      </div>
+
+      <div class="card" id="usage-card" style="display:{{HAS_KEY_DISPLAY}}">
+        <h2>Usage &amp; limits</h2>
+        <div class="usage-row">
+          <div class="usage-head"><span class="usage-label">Today</span><span class="usage-count" id="u-day">-</span></div>
+          <div class="bar"><div class="bar-fill" id="u-day-bar"></div></div>
+        </div>
+        <div class="usage-row">
+          <div class="usage-head"><span class="usage-label">This month</span><span class="usage-count" id="u-month">-</span></div>
+          <div class="bar"><div class="bar-fill" id="u-month-bar"></div></div>
+        </div>
+        <div class="usage-rate">Rate: <strong id="u-rate">-</strong> / min</div>
+        <div class="note" id="usage-note" style="margin-top:0.9rem">Counts reset at 00:00 UTC (daily) and the 1st of the month. Approaching a cap? Raise capacity by staking MOR on the <a href="/stake">MorScan subnet</a>.</div>
+        <div class="note" id="stake-tie" style="display:{{WALLET_ROW_DISPLAY}};margin-top:0.5rem">Stake: <strong style="color:var(--text)">{{STAKE_MOR}} MOR</strong> sets these caps. Stake more on the <a href="/stake">MorScan subnet</a> and the same key's limits rise with it.</div>
+      </div>
+
+      <div class="card" id="capacity-card" style="display:{{HAS_KEY_DISPLAY}}">
+        <h2>Run a query</h2>
+        <div class="note" style="margin-top:0">Run a query. Watch your limits.</div>
+
+        <div class="curlbox">
+          <code class="curl" id="cap-curl" aria-label="curl command for a data endpoint">curl -s {{BASE_URL}}/mor/v1/holders?limit=1 -H "X-Morscan-Key: ..."</code>
+          <button class="btn" id="cap-copy" type="button" aria-label="Copy the curl command">Copy</button>
+        </div>
+        <div class="row" style="align-items:center">
+          <button class="btn solid" id="cap-run" type="button">Run query</button>
+        </div>
+
+        <div class="cap-readout" id="cap-readout" aria-live="polite" aria-label="Remaining capacity">
+          <div class="cap-metric">
+            <div class="cap-metric-head"><span class="cap-metric-label">Per minute</span><span class="cap-metric-val" id="cap-min">-</span></div>
+            <div class="bar"><div class="bar-fill" id="cap-min-bar"></div></div>
+          </div>
+          <div class="cap-metric">
+            <div class="cap-metric-head"><span class="cap-metric-label">Today</span><span class="cap-metric-val" id="cap-day">-</span></div>
+            <div class="bar"><div class="bar-fill" id="cap-day-bar"></div></div>
+          </div>
+          <div class="cap-metric">
+            <div class="cap-metric-head"><span class="cap-metric-label">This month</span><span class="cap-metric-val" id="cap-month">-</span></div>
+            <div class="bar"><div class="bar-fill" id="cap-month-bar"></div></div>
+          </div>
+        </div>
+
+        <div class="cap-status" id="cap-status" role="status" aria-live="assertive"></div>
+        <pre class="cap-json" id="cap-json" aria-label="Raw JSON response"></pre>
+      </div>
+
+      <div class="card">
+        <h2>Try it</h2>
+        <div class="note" style="margin-top:0">The <a href="/api/playground">API playground</a> has every endpoint wired up, and <a href="/openapi.json">openapi.json</a> is the full spec.</div>
+      </div>
+
+      <div class="links">
+        <a href="/analytics/overview">Explorer</a>
+        <a href="/api/playground">API playground</a>
+        <a href="/stake">Stake</a>
+        <a href="/logout">Sign out</a>
+      </div>
+    </div>
+    </main>
+  </div>
+
+  <!-- Themed confirm modal: in-page overlay, no native dialogs -->
+  <div class="modal-backdrop" id="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title" aria-describedby="modal-msg">
+    <div class="modal-card">
+      <h3 class="modal-title" id="modal-title"></h3>
+      <p class="modal-msg" id="modal-msg"></p>
+      <div class="modal-actions">
+        <button class="btn secondary" id="modal-cancel" type="button">Cancel</button>
+        <button class="btn solid" id="modal-confirm" type="button">Confirm</button>
+      </div>
+    </div>
+  </div>

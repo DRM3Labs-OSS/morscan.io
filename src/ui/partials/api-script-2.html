@@ -1,0 +1,290 @@
+
+function clearResp() {
+  lastResp = null;
+  document.getElementById('r-status').textContent = '-';
+  document.getElementById('r-status').className = 'st';
+  document.getElementById('r-time').textContent = '-';
+  document.getElementById('r-size').textContent = '-';
+  document.getElementById('r-hdrs').innerHTML = '';
+  document.getElementById('r-body').innerHTML = 'Click <strong>RUN</strong> to test this endpoint';
+}
+
+// ─── Live capacity: stake -> caps + remaining budget ───
+function capInt(n) { return (n == null) ? '-' : Number(n).toLocaleString('en-US'); }
+function setCapVal(id, text, warn) {
+  var el = document.getElementById(id);
+  if (!el) return;
+  el.textContent = text;
+  el.classList.toggle('warn', !!warn);
+}
+// Seed the strip from the FREE introspection endpoint (never spends budget).
+async function loadCapacity() {
+  var strip = document.getElementById('cap-strip');
+  if (!strip) return;
+  var key = getKey();
+  if (!key) { strip.style.display = 'none'; return; }
+  try {
+    var r = await fetch('/mor/v1/capacity', { headers: { 'Accept': 'application/json', 'X-Morscan-Key': key } });
+    if (!r.ok) { strip.style.display = 'none'; return; }
+    var d = await r.json();
+    strip.style.display = 'flex';
+    var perMinLimit = d.perMin && d.perMin.limit;
+    var stake = (d.stakeMor != null ? Number(d.stakeMor).toLocaleString('en-US') : '0') + ' MOR';
+    setCapVal('cap-stake', stake + (perMinLimit ? ' -> ' + perMinLimit + ' req/min' : ''));
+    if (d.perMin) setCapVal('cap-min', d.perMin.remaining + '/' + d.perMin.limit + ', resets in ' + d.perMin.resetInSeconds + 's');
+    if (d.today) setCapVal('cap-day', capInt(d.today.remaining) + '/' + capInt(d.today.limit), Number(d.today.remaining) <= 0);
+    if (d.month) setCapVal('cap-month', capInt(d.month.remaining) + '/' + capInt(d.month.limit), Number(d.month.remaining) <= 0);
+  } catch (e) { strip.style.display = 'none'; }
+}
+// After a metered RUN, update straight from the response's X-RateLimit-* headers
+// so the owner watches the per-minute budget tick down 10 -> 9 -> 8 in real time.
+function updateCapFromHeaders(resp) {
+  var strip = document.getElementById('cap-strip');
+  if (!strip) return;
+  var rem = resp.headers.get('X-RateLimit-Remaining');
+  var lim = resp.headers.get('X-RateLimit-Limit');
+  var reset = resp.headers.get('X-RateLimit-Reset');
+  var remDay = resp.headers.get('X-RateLimit-Remaining-Day');
+  var limDay = resp.headers.get('X-RateLimit-Limit-Day');
+  var remMonth = resp.headers.get('X-RateLimit-Remaining-Month');
+  var limMonth = resp.headers.get('X-RateLimit-Limit-Month');
+  if (!(rem || lim || remDay || remMonth)) return;
+  strip.style.display = 'flex';
+  if (rem != null && lim != null) setCapVal('cap-min', rem + '/' + lim + (reset != null ? ', resets in ' + reset + 's' : ''), Number(rem) <= Math.max(1, Number(lim) * 0.2));
+  if (remDay != null && limDay != null) setCapVal('cap-day', capInt(remDay) + '/' + capInt(limDay), Number(remDay) <= 0);
+  if (remMonth != null && limMonth != null) setCapVal('cap-month', capInt(remMonth) + '/' + capInt(limMonth), Number(remMonth) <= 0);
+}
+
+async function runReq() {
+  var btn = document.getElementById('btn-run');
+  btn.disabled = true; btn.textContent = 'RUNNING...';
+  var statusEl = document.getElementById('r-status');
+  statusEl.textContent = '...'; statusEl.className = 'st';
+  document.getElementById('r-time').textContent = '...';
+  document.getElementById('r-size').textContent = '...';
+  document.getElementById('r-body').innerHTML = '<span class="jl">Fetching...</span>';
+
+  // Use the URL from the input (user may have edited it)
+  var reqUrl = document.getElementById('req-url').value.trim();
+  // Extract path from full URL for the fetch (same-origin)
+  let path = curPath;
+  try { path = new URL(reqUrl).pathname; } catch(e) { path = reqUrl; }
+
+  const start = performance.now();
+  try {
+    const resp = await fetch(path, {
+      method: curMethod,
+      headers: { 'Accept': 'application/json', 'X-Morscan-Key': getKey() }
+    });
+    const time = Math.round(performance.now() - start);
+    const text = await resp.text();
+    let data;
+    try { data = JSON.parse(text); lastResp = data; } catch(e) { data = text; lastResp = text; }
+
+    statusEl.textContent = `${resp.status} ${resp.statusText}`;
+    statusEl.className = resp.ok ? 'st' : 'st err';
+    document.getElementById('r-time').textContent = `${time}ms`;
+    document.getElementById('r-size').textContent = fmtSize(text.length);
+
+    let hdrText = '';
+    resp.headers.forEach((v, k) => { hdrText += `${k}: ${v}\n`; });
+    document.getElementById('r-hdrs').innerHTML = hlHdrs(hdrText.trim() || 'No headers');
+    // Reflect the drawdown from this call's rate-limit headers immediately.
+    updateCapFromHeaders(resp);
+
+    if (typeof data === 'object') {
+      document.getElementById('r-body').innerHTML = hlJson(data);
+    } else {
+      document.getElementById('r-body').textContent = data;
+    }
+  } catch(e) {
+    statusEl.textContent = 'Error'; statusEl.className = 'st err';
+    document.getElementById('r-body').innerHTML = `<span class="js">"${esc(e.message)}"</span>`;
+    lastResp = null;
+  }
+  btn.disabled = false; btn.textContent = 'RUN';
+}
+
+function _copyCurl(btn) {
+  var reqUrl = document.getElementById('req-url').value.trim();
+  var curl = `curl -s "${reqUrl}" \\\n  -H "Accept: application/json"`;
+  if (getKey()) curl += ` \\\n  -H "X-Morscan-Key: ${getKey()}"`;
+  navigator.clipboard.writeText(curl.replace(/ \\\n {2}/g, ' ')).then(() => {
+    var orig = btn.textContent;
+    btn.textContent = 'Copied!'; btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = orig; btn.classList.remove('copied'); }, 1500);
+  });
+}
+
+function _copyJson(btn) {
+  if (!lastResp) return;
+  var text = typeof lastResp === 'string' ? lastResp : JSON.stringify(lastResp, null, 2);
+  navigator.clipboard.writeText(text).then(() => {
+    btn.textContent = 'Copied!'; btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = 'Copy JSON'; btn.classList.remove('copied'); }, 1500);
+  });
+}
+
+
+// Tab switching
+var docsLoaded = false;
+function apiTab(tab) {
+  var tabs = document.querySelectorAll('.api-tab');
+  tabs.forEach((t) => { t.classList.remove('active'); });
+  if (tab === 'playground') {
+    tabs[0].classList.add('active');
+    document.getElementById('sec-playground').style.display = 'block';
+    document.getElementById('sec-docs').style.display = 'none';
+  } else {
+    tabs[1].classList.add('active');
+    document.getElementById('sec-playground').style.display = 'none';
+    document.getElementById('sec-docs').style.display = 'block';
+    if (!docsLoaded) {
+      docsLoaded = true;
+      renderOpenApiDocs();
+    }
+  }
+}
+
+// Our own OpenAPI renderer - zero dependencies, clean dark theme
+var MC = { get: '#22c55e', post: '#3B82F6', put: '#f59e0b', delete: '#ef4444', patch: '#a78bfa' };
+async function renderOpenApiDocs() {
+  var el = document.getElementById('openapi-docs');
+  try {
+    var resp = await fetch('/openapi.json');
+    var spec = await resp.json();
+    var h = '';
+
+    // Header
+    h += '<div style="margin-bottom:1.5rem;">';
+    h += `<div style="color:var(--green);font-size:1.1rem;font-weight:700;">${esc(spec.info?.title || 'API')} <span style="color:var(--cyan);font-size:0.65rem;font-weight:400;">v${esc(spec.info?.version || '')}</span></div>`;
+    if (spec.info?.description) h += `<div style="color:var(--text-primary);font-size:0.7rem;margin-top:0.4rem;line-height:1.6;">${esc(spec.info.description)}</div>`;
+    h += '</div>';
+
+    // Auth
+    if (spec.components?.securitySchemes) {
+      h += '<div style="background:var(--bg-secondary);border:1px solid var(--border);padding:0.75rem 1rem;margin-bottom:1.5rem;">';
+      h += '<div style="color:var(--text-primary);font-weight:600;margin-bottom:0.4rem;">Authentication</div>';
+      for (var [name, scheme] of Object.entries(spec.components.securitySchemes)) {
+        h += `<div style="color:var(--cyan);font-size:0.7rem;">${esc(name)}</div>`;
+        h += `<div style="color:var(--text-muted);font-size:0.65rem;">${esc(scheme.type)}${scheme.in ? ` in ${scheme.in}` : ''}${scheme.name ? `: <span style="color:var(--text-primary);">${esc(scheme.name)}</span>` : ''}</div>`;
+      }
+      h += '</div>';
+    }
+
+    // Group by tags
+    var tags = {};
+    var untagged = [];
+    for (var [path, methods] of Object.entries(spec.paths || {})) {
+      for (var [method, op] of Object.entries(methods)) {
+        if (method === 'parameters') continue;
+        var entry = { path, method: method.toUpperCase(), op };
+        var t = (op.tags?.[0]) || null;
+        if (t) { (tags[t] = tags[t] || []).push(entry); }
+        else { untagged.push(entry); }
+      }
+    }
+
+    // Tag descriptions
+    var tagDesc = {};
+    (spec.tags || []).forEach((t) => { tagDesc[t.name] = t.description || ''; });
+
+    function renderGroup(name, desc, entries) {
+      var gh = '';
+      gh += '<div style="margin-bottom:1.25rem;">';
+      gh += `<div style="color:var(--text-primary);font-size:0.85rem;font-weight:700;padding:0.5rem 0;border-bottom:1px solid var(--border);">${esc(name)}`;
+      if (desc) gh += ` <span style="color:var(--text-muted);font-weight:400;font-size:0.65rem;margin-left:0.5rem;">${esc(desc)}</span>`;
+      gh += '</div>';
+      entries.forEach((e) => {
+        var color = MC[e.method.toLowerCase()] || '#c7c2bc';
+        gh += `<div style="background:var(--bg-secondary);border:1px solid var(--border);border-left:3px solid ${color};margin:0.35rem 0;padding:0.5rem 0.75rem;">`;
+        gh += '<div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;">';
+        gh += `<span style="background:${color};color:${e.method === 'GET' || e.method === 'PUT' ? '#000' : '#fff'};font-size:0.65rem;font-weight:700;padding:0.15rem 0.4rem;min-width:40px;text-align:center;">${e.method}</span>`;
+        gh += `<span style="color:var(--text-primary);font-size:0.75rem;font-weight:500;">${esc(e.path)}</span>`;
+        if (e.op.summary) gh += `<span style="color:var(--text-secondary);font-size:0.65rem;margin-left:auto;">${esc(e.op.summary)}</span>`;
+        gh += '</div>';
+        if (e.op.description) gh += `<div style="color:var(--text-muted);font-size:0.65rem;margin-top:0.3rem;line-height:1.5;">${esc(e.op.description)}</div>`;
+
+        // Parameters
+        var params = e.op.parameters || [];
+        if (params.length > 0) {
+          gh += '<div class="table-scroll" style="margin-top:0.5rem;"><table style="width:100%;border-collapse:collapse;font-size:0.65rem;min-width:400px;">';
+          gh += '<tr style="border-bottom:1px solid var(--border);"><td style="color:var(--text-muted);padding:0.2rem 0.4rem;">Name</td><td style="color:var(--text-muted);padding:0.2rem 0.4rem;">In</td><td style="color:var(--text-muted);padding:0.2rem 0.4rem;">Type</td><td style="color:var(--text-muted);padding:0.2rem 0.4rem;">Description</td></tr>';
+          params.forEach((p) => {
+            gh += '<tr style="border-bottom:1px solid rgba(68,64,60,0.3);">';
+            gh += `<td style="color:var(--cyan);padding:0.25rem 0.4rem;font-weight:600;">${esc(p.name)}${p.required ? ' <span style="color:#ef4444;">*</span>' : ''}</td>`;
+            gh += `<td style="color:#c7c2bc;padding:0.25rem 0.4rem;">${esc(p.in || '')}</td>`;
+            gh += `<td style="color:#c7c2bc;padding:0.25rem 0.4rem;">${esc(p.schema?.type || '')}</td>`;
+            gh += `<td style="color:var(--text-secondary);padding:0.25rem 0.4rem;">${esc(p.description || '')}</td>`;
+            gh += '</tr>';
+          });
+          gh += '</table></div>';
+        }
+
+        // Responses
+        var resps = e.op.responses || {};
+        var rkeys = Object.keys(resps);
+        if (rkeys.length > 0) {
+          gh += '<div style="margin-top:0.4rem;font-size:0.65rem;color:var(--text-muted);">Responses: ';
+          gh += rkeys.map((code) => {
+            var rc = parseInt(code, 10) < 300 ? 'var(--green)' : parseInt(code, 10) < 400 ? 'var(--cyan)' : '#ef4444';
+            return `<span style="color:${rc};font-weight:600;">${code}</span>`;
+          }).join(' ');
+          gh += '</div>';
+        }
+
+        gh += '</div>';
+      });
+      gh += '</div>';
+      return gh;
+    }
+
+    for (var [tag, entries] of Object.entries(tags)) {
+      h += renderGroup(tag, tagDesc[tag] || '', entries);
+    }
+    if (untagged.length > 0) {
+      h += renderGroup('Other', '', untagged);
+    }
+
+    el.innerHTML = h;
+  } catch(e) {
+    el.innerHTML = `<div style="color:#ef4444;padding:1rem;">Failed to load OpenAPI spec: ${esc(e.message)}</div>`;
+  }
+}
+
+// Re-render request display when key changes; refresh the capacity strip too.
+KEY.addEventListener('input', () => { updateReq(); loadCapacity(); });
+
+// Allow editing the URL and pressing Enter to run
+document.getElementById('req-url').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') runReq();
+});
+
+// Init
+buildSidebar();
+// Set initial detail from the default endpoint
+curDetail = EPS[0].items[0].detail || '';
+// Default wallet from root wallet cookie or leave empty
+var cfgWallet = document.getElementById('cfg-wallet');
+if (window.__ROOT_WALLET__) cfgWallet.value = window.__ROOT_WALLET__;
+cfgWallet.addEventListener('input', ()=> { updateReq(); });
+updateReq();
+// Seed the live capacity strip if we already have a key (or once one resolves).
+loadCapacity();
+
+// Auto-switch to docs tab if navigated to /api/docs
+if (window.__API_START_TAB__ === 'docs') apiTab('docs');
+
+// Wire header nav tabs to the client-side apiTab() function
+(()=> {
+  var navLinks = document.querySelectorAll('nav a');
+  navLinks.forEach((a)=> {
+    var href = a.getAttribute('href');
+    if (href === '/api/playground') {
+      a.addEventListener('click', (e)=> { e.preventDefault(); apiTab('playground'); navLinks.forEach((t)=> {t.classList.remove('active');}); a.classList.add('active'); history.replaceState(null,'','/api/playground'); window.scrollTo(0,0); });
+    } else if (href === '/api/docs') {
+      a.addEventListener('click', (e)=> { e.preventDefault(); apiTab('docs'); navLinks.forEach((t)=> {t.classList.remove('active');}); a.classList.add('active'); history.replaceState(null,'','/api/docs'); window.scrollTo(0,0); });
+    }
+  });
+})();
+</script>

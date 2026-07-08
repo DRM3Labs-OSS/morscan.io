@@ -1,0 +1,145 @@
+<!-- MorScan SPA - 4 views, one page, instant tabs -->
+<style>
+  .view { display: none; }
+  .view.active { display: block; }
+  .section-title { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.15em; color: var(--text-muted); margin-bottom: 0.75rem; }
+  /* Provider cards */
+  .provider-list { display: flex; flex-direction: column; gap: 1rem; }
+  .provider-card { background: var(--bg-secondary); border: 1px solid var(--border); overflow: hidden; }
+  .provider-header { display: flex; justify-content: space-between; align-items: center; padding: 1rem 1.25rem; cursor: pointer; transition: background 0.15s; gap: 0.5rem; }
+  .provider-header:hover { background: var(--bg-card); }
+  .provider-info { display: flex; flex-direction: column; gap: 0.25rem; min-width: 0; }
+  .provider-domain { font-size: 1.05rem; font-weight: 700; color: var(--cyan); margin-bottom: 0.15rem; }
+  .provider-address { font-size: 0.8rem; color: var(--text-primary); display: flex; align-items: center; gap: 0.5rem; }
+  .provider-address a { color: var(--link); text-decoration: none; font-size: 0.7rem; }
+  .provider-endpoint { font-size: 0.7rem; color: var(--cyan); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .provider-meta { display: flex; align-items: center; gap: 0.75rem; }
+  .bid-count { background: var(--green-dim); color: var(--green); padding: 0.2rem 0.5rem; font-size: 0.65rem; font-weight: 600; }
+  .expand-icon { color: var(--text-muted); transition: transform 0.2s; }
+  .provider-card.expanded .expand-icon { transform: rotate(180deg); }
+  .bids-panel { display: none; border-top: 1px solid var(--border); padding: 0.75rem 1.25rem; font-size: 0.7rem; }
+  .provider-card.expanded .bids-panel { display: block; }
+  .bid-row { display: flex; justify-content: space-between; padding: 0.35rem 0; border-bottom: 1px solid rgba(68,64,60,0.3); flex-wrap: wrap; gap: 0.25rem; }
+  .bid-row:last-child { border-bottom: none; }
+  .bid-model { color: var(--text-primary); font-weight: 500; }
+  .bid-price { color: var(--mor); font-weight: 600; }
+  .badge { display: inline-block; padding: 0.1rem 0.35rem; font-size: 0.65rem; font-weight: 600; text-transform: uppercase; }
+  .badge-prod { background: var(--green-dim); color: var(--green); }
+  .badge-test { background: rgba(250,204,21,0.15); color: var(--yellow); }
+  .badge-active { background: var(--green-dim); color: var(--green); }
+  .badge-closed { background: rgba(168,162,158,0.1); color: var(--text-muted); }
+  /* Leaderboard */
+  .lb { margin-bottom: 2rem; }
+  .lb-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; }
+  .lb-title { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.15em; color: var(--text-muted); }
+  .lb-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; max-width: 100%; }
+  .lb-table { width: 100%; border-collapse: collapse; font-size: 0.7rem; min-width: 500px; }
+  .lb-table th { text-align: left; padding: 0.4rem 0.6rem; font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-muted); border-bottom: 1px solid var(--border); cursor: pointer; user-select: none; }
+  .lb-table th:hover { color: var(--text-primary); }
+  .lb-table th .sort-arrow { font-size: 0.65rem; margin-left: 0.2rem; }
+  .lb-table td { padding: 0.4rem 0.6rem; border-bottom: 1px solid rgba(68,64,60,0.3); }
+  .lb-table .num { text-align: right; font-variant-numeric: tabular-nums; }
+  .lb-tabs { display: flex; gap: 0.4rem; }
+  .lb-tab { font-family: inherit; font-size: 0.65rem; padding: 0.2rem 0.5rem; background: none; border: 1px solid var(--border); color: var(--text-muted); cursor: pointer; }
+  .lb-tab:hover { border-color: var(--text-muted); color: var(--text-primary); }
+  .lb-tab.active { border-color: var(--green); color: var(--green); }
+  .lb-table .green { color: var(--green); }
+  .lb-table .mor { color: var(--mor); }
+  .lb-table .rank.top { color: var(--green); font-weight: 700; }
+  .lb-table tr[data-href] { cursor: pointer; }
+  .lb-table tr[data-href]:hover td { background: var(--bg-card); }
+  /* Wallets */
+  .wallets-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 0.75rem; margin-bottom: 2rem; }
+  .wallet-card { background: var(--bg-secondary); border: 1px solid var(--border); padding: 0.75rem 1rem; cursor: pointer; transition: border-color 0.15s; }
+  .wallet-card:hover { border-color: var(--green); }
+  .wallet-addr { font-size: 0.8rem; color: var(--cyan); font-weight: 500; margin-bottom: 0.3rem; }
+  .wallet-stats { display: flex; gap: 0.75rem; font-size: 0.65rem; color: var(--text-muted); }
+  .wallet-stat-val { color: var(--text-primary); font-weight: 600; }
+  /* Session list */
+  .session-card { background: var(--bg-secondary); border: 1px solid var(--border); padding: 0.6rem 1rem; margin-bottom: 0.4rem; }
+  .filter-bar { display: flex; gap: 0.75rem; align-items: center; margin-bottom: 0.75rem; flex-wrap: wrap; }
+  .filter-label { font-size: 0.65rem; color: var(--text-muted); text-transform: uppercase; }
+  /* Calculator */
+  .calc-section { background: var(--bg-secondary); border: 1px solid var(--border); padding: 1rem; margin-bottom: 2rem; }
+  .calc-section h3 { font-size: 0.7rem; color: var(--green); text-transform: uppercase; letter-spacing: 0.1em; font-weight: 600; margin-bottom: 0.5rem; }
+  .calc-presets { display: flex; gap: 0.4rem; margin-bottom: 0.75rem; }
+  .dur-preset { background: var(--bg-card); border: 1px solid var(--border); color: var(--text-muted); padding: 0.25rem 0.5rem; font-size: 0.65rem; cursor: pointer; font-family: inherit; }
+  .dur-preset.active { border-color: var(--green); color: var(--green); background: var(--green-dim); }
+  /* Gas */
+  .gas-row { background: var(--bg-secondary); border: 1px solid var(--border); padding: 0.75rem 1rem; margin-bottom: 2rem; display: flex; gap: 1.5rem; flex-wrap: wrap; }
+  .gas-item { display: flex; flex-direction: column; gap: 0.1rem; flex: 1; min-width: 100px; }
+  .gas-val { font-size: 0.9rem; font-weight: 700; color: var(--green); }
+  .gas-label { font-size: 0.65rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
+  /* Network */
+  .econ-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem; margin-bottom: 1.5rem; }
+  .econ-card { background: var(--bg-secondary); border: 1px solid var(--border); padding: 1rem; }
+  .econ-val { font-size: 1.1rem; font-weight: 700; }
+  .econ-unit { font-size: 0.65rem; color: var(--text-muted); }
+  .econ-label { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-muted); margin-top: 0.3rem; }
+  .econ-desc { font-size: 0.65rem; color: var(--text-muted); margin-top: 0.4rem; line-height: 1.5; }
+  /* contract-banner, sync-bar, sync-badge - ALL in layout.mustache. No overrides here. */
+  .explainer { background: var(--bg-secondary); border: 1px solid var(--border); padding: 1rem; margin-bottom: 1rem; }
+  .explainer h3 { font-size: 0.75rem; font-weight: 600; margin-bottom: 0.5rem; }
+  .explainer p { font-size: 0.65rem; color: var(--text-muted); line-height: 1.6; margin-bottom: 0.3rem; }
+  .addr-full { display: inline; } .addr-short { display: none; }
+  @media (max-width: 768px) { .addr-full { display: none; } .addr-short { display: inline; } }
+  @media (max-width: 600px) { .econ-grid { grid-template-columns: 1fr; } .wallets-grid { grid-template-columns: 1fr; } .provider-meta { flex-direction: column; align-items: flex-end; } }
+</style>
+
+<!-- ═══ Network View ═══ -->
+<div id="view-network" class="view">
+  <div class="section-title">Network Economics</div>
+  <div class="econ-grid">
+    <div class="econ-card"><div class="econ-val" style="color:var(--green);" id="econ-compute">-</div><div class="econ-unit">MOR</div><div class="econ-label">Compute Balance</div><div class="econ-desc">MOR allocated to fund AI inference sessions. Read from the Diamond contract on Base.</div></div>
+    <div class="econ-card"><div class="econ-val" style="color:var(--mor);" id="econ-supply">-</div><div class="econ-unit">MOR</div><div class="econ-label">Total Supply</div><div class="econ-desc">Total MOR minted on Base. Read from the MOR ERC-20 contract.</div></div>
+    <div class="econ-card"><div class="econ-val" style="color:var(--blue);" id="econ-factor">-</div><div class="econ-label">Staking Factor</div><div class="econ-desc">Conversion ratio: 1 MOR staked = <span id="econ-example">0.31</span>% of compute balance as session duration. Higher = longer sessions per MOR.</div></div>
+  </div>
+  <div class="explainer"><h3>How Staking Works</h3><p>Lock MOR as collateral to open an AI session. Your MOR is returned when the session ends - locked, not spent. The only cost is ETH gas.</p></div>
+  <div class="explainer"><h3>Session Lifecycle</h3><p><strong>Open</strong> → Lock MOR. <strong>Active</strong> → Provider serves inference. <strong>Close</strong> → Provider signs receipt. <strong>Reclaim</strong> → MOR returned.</p></div>
+  <div id="upgrade-history" style="display:none;" class="explainer">
+    <h3>Diamond Contract Upgrades</h3>
+    <div id="upgrade-list" style="font-size:0.65rem;"></div>
+  </div>
+</div>
+
+<!-- ═══ Providers View ═══ -->
+<div id="view-providers" class="view">
+  <div class="lb" id="prov-lb"></div>
+  <div class="section-title">Providers & Model Bids</div>
+  <div id="provider-list" class="provider-list"><div class="skeleton skel-table-row"></div><div class="skeleton skel-table-row"></div><div class="skeleton skel-table-row"></div><div class="skeleton skel-table-row"></div></div>
+</div>
+
+<!-- ═══ Consumers View ═══ -->
+<div id="view-consumers" class="view">
+  <div class="lb" id="cons-lb"></div>
+  <div class="gas-row"><div class="gas-item"><span class="gas-val" id="gas-cost">-</span><span class="gas-label">Gas/session</span></div><div class="gas-item"><span class="gas-val" id="gas-usd">-</span><span class="gas-label">USD</span></div><div class="gas-item"><span class="gas-val" id="gas-dur">-</span><span class="gas-label">Avg duration</span></div></div>
+  <div class="calc-section"><h3>Stake Calculator</h3><div class="calc-presets"><button type="button" class="dur-preset active" onclick="setCalc(27)">1h</button><button type="button" class="dur-preset" onclick="setCalc(106)">4h</button><button type="button" class="dur-preset" onclick="setCalc(636)">24h</button><button type="button" class="dur-preset" onclick="setCalc(4448)">1w</button></div><div style="display:flex;align-items:center;gap:1rem;flex-wrap:wrap;"><input type="range" id="calc-slider" min="2" max="5000" value="27" step="1" oninput="updateCalc(this.value)" style="flex:1;min-width:180px;accent-color:var(--green);"><div style="font-size:1.1rem;font-weight:700;"><span id="calc-mor" style="color:var(--mor);">27 MOR</span> = <span id="calc-dur">1h 0m</span></div></div></div>
+  <div class="section-title">Active Wallets</div>
+  <div id="wallets-grid" class="wallets-grid"><div class="skeleton skel-card"></div><div class="skeleton skel-card"></div><div class="skeleton skel-card"></div></div>
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem;flex-wrap:wrap;gap:0.4rem;"><div class="section-title" style="margin-bottom:0;">Sessions</div><div class="filter-bar" style="margin-bottom:0;"><span class="filter-label">Status</span><div class="lb-tabs" role="group" aria-label="Filter sessions by status"><button type="button" class="lb-tab sess-f active" data-f="active" onclick="setSessFilter('active')" aria-pressed="true">Active</button><button type="button" class="lb-tab sess-f" data-f="all" onclick="setSessFilter('all')" aria-pressed="false">All</button><button type="button" class="lb-tab sess-f" data-f="closed" onclick="setSessFilter('closed')" aria-pressed="false">Closed</button></div></div></div>
+  <div id="sessions-list"><div class="skeleton skel-table-row"></div><div class="skeleton skel-table-row"></div><div class="skeleton skel-table-row"></div></div>
+  <div class="more" style="text-align:center;margin-top:0.8rem;"><a href="/compute/sessions" style="color:var(--green);font-size:0.66rem;text-decoration:none;">All sessions &rarr;</a></div>
+</div>
+
+<!-- ═══ Sessions View (dedicated /compute/sessions page) ═══ -->
+<div id="view-sessions" class="view">
+  <div class="lb-head" style="flex-wrap:wrap;gap:0.5rem;">
+    <span class="section-title" style="margin-bottom:0;">Inference Sessions <span style="color:var(--text-muted);font-size:0.65rem;text-transform:none;letter-spacing:0.02em;" id="sx-count"></span></span>
+    <div class="lb-tabs" role="group" aria-label="Filter sessions by status">
+      <button type="button" class="lb-tab sx-f active" data-f="all" onclick="setSxFilter('all')" aria-pressed="true">All</button>
+      <button type="button" class="lb-tab sx-f" data-f="active" onclick="setSxFilter('active')" aria-pressed="false">Active</button>
+      <button type="button" class="lb-tab sx-f" data-f="closed" onclick="setSxFilter('closed')" aria-pressed="false">Closed</button>
+    </div>
+  </div>
+  <div class="lb-tabs" id="sx-models" role="group" aria-label="Filter sessions by model" style="flex-wrap:wrap;gap:0.25rem;margin-bottom:0.6rem;display:none;"></div>
+  <div class="lb-scroll">
+    <table class="lb-table" style="min-width:640px;">
+      <thead><tr><th scope="col">Model</th><th scope="col">Provider</th><th scope="col">Consumer</th><th scope="col" class="num">Stake (MOR)</th><th scope="col">Status</th><th scope="col" class="num">Opened</th><th scope="col" class="num">Duration</th></tr></thead>
+      <tbody id="sx-body"><tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:1.2rem;">Loading sessions...</td></tr></tbody>
+    </table>
+  </div>
+  <div style="display:flex;justify-content:center;margin-top:0.9rem;"><button type="button" class="lb-tab" id="sx-more" style="display:none;padding:0.55rem 1.2rem;min-height:40px;" onclick="loadMoreSx()">Load more</button></div>
+  <div id="sx-cap" role="note" aria-live="polite" style="display:none;border:1px solid var(--border);border-left:3px solid var(--green);background:var(--bg-secondary);padding:0.85rem 1rem;font-size:0.7rem;color:var(--text-muted);line-height:1.6;margin-top:0.9rem;">Showing the first 1,000 sessions. That is the browse limit. Refine with a status or model filter above to find a specific one, or pull the full set from the <a href="/api/playground" style="color:var(--green);text-decoration:none;">API</a> or the <a href="https://github.com/DRM3Labs-OSS/morpheus-ai-base-data" target="_blank" rel="noopener" style="color:var(--green);text-decoration:none;">open dataset</a>.</div>
+  <div style="font-size:0.62rem;color:var(--text-muted);margin-top:0.8rem;line-height:1.55;">Consumers stake MOR to open inference sessions with a provider; the stake is locked, not spent, and returns when the session closes. Duration for active sessions is time running so far.</div>
+</div>
+

@@ -1,0 +1,33 @@
+# MorScan - local secrets for `wrangler dev`
+#
+# Copy this file to `.dev.vars` and fill in values. `wrangler dev` loads
+# `.dev.vars` automatically (dotenv format) and injects each line as a Worker
+# secret binding for local runs. NEVER commit `.dev.vars` (it is gitignored;
+# only this `.dev.vars.example` template is tracked).
+#
+# In production these are NOT set here. Push each one as a real Worker secret:
+#   wrangler secret put <NAME>
+#
+# Every value below is OPTIONAL for a first local run. With none set, the
+# explorer still boots wallet-first on public RPC; provenance signing simply
+# no-ops until MORSCAN_MNEMONIC is present. Set at least MORSCAN_JWT_SECRET to
+# exercise the console sign-in flow.
+#
+# MORSCAN_JWT_SECRET   - UI session signing. Generate: openssl rand -hex 32
+# MORSCAN_MNEMONIC     - BIP39 mnemonic for Ed25519 provenance/snapshot signing.
+#                        Must be a REAL 12/24-word mnemonic, not random hex.
+# MORSCAN_DEMO_KEY     - optional full-access demo key embedded in the UI.
+# MORSCAN_ADMIN_KEY_IDS - comma-separated api_keys ids granted admin bypass for
+#                        /sync/*, /mor/v1/bq/*, and /admin/* (isAdminAuth). Use a
+#                        wallet key id like wallet:0xYourAddr. Optional; the
+#                        `admin` key is always an admin. Never a real value here.
+# ALCHEMY_FALLBACK_URL - optional Alchemy RPC URL for the block-receipt projector.
+#
+# Non-secret config (PUBLIC_BASE_URL, SNAPSHOT_PUBLIC_HOST, SNAPSHOT_SIGNER_KEY_ID,
+# the BIGQUERY_* and BACKFILL_* tuning vars) lives in wrangler.toml [vars].
+
+MORSCAN_JWT_SECRET=
+MORSCAN_MNEMONIC=
+MORSCAN_DEMO_KEY=
+MORSCAN_ADMIN_KEY_IDS=
+ALCHEMY_FALLBACK_URL=

@@ -1,0 +1,234 @@
+<!--
+  Shared MOR price widget: live price header + interactive hover chart +
+  timeframe pills (24h/7d/30d/90d) + network stat strip. One self-contained
+  blob (style + markup + script, hard-coded palette so it renders identically
+  regardless of the host page's CSS variable names) injected into both the
+  landing hero and the /console connect view. Every number comes
+  from the same public endpoints (/mor/v1/price, /mor/v1/price/chart, /teaser),
+  so both surfaces show identical figures. No native <select>; pills are buttons.
+-->
+<style>
+  /* Fluid: the host wrapper sets the width (landing hero vs the 420px console panel).
+     Mobile-hardened: the card can never exceed its column (max-width + hidden
+     overflow keep any inner surprise clipped INSIDE the card, not the page),
+     and both header rows wrap instead of pushing wider. */
+  .pw { width: 100%; max-width: 100%; min-width: 0; overflow: hidden; border: 1px solid #44403c; background: #1c1917; text-align: left; }
+  .pw-top { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.75rem; padding: 1.15rem 1.25rem 0; }
+  .pw-val { font-size: 2.1rem; font-weight: 700; color: #22c55e; line-height: 1; letter-spacing: -0.02em; }
+  .pw-row2 { display: flex; flex-wrap: wrap; align-items: center; gap: 0.2rem 0.75rem; padding: 0.3rem 1.25rem 0; font-size: 0.65rem; color: #c7c2bc; }
+  .pw-change { font-weight: 600; }
+  .pw-change.up { color: #22c55e; }
+  .pw-change.down { color: #f87171; }
+  .pw-tf { display: flex; gap: 0.3rem; padding: 0.5rem 1.25rem 0; flex-wrap: wrap; }
+  .pw-pill { font-family: inherit; font-size: 0.6rem; font-weight: 600; letter-spacing: 0.03em; padding: 0.22rem 0.55rem; cursor: pointer; background: transparent; border: 1px solid #44403c; color: #d6d3d1; line-height: 1; }
+  .pw-pill:hover { border-color: #57534e; color: #fafaf9; }
+  .pw-pill.active { background: #22c55e; border-color: #22c55e; color: #0c0a09; }
+  .pw-pill:focus-visible { outline: 2px solid #22c55e; outline-offset: 2px; }
+  .pw-chart { height: 128px; margin-top: 0.5rem; border-bottom: 1px solid rgba(68,64,60,0.3); }
+  .pw-chart canvas { width: 100% !important; height: 100%; display: block; cursor: crosshair; touch-action: none; }
+  .pw-tip { position: absolute; display: none; pointer-events: none; background: #0c0a09; border: 1px solid #44403c; padding: 0.3rem 0.45rem; font-size: 0.62rem; color: #fafaf9; white-space: nowrap; z-index: 3; font-variant-numeric: tabular-nums; line-height: 1.3; }
+  .pw-tip b { color: #22c55e; }
+  .pw-stats { display: flex; justify-content: center; align-items: stretch; padding: 0.75rem 0.4rem; text-align: center; }
+  .pw-stat { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.18rem; flex: 1; padding: 0 0.35rem; }
+  .pw-stat + .pw-stat { border-left: 1px solid #44403c; }
+  .pw-sv { font-size: 0.92rem; font-weight: 700; color: #fafaf9; line-height: 1; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .pw-sl { font-size: 0.65rem; color: #c7c2bc; text-transform: uppercase; letter-spacing: 0.05em; line-height: 1.2; }
+  @media (max-width: 640px) {
+    .pw-stats { flex-wrap: wrap; padding: 0.4rem 0.4rem 0.55rem; }
+    .pw-stat { flex: 1 1 40%; min-width: 0; padding: 0.45rem 0.35rem; }
+    .pw-stat + .pw-stat { border-left: none; }
+    /* 2x2 grid dividers: vertical rule between columns, horizontal between rows */
+    .pw-stat:nth-child(even) { border-left: 1px solid rgba(68,64,60,0.6); }
+    .pw-stat:nth-child(n+3) { border-top: 1px solid rgba(68,64,60,0.6); }
+  }
+  /* Phone: tighter card padding, slightly smaller price + chart so the whole
+     widget (price, pills, chart, stats) sits comfortably above the fold. */
+  @media (max-width: 480px) {
+    .pw-top { padding: 1rem 1rem 0; }
+    .pw-val { font-size: 1.8rem; }
+    .pw-row2 { padding: 0.3rem 1rem 0; }
+    .pw-tf { padding: 0.5rem 1rem 0; }
+    .pw-chart { height: 108px; }
+  }
+</style>
+<div class="pw" id="pw-widget">
+  <div class="pw-top" aria-live="polite"><span class="pw-val" id="pw-price"></span></div>
+  <div class="pw-row2">
+    <span>MOR / USD</span>
+    <span id="pw-stale" title="Price feed delayed" style="display:none;color:#c7c2bc;">&middot; delayed</span>
+    <span id="pw-change" class="pw-change"></span>
+    <span id="pw-mcap"></span>
+  </div>
+  <div class="pw-tf" id="pw-tf" role="group" aria-label="Chart timeframe"></div>
+  <div class="pw-chart" style="position:relative"><canvas id="pw-cv" role="img" aria-label="MOR to USD price chart"></canvas><div class="pw-tip" id="pw-tip"></div></div>
+  <div class="pw-stats">
+    <div class="pw-stat"><span class="pw-sv" id="pw-prov">--</span><span class="pw-sl">Providers</span></div>
+    <div class="pw-stat"><span class="pw-sv" id="pw-bids">--</span><span class="pw-sl">Model Bids</span></div>
+    <div class="pw-stat"><span class="pw-sv" id="pw-act">--</span><span class="pw-sl">Active Sessions</span></div>
+    <div class="pw-stat"><span class="pw-sv" id="pw-tot">--</span><span class="pw-sl">Total Sessions</span></div>
+  </div>
+</div>
+<script>
+  (function(){
+    var pw = document.getElementById('pw-widget');
+    // Skip when the widget is not visible (e.g. the signed-in /console view hides
+    // the connect panel): no wasted fetches, no drawing into a zero-size canvas.
+    if (!pw || pw.offsetParent === null) return;
+
+    var fmt = function(n){ return (n || 0).toLocaleString('en-US'); };
+
+    // Price header (once): big number, 24h change, market cap. Always 24h change
+    // regardless of the chart timeframe pill - the pills only rescope the chart.
+    fetch('/mor/v1/price').then(function(r){ return r.json(); }).then(function(d){
+      if (!d || !d.usd) return;
+      document.getElementById('pw-price').textContent = '$' + d.usd.toFixed(2);
+      document.getElementById('pw-stale').style.display = d.stale ? 'inline' : 'none';
+      var c = d.change24h || 0;
+      var el = document.getElementById('pw-change');
+      el.textContent = (c >= 0 ? '+' : '') + c.toFixed(2) + '% (24h)';
+      el.className = 'pw-change ' + (c >= 0 ? 'up' : 'down');
+      if (d.marketCap >= 1e6) document.getElementById('pw-mcap').textContent = 'MCap $' + (d.marketCap / 1e6).toFixed(1) + 'M';
+    }).catch(function(){});
+
+    // Network stat strip (once): same /teaser source both pages use.
+    fetch('/teaser').then(function(r){ return r.json(); }).then(function(d){
+      document.getElementById('pw-prov').textContent = fmt(d.providers);
+      document.getElementById('pw-bids').textContent = fmt(d.bids);
+      document.getElementById('pw-act').textContent = fmt(d.activeSessions);
+      document.getElementById('pw-tot').textContent = fmt(d.totalSessions);
+    }).catch(function(){});
+
+    // ── Interactive MOR/USD chart with hover-to-read + timeframe pills ──
+    // Timeframe list: [window key, pill label, days]. price_history now reaches
+    // back to the pool origin (2024-09-24), so 6mo/1yr/all render real history.
+    // Switching a pill is INSTANT: we fetch the FULL series ONCE at init
+    // (?window=all, KV-cached), keep it in memory as FULL, and each pill just
+    // slices FULL client-side (t >= now - days) with zero further network calls.
+    // Default stays 90d. 'all' uses Infinity days (the whole series).
+    var DAY_MS = 864e5;
+    var WINDOWS = [['24h', '24h', 1], ['7d', '7d', 7], ['30d', '30d', 30], ['90d', '90d', 90], ['6mo', '6mo', 182], ['1yr', '1yr', 365], ['all', 'All', Infinity]];
+    var DAYS = {}; WINDOWS.forEach(function(w){ DAYS[w[0]] = w[2]; });
+    var DEFAULT_KEY = '90d';
+    // FULL = full series loaded once; LP = the currently sliced (rendered) points.
+    var FULL = [], LP = [], HP = [], hoverIdx = null, curKey = DEFAULT_KEY;
+
+    // Axis + tooltip labels render in the VIEWER'S local timezone (the data
+    // timestamps stay UTC; only the human-facing formatting is local).
+    function fmtShort(ms){ var d = new Date(ms); return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }); }
+    function ctx(){ var c = document.getElementById('pw-cv'); if (!c) return null; var r = c.getBoundingClientRect(), w = r.width, h = r.height, dpr = devicePixelRatio || 1; if (w < 2 || h < 2) return null; c.width = w * dpr; c.height = h * dpr; var x = c.getContext('2d'); x.setTransform(dpr, 0, 0, dpr, 0, 0); return { x: x, W: w, H: h }; }
+    function draw(){
+      var g = ctx(); if (!g || LP.length < 2) { HP = []; return; }
+      var x = g.x, W = g.W, H = g.H, p = { t: 10, r: 10, b: 15, l: 44 };
+      var vs = LP.map(function(pp){ return pp.v; });
+      var mn = Math.min.apply(null, vs), mx = Math.max.apply(null, vs);
+      if (mn === mx) { mn = mn * 0.99 || 0; mx = mx * 1.01 || 1; }
+      var pad = (mx - mn) * 0.12, lo = mn - pad, hi = mx + pad;
+      var cw = W - p.l - p.r, chh = H - p.t - p.b;
+      var X = function(i){ return p.l + (i / (LP.length - 1)) * cw; };
+      var Y = function(v){ return p.t + chh - ((v - lo) / (hi - lo)) * chh; };
+      x.clearRect(0, 0, W, H);
+      x.strokeStyle = 'rgba(68,64,60,.15)'; x.lineWidth = 1; x.font = '9px ui-monospace, Menlo, monospace';
+      for (var i = 0; i <= 2; i++) {
+        var yv = hi - ((hi - lo) / 2) * i, yy = Y(yv);
+        x.beginPath(); x.moveTo(p.l, yy); x.lineTo(W - p.r, yy); x.stroke();
+        x.fillStyle = '#c7c2bc'; x.textAlign = 'right'; x.fillText('$' + yv.toFixed(2), p.l - 6, yy + 3);
+      }
+      x.beginPath(); x.moveTo(X(0), p.t + chh);
+      for (var i = 0; i < LP.length; i++) x.lineTo(X(i), Y(LP[i].v));
+      x.lineTo(X(LP.length - 1), p.t + chh); x.closePath();
+      var gd = x.createLinearGradient(0, p.t, 0, p.t + chh);
+      gd.addColorStop(0, 'rgba(34,197,94,.28)'); gd.addColorStop(1, 'rgba(34,197,94,.01)');
+      x.fillStyle = gd; x.fill();
+      x.beginPath();
+      for (var i = 0; i < LP.length; i++) { var xx = X(i), yy = Y(LP[i].v); i === 0 ? x.moveTo(xx, yy) : x.lineTo(xx, yy); }
+      x.strokeStyle = '#22c55e'; x.lineWidth = 2; x.stroke();
+      x.fillStyle = '#c7c2bc'; x.font = '9px ui-monospace, Menlo, monospace';
+      x.textAlign = 'left'; x.fillText(fmtShort(LP[0].t), p.l, H - 4);
+      x.textAlign = 'right'; x.fillText(fmtShort(LP[LP.length - 1].t), W - p.r, H - 4);
+      HP = LP.map(function(pp, i){ return { px: X(i), py: Y(pp.v), t: pp.t, v: pp.v }; });
+      var tip = document.getElementById('pw-tip');
+      if (hoverIdx != null && HP[hoverIdx]) {
+        var pt = HP[hoverIdx];
+        x.strokeStyle = 'rgba(34,211,238,.55)'; x.lineWidth = 1; x.setLineDash([3, 3]);
+        x.beginPath(); x.moveTo(pt.px, p.t); x.lineTo(pt.px, p.t + chh); x.stroke(); x.setLineDash([]);
+        x.beginPath(); x.arc(pt.px, pt.py, 3.5, 0, 7); x.fillStyle = '#22c55e'; x.fill();
+        x.strokeStyle = '#0c0a09'; x.lineWidth = 1.5; x.stroke();
+        var isLast = hoverIdx === HP.length - 1;
+        var _td = new Date(pt.t); var _tm = _td.toLocaleString(undefined, { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' }); var lbl = isLast ? ('<b>$' + pt.v.toFixed(2) + '</b> - now (live)') : (_tm + ' - <b>$' + pt.v.toFixed(2) + '</b>');
+        if (tip) { tip.innerHTML = lbl; tip.style.display = 'block'; var tw = tip.offsetWidth, th = tip.offsetHeight, lx = pt.px + 12; if (lx + tw > W - 4) lx = pt.px - 12 - tw; if (lx < 4) lx = 4; var ty = pt.py - th - 8; if (ty < 2) ty = pt.py + 12; tip.style.left = lx + 'px'; tip.style.top = ty + 'px'; }
+      } else if (tip) { tip.style.display = 'none'; }
+    }
+
+    var cv = document.getElementById('pw-cv');
+    function at(e){ if (!HP.length) return; var cx = e.touches && e.touches[0] ? e.touches[0].clientX : e.clientX, r = cv.getBoundingClientRect(), mx = cx - r.left, best = 0, bd = 1e9; for (var i = 0; i < HP.length; i++) { var dd = Math.abs(HP[i].px - mx); if (dd < bd) { bd = dd; best = i; } } hoverIdx = best; draw(); }
+    function off(){ hoverIdx = null; draw(); }
+    if (cv) {
+      cv.addEventListener('mousemove', at);
+      cv.addEventListener('mouseleave', off);
+      cv.addEventListener('touchstart', at, { passive: true });
+      cv.addEventListener('touchmove', at, { passive: true });
+      cv.addEventListener('touchend', off);
+      window.addEventListener('resize', function(){ hoverIdx = null; draw(); });
+    }
+
+    // Slice the in-memory FULL series to a window key (client-side, no fetch).
+    // 24h keeps points with t >= now-24h, 7d >= now-7d, ..., all = everything.
+    // Graceful fallback: if a window would leave < 2 points (e.g. 24h in a quiet
+    // stretch), widen to the nearest points so the chart never renders empty.
+    function sliceWindow(key){
+      if (FULL.length < 2) return FULL.slice();
+      var days = DAYS[key];
+      if (days == null) days = 90;
+      if (!isFinite(days)) return FULL.slice(); // 'all'
+      var cutoff = Date.now() - days * DAY_MS;
+      var out = [];
+      for (var i = 0; i < FULL.length; i++) { if (FULL[i].t >= cutoff) out.push(FULL[i]); }
+      if (out.length < 2) out = FULL.slice(FULL.length - 2); // nearest points
+      return out;
+    }
+
+    // Re-render the chart from the sliced in-memory series (no network).
+    function renderWindow(key){
+      hoverIdx = null;
+      LP = sliceWindow(key);
+      if (cv && LP.length >= 2) {
+        var span = Math.max(1, Math.round((LP[LP.length - 1].t - LP[0].t) / 864e5));
+        var last = LP[LP.length - 1].v;
+        cv.setAttribute('aria-label', 'MOR to USD price, last ' + span + ' days, currently $' + last.toFixed(2));
+      }
+      draw();
+    }
+
+    // Build timeframe pills (buttons, not a native select).
+    var tf = document.getElementById('pw-tf');
+    function selectWindow(key){
+      if (key === curKey) return;
+      curKey = key;
+      Array.prototype.forEach.call(tf.children, function(b){
+        var on = b.getAttribute('data-key') === key;
+        b.className = 'pw-pill' + (on ? ' active' : '');
+        b.setAttribute('aria-pressed', on ? 'true' : 'false');
+      });
+      renderWindow(key);
+    }
+    WINDOWS.forEach(function(w){
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'pw-pill' + (w[0] === curKey ? ' active' : '');
+      b.setAttribute('data-key', w[0]);
+      b.setAttribute('aria-pressed', w[0] === curKey ? 'true' : 'false');
+      b.setAttribute('aria-label', 'Show ' + w[1] + ' price history');
+      b.textContent = w[1];
+      b.addEventListener('click', function(){ selectWindow(w[0]); });
+      tf.appendChild(b);
+    });
+
+    // Single fetch (KV-cached, so first paint stays fast): pull the FULL series
+    // once, then every pill switch just re-slices FULL in memory. No per-pill
+    // network round-trip, so switching timeframes is instant.
+    fetch('/mor/v1/price/chart?window=all').then(function(r){ return r.json(); }).then(function(d){
+      FULL = (d && d.prices) || [];
+      renderWindow(curKey);
+    }).catch(function(){});
+  })();
+</script>

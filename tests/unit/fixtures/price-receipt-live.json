@@ -1,0 +1,21 @@
+{
+    "usd": 2.17441408458126,
+    "change24h": -3.3452839088871644,
+    "marketCap": 16647696.928433012,
+    "eth": {
+        "usd": 1777.17421857,
+        "change24h": null
+    },
+    "cached": true,
+    "source": "base-dex",
+    "fetchedAt": 1783470861,
+    "_provenance_aggregate": {
+        "id": "rcpt_02f2829766c42a99",
+        "action": "blockchain.price",
+        "timestamp": "2026-07-08T00:34:22.179Z",
+        "input_hash": "sha256:1e31db3e922cad96ecbde359bedd0c8a3542ca18b69227665bc7319ea4e43082",
+        "output_hash": "sha256:6671f7373243c263f3c9cfd99feecd0587b4ff4b6e5bc582df32635658dcb078",
+        "signature": "ed25519:656a9ce4ee86d49061d47266b54cb0e43ace56d4bc827f212a1cda9e644a4b96c81969d7899bdc03c9b4b95494872d687396854bb17fcf3e6e51239b3fd04403",
+        "public_key": "ed25519:0e527e8231e412dc11520aa7c36a1c573953cde6ad8f0052fcff0b7420b67ae3"
+    }
+}

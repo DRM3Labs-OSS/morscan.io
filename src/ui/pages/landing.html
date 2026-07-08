@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MorScan - Morpheus AI Block Explorer (MOR, Base)</title>
+  <meta name="description" content="MorScan is the block explorer for the Morpheus AI network on Base. Providers, models, sessions, staking, and live MOR price - free and open.">
+  <meta name="keywords" content="Morpheus AI, MOR token, MOR price, Morpheus block explorer, decentralized AI, dAI, AI inference marketplace, AI compute marketplace, Base network AI, MOR staking">
+  <link rel="canonical" href="{{BASE_URL}}/">
+  <meta property="og:title" content="MorScan - Morpheus AI Block Explorer (MOR, Base)">
+  <meta property="og:description" content="The block explorer for the Morpheus AI network on Base. Providers, models, sessions, staking, and live MOR price - free and open.">
+  <meta property="og:image" content="{{BASE_URL}}/og-image.png">
+  <meta property="og:url" content="{{BASE_URL}}/">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="MorScan">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="MorScan - Morpheus AI Block Explorer (MOR, Base)">
+  <meta name="twitter:description" content="The block explorer for the Morpheus AI network on Base. Providers, models, sessions, staking, and live MOR price - free and open.">
+  <meta name="twitter:image" content="{{BASE_URL}}/og-image.png">
+  <link rel="icon" href="/favicon.ico" sizes="any">
+  <link rel="icon" type="image/png" sizes="48x48" href="/favicon.png">
+  <link rel="icon" type="image/svg+xml" href="/morscan-icon.svg">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <!-- IBM Plex Mono self-hosted at /fonts/ (SIL OFL 1.1, src/fonts/OFL.txt) - fleet console convention, no third-party font host. -->
+  <style>
+    @font-face { font-family: 'IBM Plex Mono'; font-style: normal; font-weight: 400; font-display: swap; src: url('/fonts/ibm-plex-mono-400.woff2') format('woff2'); }
+    @font-face { font-family: 'IBM Plex Mono'; font-style: normal; font-weight: 500; font-display: swap; src: url('/fonts/ibm-plex-mono-500.woff2') format('woff2'); }
+    @font-face { font-family: 'IBM Plex Mono'; font-style: normal; font-weight: 600; font-display: swap; src: url('/fonts/ibm-plex-mono-600.woff2') format('woff2'); }
+    @font-face { font-family: 'IBM Plex Mono'; font-style: normal; font-weight: 700; font-display: swap; src: url('/fonts/ibm-plex-mono-700.woff2') format('woff2'); }
+  </style>
+  <!-- Machine-readable guide for AI agents/crawlers (also listed in sitemap.xml + robots.txt). -->
+  <link rel="llms" type="text/plain" href="/llms.txt">
+  <link rel="alternate" type="text/plain" href="/llms.txt" title="llms.txt">
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"Organization","name":"MorScan","url":"{{BASE_URL}}/","logo":"{{BASE_URL}}/morscan-icon.svg","description":"Block explorer and signed real-time API for the Morpheus AI network on Base.","parentOrganization":{"@type":"Organization","name":"DRM3 Labs","url":"https://drm3.network"},"sameAs":["https://github.com/DRM3Labs-OSS"]}</script>
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"WebSite","name":"MorScan","url":"{{BASE_URL}}/","description":"Block explorer and signed real-time API for the Morpheus AI network on Base.","publisher":{"@type":"Organization","name":"MorScan"},"potentialAction":{"@type":"SearchAction","target":{"@type":"EntryPoint","urlTemplate":"{{BASE_URL}}/?q={search_term_string}"},"query-input":"required name=search_term_string"}}</script>
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"Dataset","name":"MorScan - Morpheus AI Network Data (Base L2)","url":"{{BASE_URL}}/","description":"Real-time indexed data for the Morpheus decentralized-AI network on Base L2: AI compute providers, model-marketplace bids, MOR staking sessions, builder subnets, MOR token holders, live MOR/USD price with 24h change and market cap, and network economics. Every record is read from attested on-chain state and served with Ed25519 provenance receipts, so each value can be independently verified offline against published public keys rather than trusted.","keywords":["Morpheus AI","MOR token","MOR price","decentralized AI","AI inference marketplace","AI compute marketplace","Base network","blockchain data","provenance","verifiable data"],"license":"https://github.com/DRM3Labs-OSS/morscan.io/blob/main/LICENSE","isAccessibleForFree":true,"creator":{"@type":"Organization","name":"DRM3 Labs","url":"https://drm3.network"},"publisher":{"@type":"Organization","name":"MorScan","url":"{{BASE_URL}}/"},"distribution":[{"@type":"DataDownload","encodingFormat":"application/json","contentUrl":"{{BASE_URL}}/openapi.json"},{"@type":"DataDownload","encodingFormat":"text/plain","contentUrl":"{{BASE_URL}}/llms.txt"}],"measurementTechnique":"On-chain event indexing of the Morpheus Diamond and MOR token contracts on Base, with Ed25519-signed provenance receipts for offline verification","temporalCoverage":"2024-09-24/.."}</script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; border-radius: 0; }
+    button, input, select, textarea { font-family: inherit; }
+    :root {
+      /* IBM Plex Mono self-hosted (fleet console convention).
+         REVERT = remove the @font-face block + restore: ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace */
+      --mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+      --bg-primary: #0c0a09; --bg-secondary: #1c1917; --bg-card: #292524;
+      --border: #44403c; --text-primary: #fafaf9; --text-secondary: #d6d3d1;
+      --text-muted: #c7c2bc; --green: #22c55e; --green-dim: rgba(34,197,94,0.15);
+      --cyan: #22d3ee; --mor: #22c55e; --yellow: #facc15;
+    }
+    html, body { overflow-x: hidden; }
+    /* text-size-adjust 100%: stop mobile browsers (iOS Safari text inflation,
+       Android Chrome font boosting) from enlarging text blocks past the layout,
+       which is what clipped the price widget's nowrap numbers on phones. */
+    html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+    body {
+      font-family: var(--mono); background: var(--bg-primary);
+      color: var(--text-primary); min-height: 100vh; line-height: 1.5;
+    }
+    .col { display: flex; flex-direction: column; align-items: center; text-align: center; padding: 3.2rem 1rem 0; position: relative;
+      background: radial-gradient(ellipse 62% 40% at 50% 18%, rgba(34,197,94,0.11), transparent 75%); }
+    .wings { width: min(120px, 34vw); filter: drop-shadow(0 0 26px rgba(34,197,94,0.45)); margin-bottom: 1rem; }
+    h1 { font-size: clamp(2rem, 6.5vw, 2.6rem); font-weight: 700; color: var(--green); line-height: 1.1; }
+    /* Open-alpha marker - quiet mono green pill, lifted like a superscript badge. */
+    .alpha-tag { display: inline-flex; align-items: center; vertical-align: middle; position: relative; top: -0.55em; margin-left: 0.2rem; font-size: 0.5rem; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--green); border: 1px solid var(--green); padding: 0.12rem 0.34rem; line-height: 1; }
+    .sub { color: var(--text-muted); letter-spacing: 0.14em; text-transform: uppercase; font-size: clamp(0.65rem, 2.3vw, 0.8rem); margin-top: 0.4rem; }
+    .line { color: var(--text-secondary); font-size: clamp(0.68rem, 2.5vw, 0.8rem); margin-top: 0.9rem; max-width: 540px; }
+    /* CTAs are secondary, sitting beneath the hero search. Kept on ONE row even
+       on the narrowest phones so the price widget stays high on the page. */
+    .ctas { display: flex; gap: 0.6rem; margin-top: 1.2rem; flex-wrap: nowrap; justify-content: center; align-items: center; }
+    .ctas .btn { white-space: nowrap; }
+    .btn { display: inline-block; padding: 0.55rem 1.1rem; font-family: inherit; font-size: 0.72rem; font-weight: 600; text-decoration: none; cursor: pointer; transition: opacity 0.15s; letter-spacing: 0.03em; }
+    .btn-solid { background: var(--green); color: var(--bg-primary); border: 1px solid var(--green); }
+    .btn-outline { background: none; color: var(--green); border: 1px solid var(--green); }
+    .btn:hover { opacity: 0.82; }
+
+    .stack { width: 100%; max-width: 640px; margin-left: auto; margin-right: auto; }
+    /* Search is the hero - the primary thing you do on MorScan. */
+    .search-wrap { margin-top: 1.9rem; }
+    .search-box {
+      display: flex; align-items: center; gap: 0.65rem; padding-left: 1.05rem;
+      border: 1px solid #57534e; background: var(--bg-secondary);
+      box-shadow: 0 0 26px rgba(34,197,94,0.07);
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+    .search-box:focus-within { border-color: var(--green); box-shadow: 0 0 0 3px rgba(34,197,94,0.14), 0 0 30px rgba(34,197,94,0.12); }
+    .search-ic { width: 20px; height: 20px; flex: none; color: var(--text-muted); }
+    .search-box:focus-within .search-ic { color: var(--green); }
+    .search-box input {
+      flex: 1; min-width: 0; background: transparent; border: none; outline: none;
+      color: var(--cyan); font-family: inherit; font-size: 1rem; padding: 1.05rem 1.1rem 1.05rem 0;
+    }
+    .search-box input::placeholder { color: #8a847e; }
+    .search-hint { font-size: 0.66rem; color: var(--text-muted); margin-top: 0.5rem; text-align: center; }
+    .sr { display: none; margin-top: 0.5rem; border: 1px solid var(--border); background: var(--bg-secondary); text-align: left; max-height: 340px; overflow-y: auto; }
+    .sr-group { font-size: 0.65rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--text-muted); padding: 0.55rem 0.9rem 0.25rem; }
+    .sr-row { display: flex; align-items: center; gap: 0.6rem; padding: 0.5rem 0.9rem; text-decoration: none; border-top: 1px solid rgba(68,64,60,0.3); }
+    .sr-row:hover { background: rgba(34,197,94,0.06); }
+    .sr-ic { flex: none; width: 15px; height: 15px; }
+    .sr-name { color: var(--text-primary); font-size: 0.72rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .sr-id { color: var(--text-muted); font-size: 0.65rem; margin-left: auto; flex: none; }
+    .sr-none { padding: 0.7rem 0.9rem; font-size: 0.68rem; color: var(--text-muted); }
+    .sr-row.kb-active { background: rgba(34,197,94,0.12); }
+    .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+    :focus-visible { outline: 2px solid var(--green); outline-offset: 2px; }
+    /* Skip link - visually hidden until keyboard focus */
+    .skip-link { position: absolute; left: -9999px; top: 0; z-index: 100; background: var(--green); color: var(--bg-primary); font-weight: 700; font-size: 0.8rem; padding: 0.6rem 1rem; text-decoration: none; }
+    .skip-link:focus { left: 0.5rem; top: 0.5rem; }
+    /* Honor reduced-motion */
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
+    }
+
+    /* The price widget carries its own styles (src/ui/price-widget.html). */
+    .hero-price { margin-top: 2.2rem; }
+
+    /* Cards below the hero share the widget's 640px column so every block lines up. */
+    .band { width: calc(100% - 2rem); max-width: 640px; margin: 0 auto; padding: 2.4rem 0 0; }
+    .band-title { font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.18em; color: var(--text-muted); margin-bottom: 1rem; text-align: center; }
+    .feed-wrap { border: 1px solid var(--border); background: var(--bg-secondary); overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    .feed { width: 100%; border-collapse: collapse; min-width: 520px; }
+    .feed th { text-align: left; padding: 0.55rem 0.9rem; font-size: 0.65rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-muted); border-bottom: 1px solid var(--border); }
+    .feed th:not(:first-child), .feed td:not(:first-child) { text-align: right; }
+    .feed td { padding: 0.5rem 0.9rem; font-size: 0.68rem; border-bottom: 1px solid rgba(68,64,60,0.35); }
+    .feed tr:last-child td { border-bottom: none; }
+    .feed tbody tr:hover td { background: rgba(255,255,255,0.03); }
+    .more { text-align: center; margin-top: 0.8rem; }
+    .more a { color: var(--green); font-size: 0.66rem; text-decoration: none; }
+
+    .tiers { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1rem; text-align: left; }
+    .tier { border: 1px solid var(--border); background: var(--bg-secondary); padding: 1.4rem 1.3rem; display: flex; flex-direction: column; }
+    .tier.featured { border-color: var(--green); }
+    .tier-name { font-size: 0.82rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
+    .tier-price { font-size: 0.65rem; color: var(--green); margin-top: 0.25rem; letter-spacing: 0.05em; }
+    .tier ul { list-style: none; margin: 0.9rem 0 1.3rem; flex: 1; }
+    .tier li { font-size: 0.66rem; color: var(--text-secondary); padding: 0.28rem 0 0.28rem 1.1rem; position: relative; }
+    .tier li::before { content: ">"; position: absolute; left: 0; color: var(--green); }
+    .tier .btn { text-align: center; font-size: 0.68rem; padding: 0.6rem 1rem; }
+
+    /* Support card: the heartfelt end-of-page moment - back MorScan if it helps you. */
+    .support { width: calc(100% - 2rem); max-width: 640px; margin: 3.4rem auto 0; }
+    .support-card { border: 1px solid rgba(34,197,94,0.4); background: var(--bg-secondary); box-shadow: 0 0 34px rgba(34,197,94,0.06); padding: 2.4rem 1.6rem; display: flex; flex-direction: column; align-items: center; text-align: center; }
+    .support-heart { width: clamp(40px, 11vw, 48px); height: clamp(40px, 11vw, 48px); margin-bottom: 1.1rem; filter: drop-shadow(0 0 12px rgba(34,197,94,0.45)); }
+    .support-title { font-size: clamp(1rem, 4vw, 1.2rem); font-weight: 700; color: var(--green); letter-spacing: 0.02em; line-height: 1.15; }
+    .support-copy { font-size: clamp(0.7rem, 2.6vw, 0.78rem); color: var(--text-secondary); margin-top: 0.7rem; max-width: 440px; line-height: 1.65; }
+    .support-btn { margin-top: 1.5rem; min-height: 40px; display: inline-flex; align-items: center; justify-content: center; font-size: 0.74rem; padding: 0.6rem 1.4rem; }
+
+    .foot { text-align: center; padding: 2.6rem 1rem 3rem; border-top: 1px solid var(--border); margin-top: 2.6rem; }
+    .foot-note { font-size: 0.65rem; color: var(--text-muted); line-height: 1.6; max-width: 640px; margin: 0 auto; }
+    .foot-links { margin-top: 1rem; font-size: 0.65rem; }
+    .foot-links a { color: var(--text-muted); text-decoration: none; margin: 0 0.55rem; }
+    .foot-links a:hover { color: var(--green); }
+    /* Phone: deliberately compose the above-the-fold. Tighten every vertical
+       gap in the hero (smaller wings, shorter margins on tagline/search/CTAs/
+       GitHub) and lift the price widget so the first screen shows the whole hero
+       PLUS the top of the price widget (price + 24h change) - a clear signal
+       there is more below, never a page that "lands partial". Verified at
+       390x844 and 360x780: hero + price/change visible, nothing clipped. */
+    @media (max-width: 640px) {
+      .col { padding-top: 1.6rem; }
+      .wings { width: min(84px, 24vw); margin-bottom: 0.55rem; }
+      .sub { margin-top: 0.3rem; }
+      .line { margin-top: 0.6rem; line-height: 1.42; }
+      .search-wrap { margin-top: 1rem; }
+      .search-box input { padding-top: 0.85rem; padding-bottom: 0.85rem; }
+      .ctas { margin-top: 0.8rem; }
+      .hero-github { margin-top: 0.7rem; }
+      .hero-price { margin-top: 1rem; }
+    }
+    /* Narrow phones: keep the CTA row on one line, just tighten it so both
+       buttons fit above the fold without pushing the price widget down. */
+    @media (max-width: 460px) {
+      .ctas { gap: 0.5rem; }
+      .ctas .btn { padding: 0.55rem 0.9rem; }
+    }
+    /* Very short/narrow phones (e.g. 360x780): squeeze a little more so the
+       price + change row still clears the fold. */
+    @media (max-width: 400px) {
+      .col { padding-top: 1.3rem; }
+      .wings { width: min(72px, 22vw); margin-bottom: 0.45rem; }
+      .hero-price { margin-top: 0.8rem; }
+    }
+    /* Server-rendered "network at a glance" stats. Always present in the HTML
+       (not JS-hydrated) so a no-JS fetcher or an AI crawler reads real numbers,
+       not empty tiles. Unobtrusive for human/JS visitors: a quiet stat grid. */
+    .ssr-stats { width: calc(100% - 2rem); max-width: 640px; margin: 2.6rem auto 0; }
+    .ssr-stats-h { font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.18em; color: var(--text-muted); margin-bottom: 1rem; text-align: center; font-weight: 600; }
+    /* Exactly 3x2 (6 stats) so no orphan track ever paints the container's
+       border-color background as an "empty cell"; phones reflow to 2x3. */
+    .ssr-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: var(--border); border: 1px solid var(--border); margin: 0; }
+    @media (max-width: 480px) { .ssr-grid { grid-template-columns: repeat(2, 1fr); } }
+    .ssr-grid > div { background: var(--bg-secondary); padding: 0.7rem 0.9rem; display: flex; flex-direction: column; gap: 0.2rem; }
+    .ssr-grid dt { color: var(--text-muted); font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.05em; margin: 0; }
+    .ssr-grid dd { color: var(--text-primary); font-size: 0.92rem; font-weight: 700; font-variant-numeric: tabular-nums; margin: 0; }
+    .ssr-grid dd .d { font-size: 0.62rem; font-weight: 600; }
+    .ssr-note { font-size: 0.62rem; color: var(--text-muted); margin: 0.8rem 0 0; text-align: center; line-height: 1.55; }
+    /* GitHub link - quiet, borderless icon integrated inline into the hero (no
+       floating corner box). Sits under the CTAs, clear of the price widget. */
+    .hero-github { display: inline-flex; align-items: center; gap: 0.4rem; margin-top: 1rem; color: var(--text-muted); font-size: 0.68rem; letter-spacing: 0.02em; min-height: 34px; text-decoration: none; }
+    .hero-github:hover, .hero-github:focus-visible { color: var(--green); }
+    .hero-github svg { display: block; }
+    /* Footer - condensed to two quiet lines, matching the content pages: brand +
+       nav, then a collapsed credit/license line, then a small stamp. Links wrap
+       cleanly with >=40px tap targets and no horizontal wobble at phone width. */
+    .site-footer { margin-top: 3rem; padding-top: 1.5rem; border-top: 1px solid #44403c; text-align: center; padding-bottom: 2rem; max-width: 100%; }
+    .footer-nav { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 0 0.15rem; max-width: 100%; }
+    .footer-brand { display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.5rem 0.4rem; color: #e7e5e4; font-weight: 600; letter-spacing: 0.02em; font-size: 0.75rem; }
+    .footer-brand svg { display: block; }
+    .footer-logo { display: inline-flex; align-items: center; justify-content: center; min-height: 40px; padding: 0.4rem; margin-bottom: 0.3rem; }
+    .footer-logo svg { display: block; filter: drop-shadow(0 0 10px rgba(34,197,94,0.4)); }
+    .footer-drm3 { display: inline-flex; align-items: center; justify-content: center; min-height: 40px; padding: 0.4rem 0.6rem; margin-top: 0.9rem; opacity: 0.85; transition: opacity 0.15s; }
+    .footer-drm3:hover, .footer-drm3:focus-visible { opacity: 1; }
+    .footer-drm3 img { display: block; height: 26px; width: auto; }
+    .footer-nav a { display: inline-flex; align-items: center; min-height: 40px; padding: 0.5rem 0.5rem; color: #c7c2bc; font-size: 0.72rem; }
+    .footer-nav a:hover, .footer-nav a:focus-visible { color: var(--green); }
+    .footer-sep { color: #6b6660; font-size: 0.72rem; user-select: none; }
+    .footer-credit { margin: 0.75rem auto 0.45rem; max-width: 44rem; font-size: 0.66rem; line-height: 1.55; color: #c7c2bc; }
+    .footer-credit a { color: #c7c2bc; text-decoration: underline; }
+    .footer-credit a:hover, .footer-credit a:focus-visible { color: var(--green); }
+  </style>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+  <main id="main" tabindex="-1">
+  <div class="col">
+    <svg class="wings" viewBox="0 0 89 40" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="MorScan wings">
+      <defs>
+        <linearGradient id="mwM" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#eafbe7"/><stop offset=".18" stop-color="#b7e6ae"/><stop offset=".38" stop-color="#57b45c"/><stop offset=".55" stop-color="#2f8f3f"/><stop offset=".72" stop-color="#4aa551"/><stop offset=".88" stop-color="#9bdb94"/><stop offset="1" stop-color="#d8f2d2"/></linearGradient>
+        <linearGradient id="mwS" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".3"/><stop offset=".25" stop-color="#fff" stop-opacity=".05"/><stop offset=".5" stop-color="#fff" stop-opacity="0"/><stop offset=".8" stop-color="#fff" stop-opacity=".08"/><stop offset="1" stop-color="#fff" stop-opacity=".2"/></linearGradient>
+      </defs>
+      <path d="M44.5031 36.7108L52.2884 27.0574V39.5L75.154 30.3296L78.4294 22.9099L58.8453 30.8065V28.0173L80.2346 19.2454L83.6775 11.7472L58.7647 21.8776V19.1669L85.7246 7.99814L89 0.5L56.3826 13.818C56.3826 13.818 53.5973 14.8563 52.369 16.8486L44.5031 26.5805L36.6372 16.8486C35.4089 14.8563 32.6236 13.818 32.6236 13.818L0 0.5L3.27539 7.99814L30.2415 19.1608V21.8715L5.32871 11.7472L8.77159 19.2454L30.1609 28.0173V30.8065L10.5768 22.9099L13.8522 30.3296L36.7178 39.5V27.0574L44.5031 36.7108Z" fill="url(#mwM)"/>
+      <path d="M44.5031 36.7108L52.2884 27.0574V39.5L75.154 30.3296L78.4294 22.9099L58.8453 30.8065V28.0173L80.2346 19.2454L83.6775 11.7472L58.7647 21.8776V19.1669L85.7246 7.99814L89 0.5L56.3826 13.818C56.3826 13.818 53.5973 14.8563 52.369 16.8486L44.5031 26.5805L36.6372 16.8486C35.4089 14.8563 32.6236 13.818 32.6236 13.818L0 0.5L3.27539 7.99814L30.2415 19.1608V21.8715L5.32871 11.7472L8.77159 19.2454L30.1609 28.0173V30.8065L10.5768 22.9099L13.8522 30.3296L36.7178 39.5V27.0574L44.5031 36.7108Z" fill="url(#mwS)"/>
+    </svg>
+    <h1>MorScan</h1>
+    <div class="sub">Morpheus AI Block Explorer</div>
+    <div class="line">Providers, models, sessions, staking, and MOR pricing on Base - indexed in real time, verified with signed provenance receipts.</div>
+
+    <div class="stack search-wrap">
+      <form class="search-box" id="sf" role="search">
+        <svg class="search-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true" focusable="false"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+        <input id="sq" type="text" placeholder="Search MorScan" spellcheck="false" autocomplete="off" role="combobox" aria-expanded="false" aria-controls="sr" aria-autocomplete="list" aria-describedby="sh" aria-label="Search providers, models, subnets, and wallets">
+      </form>
+      <div class="search-hint" id="sh">Try a provider domain, a model name, a subnet, or any 0x address.</div>
+      <div class="sr" id="sr" role="listbox" aria-label="Search results"></div>
+      <div class="sr-only" id="sr-live" aria-live="polite"></div>
+    </div>
+
+    <div class="ctas">
+      <a class="btn btn-outline" href="/analytics/overview">Open the Explorer</a>
+      <a class="btn btn-outline" href="/api/playground">API</a>
+    </div>
+
+    <a class="hero-github" href="https://github.com/DRM3Labs-OSS/morscan.io" target="_blank" rel="noopener" aria-label="MorScan source on GitHub"><svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true" focusable="false"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82a7.6 7.6 0 0 1 4 0c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg><span>Source on GitHub</span></a>
+
+    <div class="stack hero-price">{{PRICE_WIDGET}}</div>
+  </div>
+
+  {{SSR_STATS}}
+
+  <section class="band">
+    <h2 class="band-title">Latest Sessions</h2>
+    <div class="feed-wrap">
+      <table class="feed">
+        <thead><tr><th scope="col">Model</th><th scope="col">Stake</th><th scope="col">Status</th><th scope="col">Opened</th></tr></thead>
+        <tbody id="feed-body"><tr><td colspan="4" style="text-align:center;color:var(--text-muted);padding:1.2rem">Loading live sessions...</td></tr></tbody>
+      </table>
+    </div>
+    <div class="more"><a href="/compute/sessions">All sessions &rarr;</a></div>
+  </section>
+
+  <section class="support">
+    <div class="support-card">
+      <svg class="support-heart" viewBox="0 0 24 24" fill="#22c55e" role="img" aria-label="Green heart">
+        <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+      </svg>
+      <h2 class="support-title">Support MorScan</h2>
+      <div class="support-copy">MorScan is free for everyone. If it is useful to you, back it by staking MOR on the MorScan subnet. Your principal stays yours.</div>
+      <a class="btn btn-solid support-btn" href="/stake">Back MorScan on the subnet</a>
+    </div>
+  </section>
+
+  <section class="band" aria-label="What is Morpheus">
+    <h2 class="band-title">What is Morpheus?</h2>
+    <div style="text-align:left;font-size:0.74rem;color:var(--text-secondary);line-height:1.7;">
+      <p style="margin-bottom:0.9rem;">Morpheus is a decentralized AI (dAI) network: a permissionless AI inference and compute marketplace on Base, an Ethereum L2. Providers run AI models and post per-second bids, consumers stake MOR to open inference sessions, and builder subnets earn MOR emissions. The MOR token is capped at 42,000,000, and every bid, session, and stake settles on public smart contracts.</p>
+      <p style="margin:0;">MorScan is the block explorer and real-time API for that economy. It indexes the Morpheus contracts on Base, turns raw events into live analytics, and signs every response, so every number is independently verifiable. <a href="/about" style="color:var(--green);">More about MorScan and Morpheus &rarr;</a></p>
+    </div>
+  </section>
+  </main>
+
+  <footer class="site-footer">
+    <a href="/" class="footer-logo" aria-label="MorScan home"><svg width="56" height="25" viewBox="0 0 89 40" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false"><path d="M44.5031 36.7108L52.2884 27.0574V39.5L75.154 30.3296L78.4294 22.9099L58.8453 30.8065V28.0173L80.2346 19.2454L83.6775 11.7472L58.7647 21.8776V19.1669L85.7246 7.99814L89 0.5L56.3826 13.818C56.3826 13.818 53.5973 14.8563 52.369 16.8486L44.5031 26.5805L36.6372 16.8486C35.4089 14.8563 32.6236 13.818 32.6236 13.818L0 0.5L3.27539 7.99814L30.2415 19.1608V21.8715L5.32871 11.7472L8.77159 19.2454L30.1609 28.0173V30.8065L10.5768 22.9099L13.8522 30.3296L36.7178 39.5V27.0574L44.5031 36.7108Z" fill="#22c55e"/></svg></a>
+    <nav class="footer-nav" aria-label="Footer">
+      <a href="/about">About</a>
+      <span class="footer-sep" aria-hidden="true">&middot;</span>
+      <a href="/terms">Terms</a>
+      <span class="footer-sep" aria-hidden="true">&middot;</span>
+      <a href="/privacy">Privacy</a>
+      <span class="footer-sep" aria-hidden="true">&middot;</span>
+      <a href="/health">Status</a>
+      <span class="footer-sep" aria-hidden="true">&middot;</span>
+      <a href="/stake">Support</a>
+      <span class="footer-sep" aria-hidden="true">&middot;</span>
+      <a href="/contribute">Contribute</a>
+      <span class="footer-sep" aria-hidden="true">&middot;</span>
+      <a href="https://github.com/DRM3Labs-OSS/morscan.io/issues" target="_blank" rel="noopener">Feedback</a>
+    </nav>
+    <p class="footer-credit">Developed, maintained, and operated by <a href="https://drm3.network" target="_blank" rel="noopener">DRM3 Labs</a> &middot; Fair Source (FSL-1.1-MIT), pull requests welcome.</p>
+    <a href="https://drm3.network" class="footer-drm3" target="_blank" rel="noopener" aria-label="DRM3 Labs"><img src="/drm3-icon-transparent-white-consumer-128.png" alt="DRM3 Labs" width="40" height="40"></a>
+    <p style="margin:0;font-size:0.6rem;color:#8a8580;">MorScan &middot; &copy; 2026</p>
+  </footer>
+
+  <script>
+    var GK = '{{SERVING_KEY}}';
+    var H = { 'X-Morscan-Key': GK };
+    function fmt(n) { return (n || 0).toLocaleString('en-US'); }
+
+    // Price header, 24h change, market cap and the network stat strip are all
+    // owned by the shared price widget (src/ui/price-widget.html).
+
+    Promise.all([
+      fetch('/mor/v1/sessions?limit=8', { headers: H }).then(function(r){return r.json()}),
+      fetch('/mor/v1/models/lookup', { headers: H }).then(function(r){return r.json()}).catch(function(){return {}})
+    ]).then(function(res){
+      var sess = (res[0] && res[0].sessions) || [];
+      var names = (res[1] && res[1].models) || res[1] || {};
+      if (!sess.length) return;
+      var now = Math.floor(Date.now() / 1000);
+      function ago(t){ var d = now - t; if (d < 60) return d + 's ago'; if (d < 3600) return Math.floor(d/60) + 'm ago'; if (d < 86400) return Math.floor(d/3600) + 'h ago'; return Math.floor(d/86400) + 'd ago'; }
+      document.getElementById('feed-body').innerHTML = sess.map(function(x){
+        var nm = names[x.modelId] || (x.modelId ? x.modelId.slice(0, 10) + '...' : '?');
+        var mor = (parseFloat(x.stake || '0') / 1e18);
+        var st = x.isActive ? '<span style="color:var(--green)">Active</span>' : '<span style="color:var(--text-muted)">Closed</span>';
+        return '<tr><td style="color:var(--cyan)">' + nm + '</td><td>' + mor.toFixed(2) + ' MOR</td><td>' + st + '</td><td style="color:var(--text-muted)">' + ago(x.openedAt) + '</td></tr>';
+      }).join('');
+    }).catch(function(){});
+
+    // Universal search: providers (domain/address), models (name/id),
+    // builder subnets (name/id), wallets (any 0x address).
+    var IC = {
+      provider: '<svg class="sr-ic" viewBox="0 0 16 16" fill="none" stroke="#22c55e" stroke-width="1.3"><rect x="1.5" y="2" width="13" height="5"/><rect x="1.5" y="9" width="13" height="5"/><circle cx="4.2" cy="4.5" r="0.4" fill="#22c55e"/><circle cx="4.2" cy="11.5" r="0.4" fill="#22c55e"/><path d="M7 4.5h5M7 11.5h5" stroke-opacity=".55"/></svg>',
+      model: '<svg class="sr-ic" viewBox="0 0 16 16" fill="none" stroke="#22d3ee" stroke-width="1.3"><rect x="3.5" y="3.5" width="9" height="9"/><rect x="6" y="6" width="4" height="4" stroke-opacity=".55"/><path d="M5.5 1v2.5M8 1v2.5M10.5 1v2.5M5.5 12.5V15M8 12.5V15M10.5 12.5V15M1 5.5h2.5M1 8h2.5M1 10.5h2.5M12.5 5.5H15M12.5 8H15M12.5 10.5H15"/></svg>',
+      subnet: '<svg class="sr-ic" viewBox="0 0 16 16" fill="none" stroke="#facc15" stroke-width="1.3"><circle cx="8" cy="3.4" r="1.9"/><circle cx="3.4" cy="12" r="1.9"/><circle cx="12.6" cy="12" r="1.9"/><path d="M6.9 5.1 4.4 10.3M9.1 5.1l2.5 5.2M5.3 12h5.4" stroke-opacity=".55"/></svg>',
+      wallet: '<svg class="sr-ic" viewBox="0 0 16 16" fill="none" stroke="#c7c2bc" stroke-width="1.3"><rect x="1.5" y="4" width="13" height="8.5"/><path d="M1.5 6.5h13" stroke-opacity=".55"/><circle cx="11.8" cy="9.8" r="0.8" fill="#c7c2bc"/></svg>'
+    };
+    // Responsive placeholder: the short "Search MorScan" is the mobile-safe
+    // default (never truncates mid-word on a narrow screen); widen to the full
+    // descriptive prompt only when there is room for it.
+    (function(){
+      var qi = document.getElementById('sq');
+      if (!qi) return;
+      var full = 'Search providers, models, subnets, wallets...';
+      var mq = window.matchMedia('(min-width: 561px)');
+      function setPh(){ qi.setAttribute('placeholder', mq.matches ? full : 'Search MorScan'); }
+      setPh();
+      if (mq.addEventListener) mq.addEventListener('change', setPh);
+      else if (mq.addListener) mq.addListener(setPh);
+    })();
+
+    var IDX = null, IDXP = null;
+    function loadIndex() {
+      if (IDXP) return IDXP;
+      IDXP = Promise.all([
+        fetch('/mor/v1/providers', { headers: H }).then(function(r){return r.json()}).catch(function(){return {}}),
+        fetch('/mor/v1/models/lookup', { headers: H }).then(function(r){return r.json()}).catch(function(){return {}}),
+        fetch('/mor/v1/builder/subnets', { headers: H }).then(function(r){return r.json()}).catch(function(){return {}})
+      ]).then(function(res){
+        var models = (res[1] && res[1].models) || res[1] || {};
+        IDX = {
+          providers: ((res[0] && res[0].providers) || []).map(function(p){ return { name: p.endpoint || p.address, id: p.address }; }),
+          models: Object.keys(models).map(function(k){ return { name: String(models[k]), id: k }; }),
+          subnets: ((res[2] && res[2].subnets) || []).map(function(sn){ return { name: sn.name || sn.subnetId, id: sn.subnetId, logo: sn.metadataLogo || '' }; })
+        };
+        return IDX;
+      });
+      return IDXP;
+    }
+    function shortId(id) { return id && id.length > 14 ? id.slice(0, 8) + '...' + id.slice(-4) : (id || ''); }
+    function esc(t) { return String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+    function row(icon, name, id, href, logo) {
+      var mark = logo && /^https:\/\//.test(logo)
+        ? '<img class="sr-ic" src="' + esc(logo) + '" alt="" style="object-fit:cover" onerror="this.outerHTML=' + JSON.stringify(IC[icon]).replace(/"/g, '&quot;') + '">'
+        : IC[icon];
+      return '<a class="sr-row" role="option" href="' + href + '">' + mark + '<span class="sr-name">' + esc(name) + '</span><span class="sr-id">' + shortId(id) + '</span></a>';
+    }
+    function renderResults(q) {
+      var sr = document.getElementById('sr');
+      var out = '';
+      var ql = q.toLowerCase();
+      if (/^0x[0-9a-fA-F]{40}$/.test(q)) {
+        var isProv = IDX.providers.some(function(p){ return p.id.toLowerCase() === ql; });
+        out += '<div class="sr-group">Address</div>';
+        if (isProv) out += row('provider', 'View as Provider', q, '/compute/providers/' + q);
+        out += row('wallet', 'View as Wallet', q, '/compute/consumers/wallet/' + q);
+      } else if (ql.length >= 2) {
+        var hit = function(t){ return t && String(t).toLowerCase().indexOf(ql) !== -1; };
+        var pr = IDX.providers.filter(function(x){ return hit(x.name) || hit(x.id); }).slice(0, 5);
+        var mo = IDX.models.filter(function(x){ return hit(x.name) || hit(x.id); }).slice(0, 5);
+        var sn = IDX.subnets.filter(function(x){ return hit(x.name) || hit(x.id); }).slice(0, 5);
+        if (pr.length) { out += '<div class="sr-group">Providers</div>' + pr.map(function(x){ return row('provider', x.name, x.id, '/compute/providers/' + x.id); }).join(''); }
+        if (mo.length) { out += '<div class="sr-group">Models</div>' + mo.map(function(x){ return row('model', x.name, x.id, '/analytics/overview#models'); }).join(''); }
+        if (sn.length) { out += '<div class="sr-group">Builder Subnets</div>' + sn.map(function(x){ return row('subnet', x.name, x.id, '/builder/subnet/' + x.id, x.logo); }).join(''); }
+        if (!out) out = '<div class="sr-none">No providers, models, or subnets match. Paste a full 0x address to look up a wallet.</div>';
+      }
+      sr.innerHTML = out;
+      var open = !!out;
+      sr.style.display = open ? 'block' : 'none';
+      var sq = document.getElementById('sq');
+      sq.setAttribute('aria-expanded', open ? 'true' : 'false');
+      var n = sr.querySelectorAll('.sr-row').length;
+      var live = document.getElementById('sr-live');
+      if (live) live.textContent = open ? (n ? n + (n === 1 ? ' result' : ' results') : 'No matches') : '';
+      kbIdx = -1;
+    }
+    function closeSr() {
+      var sr = document.getElementById('sr');
+      sr.style.display = 'none';
+      document.getElementById('sq').setAttribute('aria-expanded', 'false');
+      var live = document.getElementById('sr-live'); if (live) live.textContent = '';
+      kbIdx = -1;
+    }
+    var deb, kbIdx = -1;
+    document.getElementById('sq').addEventListener('input', function(e){
+      var q = e.target.value.trim();
+      clearTimeout(deb);
+      if (q.length < 2) { closeSr(); return; }
+      deb = setTimeout(function(){ loadIndex().then(function(){ renderResults(q); }); }, 160);
+    });
+    document.getElementById('sf').addEventListener('submit', function(e){
+      e.preventDefault();
+      var q = document.getElementById('sq').value.trim();
+      if (q.length >= 2) loadIndex().then(function(){ renderResults(q); });
+    });
+    // Keyboard: Escape closes, Down/Up move through results, Enter opens the highlighted row.
+    document.getElementById('sq').addEventListener('keydown', function(e){
+      var sr = document.getElementById('sr');
+      var rows = sr.style.display === 'none' ? [] : sr.querySelectorAll('.sr-row');
+      if (e.key === 'Escape') { closeSr(); return; }
+      if (!rows.length) return;
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        e.preventDefault();
+        if (kbIdx >= 0 && rows[kbIdx]) rows[kbIdx].classList.remove('kb-active');
+        kbIdx = e.key === 'ArrowDown' ? (kbIdx + 1) % rows.length : (kbIdx <= 0 ? rows.length - 1 : kbIdx - 1);
+        rows[kbIdx].classList.add('kb-active');
+        rows[kbIdx].scrollIntoView({ block: 'nearest' });
+      } else if (e.key === 'Enter' && kbIdx >= 0 && rows[kbIdx]) {
+        e.preventDefault();
+        window.location.href = rows[kbIdx].getAttribute('href');
+      }
+    });
+    document.addEventListener('click', function(e){
+      if (!e.target.closest('.search-wrap')) closeSr();
+    });
+
+    // Honor ?q= so a linked or search-engine query lands pre-filled and opened.
+    (function(){
+      var q0 = (new URLSearchParams(location.search).get('q') || '').trim();
+      if (q0.length < 2) return;
+      var qi = document.getElementById('sq');
+      qi.value = q0;
+      loadIndex().then(function(){ renderResults(q0); });
+    })();
+
+    // The interactive MOR/USD chart, its timeframe pills and hover-to-read live
+    // in the shared price widget (src/ui/price-widget.html),
+    // which carries its own self-contained script.
+  </script>
+  <script src="/webmcp.js" defer></script>
+</body>
+</html>

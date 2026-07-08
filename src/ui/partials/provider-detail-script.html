@@ -1,0 +1,216 @@
+<script>
+    var BASESCAN = 'https://basescan.org/address/';
+
+    function escHtml(s) {
+        var d = document.createElement('div');
+        d.textContent = String(s == null ? '' : s);
+        return d.innerHTML.replace(/'/g, '&#39;');
+    }
+    function shortAddr(a) { return a ? `${a.slice(0, 6)}...${a.slice(-4)}` : ''; }
+    function formatNum(n) { return new Intl.NumberFormat().format(n); }
+    function formatTime(ts) {
+        if (!ts) return '-';
+        var d = new Date(ts * 1000);
+        var now = Date.now();
+        var diff = Math.floor((now - d.getTime()) / 1000);
+        if (diff < 60) return `${diff}s ago`;
+        if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+        if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+        return `${Math.floor(diff / 86400)}d ago`;
+    }
+
+    function parseDomain(endpoint) {
+        if (!endpoint) return null;
+        try {
+            const host = endpoint.replace(/^https?:\/\//, '').split(':')[0].split('/')[0];
+            if (/^\d{1,3}(\.\d{1,3}){3}$/.test(host)) return host;
+            const parts = host.split('.');
+            if (parts.length >= 2) return parts.slice(-2).join('.');
+            return host;
+        } catch (_e) { return null; }
+    }
+
+    function decodeModelName(modelId) {
+        if (!modelId || modelId === '0x' || modelId.length < 10) return null;
+        try {
+            const hex = modelId.replace('0x', ''); let str = '';
+            for (let i = 0; i < hex.length; i += 2) {
+                const c = parseInt(hex.substr(i, 2), 16);
+                if (c === 0) break;
+                if (c >= 32 && c < 127) str += String.fromCharCode(c); else return null;
+            }
+            return str.trim().length > 2 ? str.trim() : null;
+        } catch (_e) { return null; }
+    }
+
+    function getModelName(modelId, fallbackName) {
+        var decoded = decodeModelName(modelId);
+        if (decoded) return decoded;
+        if (fallbackName && fallbackName !== modelId && fallbackName.length > 0) return fallbackName;
+        return shortAddr(modelId);
+    }
+
+    function _hourlyStake(durationStr) {
+        if (!durationStr) return '\u2014';
+        var m = durationStr.match(/(\d+)h\s*(\d+)?m?/);
+        if (!m) return '\u2014';
+        var hours = parseInt(m[1], 10) + (parseInt(m[2] || 0, 10) / 60);
+        if (hours <= 0) return '\u2014';
+        return Math.ceil(100 / hours).toLocaleString();
+    }
+
+    function isTesting(morPerDay) { return parseFloat(morPerDay) < 1; }
+
+    function computeDur10(morPerDay) {
+      var sf = (window._stakingFactor || 0.00315);
+      var ppd = parseFloat(morPerDay);
+      if (ppd <= 0) return '-';
+      var mins = Math.round(((10 * sf) / ppd) * 1440);
+      if (mins >= 60) return Math.floor(mins/60) + 'h ' + (mins%60) + 'm';
+      return mins + 'm';
+    }
+
+    function renderDetail(data) {
+      if (data.economics && data.economics.stakingFactor) window._stakingFactor = data.economics.stakingFactor;
+        var root = document.getElementById('provider-detail-root');
+        if (!data || !data.provider) {
+            root.innerHTML = '<div class="empty-msg">Provider not found.</div>';
+            return;
+        }
+
+        var p = data.provider;
+        var s = data.summary || {};
+        var domain = parseDomain(p.endpoint);
+        var successRate = s.totalSessions > 0 ? (((s.totalSessions - (s.disputedSessions || 0)) / s.totalSessions) * 100).toFixed(1) : '-';
+        var disputeFreeRate = s.totalSessions > 0 ? (((s.totalSessions - (s.disputedSessions || 0)) / s.totalSessions) * 100).toFixed(1) : '-';
+
+        var html = '';
+
+        // Header
+        html += '<div class="detail-header">';
+        if (domain) html += `<div class="detail-domain">${escHtml(domain)}</div>`;
+        html += '<div class="detail-address">';
+        html += `<span>${escHtml(p.address)}</span>`;
+        html += `<a href="${BASESCAN}${encodeURIComponent(p.address)}" target="_blank">\u2197 BaseScan</a>`;
+        html += '</div>';
+        if (p.endpoint) html += `<div class="detail-endpoint">${escHtml(p.endpoint)}</div>`;
+        html += '</div>';
+
+        // Stats row
+        html += '<div class="stats-row">';
+        html += `<div class="stat-item"><span class="stat-val green">${formatNum(s.totalSessions || 0)}</span><span class="stat-label">Total Sessions</span></div>`;
+        html += `<div class="stat-item"><span class="stat-val green">${formatNum(s.activeSessions || 0)}</span><span class="stat-label">Active Sessions</span></div>`;
+        html += `<div class="stat-item"><span class="stat-val">${escHtml(successRate)}%</span><span class="stat-label">Success Rate</span></div>`;
+        html += `<div class="stat-item"><span class="stat-val mor">${escHtml(parseFloat(s.totalStakeMor || 0).toFixed(2))}</span><span class="stat-label">Total MOR Staked</span></div>`;
+        html += `<div class="stat-item"><span class="stat-val">${formatNum(s.activeBids || 0)}</span><span class="stat-label">Active Bids</span></div>`;
+        html += '</div>';
+
+        // Reputation card
+        html += '<div class="card">';
+        html += '<div class="card-title">Reputation</div>';
+        html += '<div class="rep-grid">';
+        html += `<div class="rep-item"><span class="rep-val">${escHtml(successRate)}%</span><span class="rep-label">Success Rate</span></div>`;
+        html += `<div class="rep-item"><span class="rep-val">${escHtml(disputeFreeRate)}%</span><span class="rep-label">Dispute-Free Rate</span></div>`;
+        html += `<div class="rep-item"><span class="rep-val">${s.avgDurationMin != null ? `${s.avgDurationMin}m` : '-'}</span><span class="rep-label">Avg Duration</span></div>`;
+        html += `<div class="rep-item"><span class="rep-val">${formatNum(s.earlyTerminated || 0)}</span><span class="rep-label">Early Terminated</span></div>`;
+        html += '</div></div>';
+
+        // Model Bids table
+        var bids = data.bids || [];
+        html += `<div class="section-title">Model Bids (${bids.length})</div>`;
+        if (bids.length > 0) {
+            html += '<div class="card" style="padding:0;overflow:hidden;">';
+            html += '<div class="table-scroll"><table class="bids-table"><thead><tr>';
+            html += '<th>Model</th><th class="num">Sessions</th><th class="num">Lock 1hr</th><th class="num">10 MOR gets</th><th>Status</th>';
+            html += '</tr></thead><tbody>';
+            bids.forEach((bid) => {
+                var testing = isTesting(bid.priceMorPerDay);
+                var modelDisplay = getModelName(bid.modelId, bid.model);
+                var active = bid.activeSessions || 0;
+                var total = bid.totalSessions || 0;
+                var dur = bid.durationFor10Mor || computeDur10(bid.priceMorPerDay);
+                html += '<tr>';
+                html += `<td class="model-name">${escHtml(modelDisplay)}</td>`;
+                html += `<td class="num" style="color:${active > 0 ? 'var(--green);font-weight:600' : 'var(--text-muted)'}">${active > 0 ? active + ' active' : formatNum(total)}</td>`;
+                html += `<td class="num"><span class="price">${bid.hourlyStake || '\u2014'} MOR</span></td>`;
+                html += `<td class="num" style="color:var(--text-muted)">${dur}</td>`;
+                html += `<td><span class="badge ${testing ? 'badge-testing' : 'badge-production'}">${testing ? 'Testing' : 'Prod'}</span></td>`;
+                html += '</tr>';
+            });
+            html += '</tbody></table></div>';
+            html += '<div class="bid-cards">';
+            bids.forEach((bid) => {
+                var testing = isTesting(bid.priceMorPerDay);
+                var modelDisplay = getModelName(bid.modelId, bid.model);
+                var active = bid.activeSessions || 0;
+                html += '<div class="bid-card">';
+                html += `<div class="bid-card-model">${escHtml(modelDisplay)}</div>`;
+                html += `<div class="bid-card-row"><span>Sessions:</span><span style="color:${active > 0 ? 'var(--green)' : 'var(--text-muted)'};font-weight:600">${active > 0 ? active + ' active' : formatNum(bid.totalSessions || 0)}</span></div>`;
+                html += `<div class="bid-card-row"><span>Lock 1hr:</span><span class="bid-card-price">${bid.hourlyStake || '\u2014'} MOR</span></div>`;
+                html += `<div class="bid-card-row"><span>10 MOR gets:</span><span style="color:var(--text-muted)">${bid.durationFor10Mor || computeDur10(bid.priceMorPerDay)}</span></div>`;
+                html += `<div class="bid-card-row"><span>Status:</span><span class="badge ${testing ? 'badge-testing' : 'badge-production'}">${testing ? 'Testing' : 'Prod'}</span></div>`;
+                html += '</div>';
+            });
+            html += '</div>';
+            html += '</div>';
+        } else {
+            html += '<div class="empty-msg">No active bids.</div>';
+        }
+
+        // Per-model reputation
+        var rep = data.reputation || [];
+        if (rep.length > 0) {
+            html += '<div class="section-title">Per-Model Reputation</div>';
+            html += '<div class="card" style="padding:0;overflow:hidden;">';
+            html += '<div class="table-scroll"><table class="rep-table"><thead><tr><th>Model</th><th>Sessions</th><th>Success</th><th>Disputes</th><th>Success Rate</th></tr></thead><tbody>';
+            rep.forEach((r) => {
+                var modelDisplay = getModelName(r.modelId, null);
+                html += '<tr>';
+                html += `<td class="model-name">${escHtml(modelDisplay)}</td>`;
+                html += `<td>${formatNum(r.totalSessions || 0)}</td>`;
+                html += `<td style="color:var(--green)">${formatNum(r.successCount || 0)}</td>`;
+                html += `<td style="color:${(r.disputeCount || 0) > 0 ? 'var(--yellow)' : 'var(--text-muted)'}">${r.disputeCount || 0}</td>`;
+                html += `<td>${r.successRate != null ? `${escHtml(r.successRate)}%` : '-'}</td>`;
+                html += '</tr>';
+            });
+            html += '</tbody></table></div></div>';
+        }
+
+        // Recent sessions
+        var sessions = data.recentSessions || [];
+        html += `<div class="section-title">Recent Sessions (${Math.min(sessions.length, 20)})</div>`;
+        if (sessions.length > 0) {
+            sessions.slice(0, 20).forEach((sess) => {
+                var modelDisplay = getModelName(sess.modelId, sess.model);
+                var badgeClass = sess.isActive ? 'badge-active' : (sess.closeoutType === 1 ? 'badge-dispute' : 'badge-closed');
+                var badgeText = sess.isActive ? 'Active' : (sess.closeoutType === 1 ? 'Dispute' : 'Closed');
+                html += '<div class="session-item">';
+                html += '<div class="session-row">';
+                html += `<span class="session-model">${escHtml(modelDisplay)}</span>`;
+                html += `<span class="badge ${badgeClass}">${badgeText}</span>`;
+                html += '</div>';
+                html += '<div class="session-meta">';
+                html += `<a href="/compute/consumers/wallet/${encodeURIComponent(sess.user)}" style="color:var(--cyan)">${escHtml(shortAddr(sess.user))}</a>`;
+                html += `<span style="color:var(--mor)">${escHtml(sess.stakeMor)} MOR</span>`;
+                html += `<span style="margin-left:auto">${formatTime(sess.openedAt)}</span>`;
+                html += '</div></div>';
+            });
+        } else {
+            html += '<div class="empty-msg">No sessions yet.</div>';
+        }
+
+        // Footer
+
+        root.innerHTML = html;
+    }
+
+    // Load from SSR data
+    (() => {
+        var data = window.__PROVIDER_DATA__;
+        if (data) {
+            renderDetail(data);
+        } else {
+            document.getElementById('provider-detail-root').innerHTML = '<div class="empty-msg">No data available.</div>';
+        }
+    })();
+</script>

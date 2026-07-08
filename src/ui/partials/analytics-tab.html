@@ -1,0 +1,316 @@
+<style>
+  .an-kpi{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--border);border:1px solid var(--border);margin-bottom:1.5rem}
+  .an-kpi>div{background:var(--card);padding:.9rem 1rem}
+  .an-kl{font-size:0.65rem;text-transform:uppercase;letter-spacing:.1em;color:var(--dim)}
+  .an-kv{font-size:1.3rem;font-weight:700;line-height:1.2;font-variant-numeric:tabular-nums}
+  .an-ks{font-size:0.65rem;color:var(--dim)}
+  .an-sec{margin-bottom:1.5rem}
+  .an-st{font-size:0.65rem;text-transform:uppercase;letter-spacing:.12em;color:var(--dim);margin-bottom:.5rem}
+  .an-card{border:1px solid var(--border);background:var(--card);padding:1rem}
+  .an-ch{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:.6rem}
+  .an-ct{font-size:.8rem;font-weight:600}
+  .an-cs{font-size:0.65rem;color:var(--dim)}
+  .an-row{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--border);border:1px solid var(--border);margin-bottom:1.5rem}
+  .an-row>*{background:var(--card);padding:1rem}
+  canvas{width:100%!important}
+  .an-d{font-size:0.65rem;font-weight:600;padding:.1rem .25rem;margin-left:.3rem}
+  .an-d.up{color:var(--green);background:rgba(34,197,94,.12)}
+  .an-d.dn{color:var(--red,#dc2626);background:rgba(220,38,38,.12)}
+  .an-tbl{width:100%;border-collapse:collapse;min-width:520px}
+  .an-tbl th{font-size:0.65rem;text-transform:uppercase;letter-spacing:.06em;color:var(--dim);text-align:left;padding:.5rem .7rem;border-bottom:1px solid var(--border);cursor:pointer;user-select:none;white-space:nowrap}
+  .an-tbl th:not(:first-child){text-align:right}
+  .an-tbl th:hover{color:var(--cyan)}
+  .an-tbl th .sort-arrow{font-size:0.65rem;margin-left:.2rem;opacity:.5}
+  .an-tbl td{font-size:.7rem;padding:.45rem .7rem;border-bottom:1px solid rgba(68,64,60,.3)}
+  .an-tbl td:not(:first-child){text-align:right;font-variant-numeric:tabular-nums}
+  .an-tbl tr:hover td{background:var(--bg-card,var(--card))}
+  .an-bar{height:3px;margin-top:.15rem}
+  .chart-skel{position:relative;overflow:hidden}
+  .chart-skel .skel-bars{display:flex;align-items:flex-end;gap:3px;height:100%;padding:0 8px}
+  .chart-skel .skel-bar{flex:1;background:rgba(255,255,255,.04);border-radius:2px 2px 0 0;min-width:4px}
+  .chart-skel .skel-line-path{position:absolute;top:20%;left:0;right:0;height:2px;background:rgba(255,255,255,.06);border-radius:1px;transform:rotate(-3deg)}
+  .chart-skel::after{content:'';position:absolute;top:0;left:0;right:0;bottom:0;background:linear-gradient(90deg,transparent 0%,rgba(255,255,255,.03) 40%,rgba(255,255,255,.06) 50%,rgba(255,255,255,.03) 60%,transparent 100%);animation:shimmer 2s infinite}
+  @media(max-width:768px){.an-kpi{grid-template-columns:repeat(2,1fr)}.an-row{grid-template-columns:1fr}.an-kv{font-size:1.1rem}}
+  /* ── Analytics identity: a slim price TICKER (the landing owns the big price
+     card) + the Network Pulse KPI hero. One row: pair, price, 24h, mcap, a tiny
+     sparkline, share. Wraps cleanly at phone width, never wider than the page. */
+  .an-strip{display:flex;flex-wrap:wrap;align-items:center;gap:.35rem .8rem;border:1px solid var(--border,#44403c);background:var(--bg-secondary,#1c1917);padding:.55rem .9rem;margin-bottom:1.4rem;min-width:0}
+  .an-strip-pair{font-size:0.62rem;letter-spacing:.08em;text-transform:uppercase;color:var(--dim,#c7c2bc);white-space:nowrap}
+  .an-strip-price{font-size:1.05rem;font-weight:700;color:var(--green);line-height:1;font-variant-numeric:tabular-nums}
+  .an-strip-ch{font-size:0.68rem;font-weight:600;white-space:nowrap}
+  .an-strip-m{font-size:0.62rem;color:var(--dim,#c7c2bc);white-space:nowrap}
+  .an-spark-wrap{flex:1 1 140px;min-width:110px;max-width:360px;margin-left:auto;display:flex;align-items:center;gap:.5rem}
+  #an-spark{flex:1;width:100%;height:30px;display:block}
+  .an-spark-cap{font-size:0.58rem;color:var(--dim,#c7c2bc);letter-spacing:.05em;text-transform:uppercase;white-space:nowrap}
+  .an-share{font-size:0.65rem;color:var(--dim,#c7c2bc);text-decoration:none;border:1px solid var(--border,#44403c);padding:.25rem .5rem;letter-spacing:.05em;text-transform:uppercase;white-space:nowrap}
+  .an-share:hover{color:var(--green);border-color:var(--green)}
+  @media(max-width:640px){.an-spark-wrap{flex-basis:100%;max-width:none;margin-left:0}}
+  /* Network Pulse - the hero. What analytics is FOR: live network activity. */
+  .an-pulse-head{display:flex;align-items:baseline;gap:.55rem;margin-bottom:.6rem;flex-wrap:wrap}
+  .an-live-dot{width:8px;height:8px;border-radius:50%;background:var(--green);flex:0 0 auto;align-self:center;box-shadow:0 0 0 0 rgba(34,197,94,.55);animation:anPulse 1.9s ease-out infinite}
+  @keyframes anPulse{0%{box-shadow:0 0 0 0 rgba(34,197,94,.5)}70%{box-shadow:0 0 0 6px rgba(34,197,94,0)}100%{box-shadow:0 0 0 0 rgba(34,197,94,0)}}
+  @media(prefers-reduced-motion:reduce){.an-live-dot{animation:none}}
+  .an-pulse-title{font-size:0.78rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--text-primary,#fafaf9)}
+  .an-pulse-sub{font-size:0.62rem;color:var(--dim,#c7c2bc)}
+  .an-kpi-hero{margin-bottom:1.8rem}
+  .an-kpi-hero>div{padding:1.1rem 1.2rem}
+  .an-kpi-hero .an-kv{font-size:1.7rem}
+  @media(max-width:768px){.an-kpi-hero .an-kv{font-size:1.35rem}}
+  /* Ticker sparkline: scrub (crosshair + value/date tip) + click-to-enlarge. */
+  #an-spark{cursor:pointer;touch-action:none}
+  .an-spark-tip{position:absolute;display:none;pointer-events:none;background:#0c0a09;border:1px solid #44403c;padding:.24rem .4rem;font-size:0.58rem;color:#fafaf9;white-space:nowrap;z-index:6;font-variant-numeric:tabular-nums;line-height:1.3}
+  .an-spark-tip b{color:#22c55e}
+  .an-expand{flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;background:transparent;border:1px solid var(--border,#44403c);color:var(--dim,#c7c2bc);cursor:pointer;padding:0}
+  .an-expand:hover,.an-expand:focus-visible{color:var(--green);border-color:var(--green)}
+  .an-expand svg{display:block}
+  /* Enlarge overlay: the full price card (pills + hover chart), reusing P. */
+  .an-pw-ov{position:fixed;inset:0;z-index:60;display:none;align-items:center;justify-content:center;background:rgba(12,10,9,.72);padding:1rem}
+  .an-pw-ov.open{display:flex}
+  .an-pw-card{position:relative;width:min(560px,92vw);max-height:90vh;overflow:auto;border:1px solid #44403c;background:#1c1917;padding:1.15rem 1.25rem 1.35rem}
+  .an-pw-x{position:absolute;top:.5rem;right:.5rem;width:34px;height:34px;background:transparent;border:1px solid #44403c;color:#c7c2bc;font-size:1.15rem;line-height:1;cursor:pointer}
+  .an-pw-x:hover,.an-pw-x:focus-visible{color:#fafaf9;border-color:#57534e}
+  .an-pw-top{display:flex;flex-wrap:wrap;align-items:baseline;gap:.75rem;padding-right:2.2rem}
+  .an-pw-val{font-size:2rem;font-weight:700;color:#22c55e;line-height:1;letter-spacing:-.02em}
+  .an-pw-ch{font-size:.7rem;font-weight:600}
+  .an-pw-ch.up{color:#22c55e}.an-pw-ch.down{color:#f87171}
+  .an-pw-tf{display:flex;gap:.3rem;flex-wrap:wrap;margin-top:.7rem}
+  .an-pw-pill{font-family:inherit;font-size:.6rem;font-weight:600;letter-spacing:.03em;padding:.24rem .55rem;cursor:pointer;background:transparent;border:1px solid #44403c;color:#d6d3d1;line-height:1}
+  .an-pw-pill:hover{border-color:#57534e;color:#fafaf9}
+  .an-pw-pill.active{background:#22c55e;border-color:#22c55e;color:#0c0a09}
+  .an-pw-pill:focus-visible{outline:2px solid #22c55e;outline-offset:2px}
+  .an-pw-chart{height:260px;margin-top:.7rem}
+  .an-pw-chart canvas{width:100%!important;height:100%;display:block;cursor:crosshair;touch-action:none}
+  .an-pw-tip{position:absolute;display:none;pointer-events:none;background:#0c0a09;border:1px solid #44403c;padding:.3rem .45rem;font-size:.62rem;color:#fafaf9;white-space:nowrap;z-index:3;font-variant-numeric:tabular-nums;line-height:1.3}
+  .an-pw-tip b{color:#22c55e}
+  @media(max-width:480px){.an-pw-val{font-size:1.7rem}.an-pw-chart{height:210px}.an-pw-card{padding:1rem 1rem 1.2rem}}
+</style>
+
+<div class="an-strip" role="group" aria-label="MOR price ticker">
+  <span class="an-strip-pair">MOR / USD</span>
+  <span class="an-strip-price" id="an-price">--</span>
+  <span class="an-strip-ch" id="an-pch"></span>
+  <span class="an-strip-m" id="an-stale" title="Price feed delayed" style="display:none">&middot; delayed</span>
+  <span class="an-strip-m" id="an-mcap"></span>
+  <div class="an-spark-wrap" style="position:relative"><canvas id="an-spark" height="30" role="img" aria-label="MOR to USD price sparkline. Scrub to read points, or enlarge for the full chart."></canvas><span class="an-spark-cap" id="an-spark-cap"></span><span class="an-spark-tip" id="an-spark-tip" aria-hidden="true"></span><button type="button" class="an-expand" id="an-expand" aria-expanded="false" aria-controls="an-pw-modal" aria-label="Enlarge the MOR price chart" title="Enlarge chart"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true" focusable="false"><path d="M9 3H3v6M3 3l7 7M15 21h6v-6M21 21l-7-7"/></svg></button></div>
+  <a class="an-share" id="an-share" href="#" target="_blank" rel="noopener">Share on X</a>
+</div>
+
+<!-- Enlarge overlay: the strip sparkline expands into the full price card
+     (timeframe pills + big hover chart), reusing the already-fetched P series -
+     zero new query load. Esc / backdrop / close button collapse it. -->
+<div class="an-pw-ov" id="an-pw-modal" role="dialog" aria-modal="true" aria-label="MOR / USD price chart" hidden>
+  <div class="an-pw-card">
+    <button type="button" class="an-pw-x" id="an-pw-x" aria-label="Close the enlarged chart">&times;</button>
+    <div class="an-pw-top"><span class="an-pw-val" id="an-pw-val">--</span><span class="an-pw-ch" id="an-pw-ch"></span><span style="font-size:.62rem;color:#c7c2bc">MOR / USD</span></div>
+    <div class="an-pw-tf" id="an-pw-tf" role="group" aria-label="Chart timeframe"></div>
+    <div class="an-pw-chart" style="position:relative"><canvas id="an-pw-cv" role="img" aria-label="MOR to USD price chart"></canvas><div class="an-pw-tip" id="an-pw-tip"></div></div>
+  </div>
+</div>
+
+<div class="an-pulse-head">
+  <span class="an-live-dot" aria-hidden="true"></span>
+  <h2 class="an-pulse-title">Network Pulse</h2>
+  <span class="an-pulse-sub">Live Morpheus activity on Base, indexed in real time</span>
+</div>
+<div class="an-kpi an-kpi-hero" id="an-kpi" style="opacity:.3">
+  <div><span class="an-kl">Active Sessions</span><div class="an-kv" style="color:var(--green)" id="an-sess">--</div><div class="an-ks">serving now</div></div>
+  <div><span class="an-kl">MOR Staked</span><div class="an-kv" style="color:var(--green)" id="an-stake">--</div><div class="an-ks" id="an-susd"></div></div>
+  <div><span class="an-kl">Total Sessions</span><div class="an-kv" style="color:var(--text-primary)" id="an-total">--</div><div class="an-ks">all time</div></div>
+  <div><span class="an-kl">MOR Holders</span><div class="an-kv" style="color:var(--text-primary)" id="an-uw">--</div><div class="an-ks">on Base</div></div>
+</div>
+
+<div class="an-sec">
+  <div class="an-st">Network Activity vs Price</div>
+  <div class="an-card" style="position:relative"><div class="an-ch"><span class="an-ct">Daily Sessions + MOR Price</span><span class="an-cs" id="ac-pvd">Loading correlation...</span></div><div class="chart-skel" id="sk-pv" style="height:200px"><div class="skel-bars"><div class="skel-bar" style="height:15%"></div><div class="skel-bar" style="height:20%"></div><div class="skel-bar" style="height:12%"></div><div class="skel-bar" style="height:25%"></div><div class="skel-bar" style="height:18%"></div><div class="skel-bar" style="height:30%"></div><div class="skel-bar" style="height:22%"></div><div class="skel-bar" style="height:35%"></div><div class="skel-bar" style="height:28%"></div><div class="skel-bar" style="height:20%"></div><div class="skel-bar" style="height:32%"></div><div class="skel-bar" style="height:40%"></div><div class="skel-bar" style="height:35%"></div><div class="skel-bar" style="height:25%"></div><div class="skel-bar" style="height:38%"></div><div class="skel-bar" style="height:42%"></div><div class="skel-bar" style="height:30%"></div><div class="skel-bar" style="height:45%"></div><div class="skel-bar" style="height:50%"></div><div class="skel-bar" style="height:55%"></div><div class="skel-bar" style="height:48%"></div><div class="skel-bar" style="height:60%"></div><div class="skel-bar" style="height:52%"></div><div class="skel-bar" style="height:65%"></div><div class="skel-bar" style="height:58%"></div><div class="skel-bar" style="height:70%"></div><div class="skel-bar" style="height:62%"></div><div class="skel-bar" style="height:75%"></div><div class="skel-bar" style="height:68%"></div><div class="skel-bar" style="height:80%"></div></div><div class="skel-line-path"></div></div><canvas id="ac-pv" height="200" role="img" aria-label="Daily sessions and MOR price over time" style="display:none"></canvas></div>
+</div>
+
+<div class="an-row">
+  <div style="position:relative"><div class="an-ch"><span class="an-ct">Session Volume</span><span class="an-cs" id="ac-vd"></span></div><div class="chart-skel" id="sk-vol" style="height:140px"><div class="skel-bars"><div class="skel-bar" style="height:20%"></div><div class="skel-bar" style="height:30%"></div><div class="skel-bar" style="height:25%"></div><div class="skel-bar" style="height:35%"></div><div class="skel-bar" style="height:28%"></div><div class="skel-bar" style="height:40%"></div><div class="skel-bar" style="height:32%"></div><div class="skel-bar" style="height:45%"></div><div class="skel-bar" style="height:38%"></div><div class="skel-bar" style="height:50%"></div><div class="skel-bar" style="height:42%"></div><div class="skel-bar" style="height:55%"></div><div class="skel-bar" style="height:48%"></div><div class="skel-bar" style="height:60%"></div><div class="skel-bar" style="height:52%"></div><div class="skel-bar" style="height:65%"></div><div class="skel-bar" style="height:58%"></div><div class="skel-bar" style="height:70%"></div><div class="skel-bar" style="height:62%"></div><div class="skel-bar" style="height:75%"></div></div></div><canvas id="ac-vol" height="140" role="img" aria-label="Session volume over time" style="display:none"></canvas></div>
+  <div style="position:relative"><div class="an-ch"><span class="an-ct">MOR Staked</span><span class="an-cs" id="ac-sd"></span></div><div class="chart-skel" id="sk-stk" style="height:140px"><div class="skel-bars"><div class="skel-bar" style="height:20%"></div><div class="skel-bar" style="height:30%"></div><div class="skel-bar" style="height:25%"></div><div class="skel-bar" style="height:35%"></div><div class="skel-bar" style="height:28%"></div><div class="skel-bar" style="height:40%"></div><div class="skel-bar" style="height:32%"></div><div class="skel-bar" style="height:45%"></div><div class="skel-bar" style="height:38%"></div><div class="skel-bar" style="height:50%"></div><div class="skel-bar" style="height:42%"></div><div class="skel-bar" style="height:55%"></div><div class="skel-bar" style="height:48%"></div><div class="skel-bar" style="height:60%"></div><div class="skel-bar" style="height:52%"></div><div class="skel-bar" style="height:65%"></div><div class="skel-bar" style="height:58%"></div><div class="skel-bar" style="height:70%"></div><div class="skel-bar" style="height:62%"></div><div class="skel-bar" style="height:75%"></div></div><div class="skel-line-path" style="top:35%"></div></div><canvas id="ac-stk" height="140" role="img" aria-label="Total MOR staked over time" style="display:none"></canvas></div>
+</div>
+<div class="an-row">
+  <div style="position:relative"><div class="an-ch"><span class="an-ct">Consumer Wallets</span><span class="an-cs" id="ac-wd"></span></div><div class="chart-skel" id="sk-wal" style="height:140px"><div class="skel-bars"><div class="skel-bar" style="height:20%"></div><div class="skel-bar" style="height:30%"></div><div class="skel-bar" style="height:25%"></div><div class="skel-bar" style="height:35%"></div><div class="skel-bar" style="height:28%"></div><div class="skel-bar" style="height:40%"></div><div class="skel-bar" style="height:32%"></div><div class="skel-bar" style="height:45%"></div><div class="skel-bar" style="height:38%"></div><div class="skel-bar" style="height:50%"></div><div class="skel-bar" style="height:42%"></div><div class="skel-bar" style="height:55%"></div><div class="skel-bar" style="height:48%"></div><div class="skel-bar" style="height:60%"></div><div class="skel-bar" style="height:52%"></div><div class="skel-bar" style="height:65%"></div><div class="skel-bar" style="height:58%"></div><div class="skel-bar" style="height:70%"></div><div class="skel-bar" style="height:62%"></div><div class="skel-bar" style="height:75%"></div></div></div><canvas id="ac-wal" height="140" role="img" aria-label="Unique consumer wallets over time" style="display:none"></canvas></div>
+  <div style="position:relative"><div class="an-ch"><span class="an-ct">MOR per Session</span><span class="an-cs">Avg stake efficiency</span></div><div class="chart-skel" id="sk-mps" style="height:140px"><div class="skel-bars"><div class="skel-bar" style="height:20%"></div><div class="skel-bar" style="height:30%"></div><div class="skel-bar" style="height:25%"></div><div class="skel-bar" style="height:35%"></div><div class="skel-bar" style="height:28%"></div><div class="skel-bar" style="height:40%"></div><div class="skel-bar" style="height:32%"></div><div class="skel-bar" style="height:45%"></div><div class="skel-bar" style="height:38%"></div><div class="skel-bar" style="height:50%"></div><div class="skel-bar" style="height:42%"></div><div class="skel-bar" style="height:55%"></div><div class="skel-bar" style="height:48%"></div><div class="skel-bar" style="height:60%"></div><div class="skel-bar" style="height:52%"></div><div class="skel-bar" style="height:65%"></div><div class="skel-bar" style="height:58%"></div><div class="skel-bar" style="height:70%"></div><div class="skel-bar" style="height:62%"></div><div class="skel-bar" style="height:75%"></div></div><div class="skel-line-path" style="top:40%"></div></div><canvas id="ac-mps" height="140" role="img" aria-label="MOR staked per session over time" style="display:none"></canvas></div>
+</div>
+
+<div class="an-sec" id="models">
+  <div class="an-st">Model Demand</div>
+  <div class="an-cs" style="margin:-0.2rem 0 .5rem">Sessions opened in the last 7 days across the models shown. Share is each model's percent of that total, by session count, not MOR volume. Click a column to sort.</div>
+  <div class="an-card" style="padding:0;overflow:hidden">
+    <div class="table-scroll"><table class="an-tbl"><thead><tr><th>Model</th><th>7d Sessions</th><th>Active</th><th>7d Share</th><th>Providers</th></tr></thead><tbody id="an-mtb"><tr><td colspan="5" style="text-align:center;color:var(--dim);padding:1.2rem">Loading...</td></tr></tbody></table></div>
+  </div>
+</div>
+
+<div class="an-sec">
+  <div class="an-st">Provider Quality</div>
+  <div class="an-card" style="padding:0;overflow:hidden">
+    <div class="table-scroll"><table class="an-tbl"><thead><tr><th>Provider / Endpoint</th><th>Sessions</th><th>Success</th><th>Disputes</th><th>Active</th></tr></thead><tbody id="an-ptb"><tr><td colspan="5" style="text-align:center;color:var(--dim);padding:1.2rem">Loading...</td></tr></tbody></table></div>
+  </div>
+</div>
+
+<script>
+(()=> {
+var DK=window.__DEMO_KEY__||'',D=[],E=[],P=[],mu=0;
+function trimToday(days){if(days.length<2)return days;var last=days[days.length-1],today=new Date().toISOString().slice(0,10);return last.date===today?days.slice(0,-1):days}
+function fmt(n){return n.toLocaleString()}
+function fmtK(n){return n>=1e6?(n/1e6).toFixed(1)+'M':n>=1e3?(n/1e3).toFixed(0)+'K':n.toFixed(0)}
+function pct(a,b){if(!b)return '';var c=((a-b)/b*100);return '<span class="an-d '+(c>=0?'up':'dn')+'">'+(c>=0?'+':'')+c.toFixed(1)+'%</span>'}
+function hdr(o){return{'X-Morscan-Key':DK}}
+
+async function go(){
+  var[,,,lb,md]=await Promise.all([
+    fetch('/health').then(r=>r.json()).then(d=>{var a=d.activeSessions||0;var e=document.getElementById('an-sess');e.textContent=fmt(a);e.style.color=a>0?'var(--green)':'var(--muted)'}),
+    fetch('/mor/v1/price').then(r=>r.json()).then(d=>{mu=d.usd||0;document.getElementById('an-price').textContent='$'+d.usd.toFixed(2);var _se=document.getElementById('an-stale');if(_se)_se.style.display=d.stale?'inline':'none';var c=d.change24h||0;document.getElementById('an-pch').innerHTML='<span style="color:'+(c>=0?'#22c55e':'var(--red,#dc2626)')+'">'+(c>=0?'+':'')+c.toFixed(2)+'% 24h</span>';if(d.marketCap)document.getElementById('an-mcap').textContent=d.marketCap>=1e6?'MCap $'+(d.marketCap/1e6).toFixed(1)+'M':'MCap $'+fmt(Math.round(d.marketCap))}),
+    fetch('/mor/v1/sessions/daily',{headers:hdr()}).then(r=>r.json()).then(d=>{D=d.days||[];E=d.economics||[];if(D.length){var l=D[D.length-1],s=parseFloat(l.totalStakeMor||'0');var se=document.getElementById('an-stake');se.textContent=fmtK(s);se.style.color=s>0?'var(--green)':'var(--muted)';if(mu>0)document.getElementById('an-susd').textContent='~$'+fmt(Math.round(s*mu));}document.getElementById('an-kpi').style.opacity='1'}),
+    fetch('/mor/v1/leaderboard',{headers:hdr()}).then(r=>r.json()),
+    fetch('/mor/v1/models/demand',{headers:hdr()}).then(r=>r.json()),
+  ]);
+  fetch('/teaser').then(r=>r.json()).then(d=>{var _t=d.totalSessions||0;var _te=document.getElementById('an-total');_te.textContent=fmt(_t);_te.style.color=_t>0?'var(--text-primary)':'var(--muted)';
+    var sh=document.getElementById('an-share');if(sh){sh.href='https://twitter.com/intent/tweet?text='+encodeURIComponent('Morpheus network right now: '+fmt(d.providers||0)+' providers, '+fmt(d.activeSessions||0)+' active AI sessions, '+fmt(d.totalSessions||0)+' total. Live on MorScan:')+'&url='+encodeURIComponent(location.origin+'/analytics/overview');}});
+  fetch('/mor/v1/holders?limit=1',{headers:hdr()}).then(r=>r.json()).then(d=>{if(d&&d.total)document.getElementById('an-uw').textContent=fmt(d.total)}).catch(()=>{});
+  fetch('/mor/v1/price/chart',{headers:hdr()}).then(r=>r.json()).then(d=>{P=d.prices||[];updateSparkCap();drawSpark();drawPV()});
+  drawPV();drawVol();drawStk();drawWal();drawMPS();drawSpark();
+  // Models
+  var models=(md.models||[]).filter(m=>m.model&&m.model!=='?'&&m.hasName).slice(0,12);
+  var t7=models.reduce((s,m)=>s+(m.sessions7d||0),0);
+  // Providers - sortable table
+  var provs=(lb.providers||{}).allTime||[];
+  var pSort={col:1,asc:false};
+  function renderProvs(){
+    var sorted=provs.slice().sort(function(a,b){
+      var va,vb;
+      if(pSort.col===0){va=(a.endpoint||'').split(':')[0]||a.provider;vb=(b.endpoint||'').split(':')[0]||b.provider;return pSort.asc?va.localeCompare(vb):vb.localeCompare(va)}
+      if(pSort.col===1){va=a.totalSessions||0;vb=b.totalSessions||0}
+      else if(pSort.col===2){va=(a.successful||0)/(a.totalSessions||1);vb=(b.successful||0)/(b.totalSessions||1)}
+      else if(pSort.col===3){va=a.disputed||0;vb=b.disputed||0}
+      else{va=a.activeNow||0;vb=b.activeNow||0}
+      return pSort.asc?va-vb:vb-va;
+    });
+    document.getElementById('an-ptb').innerHTML=sorted.map(function(p){var t=p.totalSessions||1,r=((p.successful||0)/t*100).toFixed(1),d=p.disputed||0,s=p.provider.slice(0,6)+'...'+p.provider.slice(-4);
+      var rc=parseFloat(r)>=95?'#22c55e':parseFloat(r)>=80?'#facc15':'var(--red,#dc2626)';
+      var ep=p.endpoint||'';var host=ep.split(':')[0]||s;
+      return '<tr><td><a href="/compute/providers/'+p.provider+'" style="color:var(--cyan);text-decoration:none" title="'+p.provider+'"><span style="font-weight:500">'+host+'</span><span style="color:var(--dim);font-size:0.65rem;margin-left:.3rem">'+s+'</span></a></td><td>'+fmt(p.totalSessions)+'</td><td style="color:'+rc+';font-weight:600">'+r+'%</td><td style="color:'+(d>0?'var(--red,#dc2626)':'var(--dim)')+'">'+fmt(d)+'</td><td style="color:'+(p.activeNow>0?'#22c55e':'var(--dim)')+'">'+p.activeNow+'</td></tr>'}).join('');
+  }
+  renderProvs();
+  // Sort on column header click. Arrow is painted on load so the affordance
+  // is visible before the first click; Enter/Space sorts from the keyboard.
+  function wireSort(tbodyId,sort,render){
+    var tb=document.getElementById(tbodyId);if(!tb)return;
+    var ths=tb.closest('table').querySelectorAll('thead th');
+    function paint(){ths.forEach(function(h,j){var ar=h.querySelector('.sort-arrow');if(ar)ar.remove();if(j===sort.col){h.insertAdjacentHTML('beforeend','<span class="sort-arrow">'+(sort.asc?'▲':'▼')+'</span>');h.setAttribute('aria-sort',sort.asc?'ascending':'descending')}else{h.setAttribute('aria-sort','none')}})}
+    ths.forEach(function(th,i){
+      th.tabIndex=0;
+      function go(){if(sort.col===i)sort.asc=!sort.asc;else{sort.col=i;sort.asc=false}render();paint()}
+      th.addEventListener('click',go);
+      th.addEventListener('keydown',function(e){if(e.key==='Enter'||e.key===' '){e.preventDefault();go()}});
+    });
+    paint();
+  }
+  wireSort('an-ptb',pSort,renderProvs);
+
+  // Model table - sortable
+  var mSort={col:1,asc:false};
+  function renderModels(){
+    if(!models.length)return;
+    var sorted=models.slice().sort(function(a,b){
+      var va,vb;
+      if(mSort.col===0){va=a.model||'';vb=b.model||'';return mSort.asc?va.localeCompare(vb):vb.localeCompare(va)}
+      if(mSort.col===1){va=a.sessions7d||0;vb=b.sessions7d||0}
+      else if(mSort.col===2){va=a.activeSessions||0;vb=b.activeSessions||0}
+      else if(mSort.col===3){va=(a.sessions7d||0)/(t7||1);vb=(b.sessions7d||0)/(t7||1)}
+      else{va=a.supply?a.supply.providerCount:0;vb=b.supply?b.supply.providerCount:0}
+      return mSort.asc?va-vb:vb-va;
+    });
+    // Bar under the model name = same metric as the 7d Share column (share of
+    // 7d sessions, scaled so the top model fills the cell). One metric, one bar.
+    var mx=Math.max.apply(null,sorted.map(function(m){return m.sessions7d||0}).concat([1]));
+    document.getElementById('an-mtb').innerHTML=sorted.map(function(m){var sh=t7>0?((m.sessions7d||0)/t7*100).toFixed(1):'0';var p=((m.sessions7d||0)/mx*100).toFixed(0);var a=m.activeSessions||0;
+      return '<tr><td><span style="color:var(--cyan);font-weight:500">'+m.model+'</span><div class="an-bar" style="width:'+p+'%;background:var(--green)" title="'+sh+'% of 7d sessions"></div></td><td>'+fmt(m.sessions7d||0)+'</td><td style="color:'+(a>0?'#22c55e':'var(--dim)')+'">'+a+'</td><td>'+sh+'%</td><td>'+(m.supply?m.supply.providerCount:0)+'</td></tr>'}).join('');
+  }
+  renderModels();
+  wireSort('an-mtb',mSort,renderModels);
+}
+
+function reveal(id){var sk=document.getElementById('sk-'+id.slice(3)),cv=document.getElementById(id);if(sk)sk.style.display='none';if(cv)cv.style.display='block'}
+function ch(id,h){reveal(id);var c=document.getElementById(id),x=c.getContext('2d'),d=devicePixelRatio||1,r=c.getBoundingClientRect();c.width=r.width*d;c.height=h*d;x.scale(d,d);return{x:x,W:r.width,H:h}}
+function gr(x,p,W,H,mv,n){x.strokeStyle='rgba(68,64,60,.15)';x.lineWidth=1;for(var i=0;i<=n;i++){var y=p.t+(H-p.t-p.b)/n*i;x.beginPath();x.moveTo(p.l,y);x.lineTo(W-p.r,y);x.stroke()}x.fillStyle='#c7c2bc';x.font='9px ui-monospace, Menlo, monospace';x.textAlign='right';for(var i=0;i<=n;i++){var v=mv-(mv/n)*i;x.fillText(v>=1e3?fmtK(v):v===0?'0':v<1?v.toFixed(2):v.toFixed(0),p.l-12,p.t+(H-p.t-p.b)/n*i+3)}}
+function ar(x,v,p,W,H,mv,lc,ft,fb){var cw=W-p.l-p.r,ch=H-p.t-p.b;x.beginPath();x.moveTo(p.l,p.t+ch);for(var i=0;i<v.length;i++){x.lineTo(p.l+(i/(v.length-1))*cw,p.t+ch-(v[i]/mv)*ch)}x.lineTo(p.l+cw,p.t+ch);x.closePath();var g=x.createLinearGradient(0,p.t,0,p.t+ch);g.addColorStop(0,ft);g.addColorStop(1,fb);x.fillStyle=g;x.fill();x.beginPath();for(var i=0;i<v.length;i++){var xx=p.l+(i/(v.length-1))*cw,yy=p.t+ch-(v[i]/mv)*ch;i===0?x.moveTo(xx,yy):x.lineTo(xx,yy)}x.strokeStyle=lc;x.lineWidth=2;x.stroke()}
+function xl(x,data,p,W,H,k){x.fillStyle='#c7c2bc';x.font='9px ui-monospace, Menlo, monospace';var s=Math.max(1,Math.floor(data.length/6)),cw=W-p.l-p.r;for(var i=0;i<data.length;i+=s){var xp=p.l+(i/(data.length-1))*cw;x.textAlign=i===0?'left':i>=data.length-s?'right':'center';x.fillText((data[i][k]||'').slice(5),xp,H-3)}}
+
+// ── Ticker sparkline (MOR/USD) - deliberately tiny: the landing owns the full
+// interactive price chart; analytics gets a one-glance trend line in the strip.
+// Same P series that already feeds drawPV (one /mor/v1/price/chart fetch).
+function updateSparkCap(){var el=document.getElementById('an-spark-cap');if(!el||P.length<2)return;var span=Math.max(1,Math.round((P[P.length-1].t-P[0].t)/864e5));el.textContent=span+'d';var c=document.getElementById('an-spark');if(c)c.setAttribute('aria-label','MOR to USD price trend, last '+span+' days, currently $'+P[P.length-1].v.toFixed(2))}
+function drawSpark(){var c=document.getElementById('an-spark');if(!c||!P||P.length<2)return;var r=c.getBoundingClientRect(),w=r.width,h=r.height,d=devicePixelRatio||1;if(w<2||h<2)return;c.width=w*d;c.height=h*d;var x=c.getContext('2d');x.setTransform(d,0,0,d,0,0);var vs=P.map(function(pp){return pp.v});var mn=Math.min.apply(null,vs),mx=Math.max.apply(null,vs);if(mn===mx){mn=mn*0.99||0;mx=mx*1.01||1}var X=function(i){return (i/(P.length-1))*w},Y=function(v){return 2+(h-4)-((v-mn)/(mx-mn))*(h-4)};x.clearRect(0,0,w,h);
+  x.beginPath();x.moveTo(X(0),h);for(var i=0;i<P.length;i++)x.lineTo(X(i),Y(P[i].v));x.lineTo(w,h);x.closePath();var gd=x.createLinearGradient(0,0,0,h);gd.addColorStop(0,'rgba(34,197,94,.22)');gd.addColorStop(1,'rgba(34,197,94,.01)');x.fillStyle=gd;x.fill();
+  x.beginPath();for(var i=0;i<P.length;i++){var xx=X(i),yy=Y(P[i].v);i===0?x.moveTo(xx,yy):x.lineTo(xx,yy)}x.strokeStyle='#22c55e';x.lineWidth=1.5;x.stroke();
+  var lx=X(P.length-1),ly=Y(P[P.length-1].v);x.beginPath();x.arc(lx-2,ly,2,0,7);x.fillStyle='#22c55e';x.fill()}
+
+function corr(a,b){var n=Math.min(a.length,b.length);if(n<3)return 0;var ma=a.reduce((s,v)=>s+v,0)/n,mb=b.reduce((s,v)=>s+v,0)/n;var num=0,da=0,db=0;for(var i=0;i<n;i++){var x=a[i]-ma,y=b[i]-mb;num+=x*y;da+=x*x;db+=y*y}return da&&db?num/Math.sqrt(da*db):0}
+function drawPV(){if(D.length<2)return;var hasPrices=P.length>=2;var _c=ch('ac-pv',200),x=_c.x,W=_c.W,H=_c.H;var p={t:20,r:hasPrices?58:14,b:22,l:62};var dm={};if(hasPrices)P.forEach((pp)=> {dm[new Date(pp.t).toISOString().slice(0,10)]=pp.v});var mg=hasPrices?D.map((d)=> ({date:d.date,sessions:d.sessions,price:dm[d.date]||null})).filter((d)=> d.price!==null):D.map((d)=> ({date:d.date,sessions:d.sessions,price:null}));if(mg.length<2)return;var vs=mg.map((d)=> d.sessions),ps=hasPrices?mg.map((d)=> d.price):[];
+  var el=document.getElementById('ac-pvd');if(hasPrices&&ps.length>=2){var r=corr(vs,ps);if(el){var abr=Math.abs(r);var lbl=abr<.3?'Weak':abr<.6?'Moderate':'Strong';var dir=r>0?'positive':'inverse';el.textContent=lbl+' '+dir+' correlation (r='+r.toFixed(2)+')'}}else if(el){var avg=vs.reduce(function(a,b){return a+b},0)/vs.length;el.textContent='Avg '+Math.round(avg)+' sessions/day'}
+  var mv=Math.max.apply(null,vs.concat([1]));gr(x,p,W,H,mv,3);var cw=W-p.l-p.r,chh=H-p.t-p.b;if(hasPrices){var mp=Math.max.apply(null,ps.concat([.01]));x.textAlign='left';x.fillStyle='#78716c';x.font='8px ui-monospace, Menlo, monospace';x.fillText('MOR price',W-p.r+6,p.t-9);x.fillStyle='#22c55e';x.font='9px ui-monospace, Menlo, monospace';for(var i=0;i<=3;i++){var v=mp-(mp/3)*i;x.fillText('$'+v.toFixed(2),W-p.r+6,p.t+chh/3*i+3)}}var bw=Math.max(2,(cw/mg.length)*.5);for(var i=0;i<vs.length;i++){var xx=p.l+(i/(mg.length-1))*cw-bw/2,bh=(vs[i]/mv)*chh;x.fillStyle='rgba(34,197,94,.2)';x.fillRect(xx,p.t+chh-bh,bw,bh)}if(hasPrices){var mp=Math.max.apply(null,ps.concat([.01]));x.beginPath();for(var i=0;i<ps.length;i++){var xx=p.l+(i/(mg.length-1))*cw,yy=p.t+chh-(ps[i]/mp)*chh;i===0?x.moveTo(xx,yy):x.lineTo(xx,yy)}x.strokeStyle='#22c55e';x.lineWidth=2;x.stroke()}
+  var avg=vs.reduce(function(a,b){return a+b},0)/vs.length;var avgY=p.t+chh-(avg/mv)*chh;x.beginPath();x.moveTo(p.l,avgY);x.lineTo(p.l+cw,avgY);x.strokeStyle='#22d3ee';x.lineWidth=1;x.setLineDash([4,3]);x.stroke();x.setLineDash([]);x.fillStyle='#22d3ee';x.font='9px ui-monospace, Menlo, monospace';x.textAlign='right';x.fillText('avg '+Math.round(avg),p.l+cw,avgY-4)
+  xl(x,mg,p,W,H,'date')}
+
+function drawVol(){var DD=trimToday(D);if(DD.length<2)return;var _c=ch('ac-vol',140),x=_c.x,W=_c.W,H=_c.H;var p={t:12,r:14,b:20,l:48};var v=DD.map((d)=> d.sessions);var mv=Math.max.apply(null,v.concat([1]));gr(x,p,W,H,mv,3);ar(x,v,p,W,H,mv,'#22c55e','rgba(34,197,94,.15)','rgba(34,197,94,.01)');xl(x,DD,p,W,H,'date');if(DD.length>=14){var w1=DD.slice(-7).reduce((s,d)=> s+d.sessions,0),w2=DD.slice(-14,-7).reduce((s,d)=> s+d.sessions,0);document.getElementById('ac-vd').innerHTML='7d '+pct(w1,w2)}}
+function drawStk(){var DD=trimToday(D);if(DD.length<2)return;var _c=ch('ac-stk',140),x=_c.x,W=_c.W,H=_c.H;var p={t:12,r:14,b:20,l:50};var v=DD.map((d)=> parseFloat(d.totalStakeMor||'0'));var mv=Math.max.apply(null,v.concat([1]));gr(x,p,W,H,mv,3);ar(x,v,p,W,H,mv,'#22d3ee','rgba(34,211,238,.12)','rgba(34,211,238,.01)');xl(x,DD,p,W,H,'date');if(DD.length>=14){var w1=v.slice(-7).reduce((a,b)=> a+b,0)/7,w2=v.slice(-14,-7).reduce((a,b)=> a+b,0)/7;document.getElementById('ac-sd').innerHTML='Avg 7d '+pct(w1,w2)}}
+function drawWal(){var DD=trimToday(D);if(DD.length<2)return;var _c=ch('ac-wal',140),x=_c.x,W=_c.W,H=_c.H;var p={t:12,r:12,b:20,l:30};var v=DD.map((d)=> d.uniqueUsers||0);var mv=Math.max.apply(null,v.concat([1]));gr(x,p,W,H,mv,3);var cw=W-p.l-p.r,chh=H-p.t-p.b,bw=Math.max(2,(cw/v.length)*.5);for(var i=0;i<v.length;i++){var xx=p.l+(i/(v.length-1))*cw-bw/2,bh=(v[i]/mv)*chh;x.fillStyle=v[i]>0?'#22c55e':'rgba(34,197,94,.06)';x.fillRect(xx,p.t+chh-bh,bw,bh)}xl(x,DD,p,W,H,'date');if(DD.length>=14){var w1=Math.max.apply(null,v.slice(-7)),w2=Math.max.apply(null,v.slice(-14,-7));document.getElementById('ac-wd').innerHTML='Peak 7d '+pct(w1,w2)}}
+function drawMPS(){var DD=trimToday(D);if(DD.length<2)return;var _c=ch('ac-mps',140),x=_c.x,W=_c.W,H=_c.H;var p={t:12,r:14,b:20,l:48};var v=DD.map((d)=> parseFloat(d.totalStakeMor||'0')/(d.sessions||1));var mv=Math.max.apply(null,v.concat([1]));gr(x,p,W,H,mv,3);ar(x,v,p,W,H,mv,'#facc15','rgba(250,204,21,.1)','rgba(250,204,21,.01)');xl(x,DD,p,W,H,'date')}
+
+// ── Sparkline scrub (crosshair + value/date tip), mirroring the big widget ──
+var sparkHover=null;
+function sparkGeom(){var c=document.getElementById('an-spark');if(!c||!P||P.length<2)return null;var r=c.getBoundingClientRect(),w=r.width,h=r.height;if(w<2||h<2)return null;var vs=P.map(function(p){return p.v});var mn=Math.min.apply(null,vs),mx=Math.max.apply(null,vs);if(mn===mx){mn=mn*0.99||0;mx=mx*1.01||1}return{c:c,r:r,w:w,h:h,X:function(i){return (i/(P.length-1))*w},Y:function(v){return 2+(h-4)-((v-mn)/(mx-mn))*(h-4)}};}
+function sparkRedraw(g){drawSpark();if(sparkHover==null)return;g=g||sparkGeom();if(!g)return;var x=g.c.getContext('2d');var px=g.X(sparkHover),py=g.Y(P[sparkHover].v);x.save();x.strokeStyle='rgba(199,194,188,.5)';x.lineWidth=1;x.beginPath();x.moveTo(px,0);x.lineTo(px,g.h);x.stroke();x.beginPath();x.arc(px,py,2.5,0,7);x.fillStyle='#fafaf9';x.fill();x.restore();
+  var tip=document.getElementById('an-spark-tip');if(tip){tip.innerHTML='<b>$'+P[sparkHover].v.toFixed(2)+'</b> '+new Date(P[sparkHover].t).toLocaleDateString(undefined,{month:'short',day:'numeric'});tip.style.display='block';var tw=tip.offsetWidth,th=tip.offsetHeight,oL=g.c.offsetLeft,oT=g.c.offsetTop,pw=g.c.parentNode.clientWidth;tip.style.left=Math.max(0,Math.min(oL+px-tw/2,pw-tw))+'px';tip.style.top=(oT-th-4)+'px';}}
+function sparkAt(e){var g=sparkGeom();if(!g)return;var cx=e.touches&&e.touches[0]?e.touches[0].clientX:e.clientX;var mx=cx-g.r.left,best=0,bd=1e9;for(var i=0;i<P.length;i++){var dd=Math.abs(g.X(i)-mx);if(dd<bd){bd=dd;best=i}}sparkHover=best;sparkRedraw(g);}
+function sparkOff(){sparkHover=null;drawSpark();var t=document.getElementById('an-spark-tip');if(t)t.style.display='none';}
+
+// ── Click-to-enlarge: strip sparkline -> full price card (pills + hover chart),
+// reusing the already-fetched P series. Esc / backdrop / close collapse it. ──
+var PWM=(function(){
+  var ov,cv,tip,tf,valEl,chEl,trigger,lastFocus=null,bound=false;
+  var WINS=[['24h',1],['7d',7],['30d',30],['90d',90],['6mo',182],['1yr',365],['All',null]];
+  var SUB=[],GEO=null,hi=null,curKey='30d';
+  function shortD(ms){return new Date(ms).toLocaleDateString(undefined,{month:'short',day:'numeric'});}
+  function fullD(ms){return new Date(ms).toLocaleDateString(undefined,{year:'numeric',month:'short',day:'numeric'});}
+  function get(){ov=document.getElementById('an-pw-modal');cv=document.getElementById('an-pw-cv');tip=document.getElementById('an-pw-tip');tf=document.getElementById('an-pw-tf');valEl=document.getElementById('an-pw-val');chEl=document.getElementById('an-pw-ch');trigger=document.getElementById('an-expand');}
+  function slice(days){if(!P||P.length<2)return [];if(days==null)return P.slice();var cut=P[P.length-1].t-days*864e5;var s=P.filter(function(p){return p.t>=cut});return s.length>=2?s:P.slice(-2);}
+  function pills(){tf.innerHTML='';WINS.forEach(function(wk){var b=document.createElement('button');b.type='button';b.className='an-pw-pill'+(wk[0]===curKey?' active':'');b.textContent=wk[0];b.setAttribute('aria-pressed',wk[0]===curKey?'true':'false');b.onclick=function(){setWin(wk[0]);};tf.appendChild(b);});}
+  function setWin(key){curKey=key;var w=WINS.filter(function(x){return x[0]===key})[0];SUB=slice(w?w[1]:null);hi=null;[].forEach.call(tf.children,function(b){var a=b.textContent===key;b.classList.toggle('active',a);b.setAttribute('aria-pressed',a?'true':'false');});draw();}
+  function geom(){var r=cv.getBoundingClientRect(),w=r.width,h=r.height,d=devicePixelRatio||1;if(w<2||h<2||SUB.length<2)return null;cv.width=w*d;cv.height=h*d;var x=cv.getContext('2d');x.setTransform(d,0,0,d,0,0);var vs=SUB.map(function(p){return p.v});var mn=Math.min.apply(null,vs),mx=Math.max.apply(null,vs);if(mn===mx){mn=mn*0.99||0;mx=mx*1.01||1}var pad={t:14,r:12,b:20,l:52},cw=w-pad.l-pad.r,chh=h-pad.t-pad.b;return{x:x,w:w,h:h,mn:mn,mx:mx,pad:pad,cw:cw,chh:chh,X:function(i){return pad.l+(i/(SUB.length-1))*cw},Y:function(v){return pad.t+chh-((v-mn)/(mx-mn))*chh}};}
+  function draw(){var g=geom();if(!g){if(tip)tip.style.display='none';return;}GEO=g;var x=g.x;x.clearRect(0,0,g.w,g.h);
+    x.font='9px ui-monospace,Menlo,monospace';for(var i=0;i<=3;i++){var v=g.mx-((g.mx-g.mn)/3)*i,yy=g.pad.t+g.chh/3*i;x.strokeStyle='rgba(68,64,60,.5)';x.lineWidth=1;x.beginPath();x.moveTo(g.pad.l,yy);x.lineTo(g.pad.l+g.cw,yy);x.stroke();x.fillStyle='#78716c';x.textAlign='right';x.fillText('$'+v.toFixed(2),g.pad.l-6,yy+3);}
+    x.beginPath();x.moveTo(g.X(0),g.pad.t+g.chh);for(var i=0;i<SUB.length;i++)x.lineTo(g.X(i),g.Y(SUB[i].v));x.lineTo(g.X(SUB.length-1),g.pad.t+g.chh);x.closePath();var gd=x.createLinearGradient(0,g.pad.t,0,g.pad.t+g.chh);gd.addColorStop(0,'rgba(34,197,94,.22)');gd.addColorStop(1,'rgba(34,197,94,.01)');x.fillStyle=gd;x.fill();
+    x.beginPath();for(var i=0;i<SUB.length;i++){var xx=g.X(i),yy=g.Y(SUB[i].v);i===0?x.moveTo(xx,yy):x.lineTo(xx,yy)}x.strokeStyle='#22c55e';x.lineWidth=2;x.stroke();
+    x.fillStyle='#78716c';x.textAlign='left';x.fillText(shortD(SUB[0].t),g.pad.l,g.h-6);x.textAlign='right';x.fillText(shortD(SUB[SUB.length-1].t),g.pad.l+g.cw,g.h-6);
+    if(hi!=null&&SUB[hi]){var px=g.X(hi),py=g.Y(SUB[hi].v);x.save();x.strokeStyle='rgba(199,194,188,.55)';x.lineWidth=1;x.beginPath();x.moveTo(px,g.pad.t);x.lineTo(px,g.pad.t+g.chh);x.stroke();x.beginPath();x.arc(px,py,3,0,7);x.fillStyle='#fafaf9';x.fill();x.restore();
+      tip.innerHTML='<b>$'+SUB[hi].v.toFixed(2)+'</b> '+fullD(SUB[hi].t);tip.style.display='block';var tw=tip.offsetWidth,th=tip.offsetHeight;tip.style.left=Math.max(4,Math.min(px-tw/2,g.w-tw-4))+'px';tip.style.top=Math.max(2,py-th-8)+'px';}
+    else if(tip){tip.style.display='none';}}
+  function at(e){if(!GEO||SUB.length<2)return;var cx=e.touches&&e.touches[0]?e.touches[0].clientX:e.clientX,r=cv.getBoundingClientRect(),mx=cx-r.left,best=0,bd=1e9;for(var i=0;i<SUB.length;i++){var dd=Math.abs(GEO.X(i)-mx);if(dd<bd){bd=dd;best=i}}hi=best;draw();}
+  function offHover(){hi=null;draw();}
+  function onKey(e){if(e.key==='Escape'){e.preventDefault();close();}}
+  function bind(){cv.addEventListener('mousemove',at);cv.addEventListener('mouseleave',offHover);cv.addEventListener('touchstart',function(e){at(e);},{passive:true});cv.addEventListener('touchmove',function(e){at(e);e.preventDefault();},{passive:false});cv.addEventListener('touchend',offHover);document.getElementById('an-pw-x').addEventListener('click',close);ov.addEventListener('mousedown',function(e){if(e.target===ov)close();});window.addEventListener('resize',function(){if(ov&&!ov.hidden)draw();});}
+  function open(){get();if(!ov)return;if(!bound){bind();bound=true;}
+    valEl.textContent=(document.getElementById('an-price').textContent||'--');
+    var pt=(document.getElementById('an-pch').textContent||'').trim();chEl.textContent=pt;chEl.className='an-pw-ch '+(pt.charAt(0)==='-'?'down':'up');
+    pills();setWin(curKey);
+    lastFocus=document.activeElement;ov.hidden=false;ov.classList.add('open');document.addEventListener('keydown',onKey,true);if(trigger)trigger.setAttribute('aria-expanded','true');
+    var xb=document.getElementById('an-pw-x');if(xb)xb.focus();
+    requestAnimationFrame(draw);}
+  function close(){if(!ov)return;ov.classList.remove('open');ov.hidden=true;document.removeEventListener('keydown',onKey,true);if(trigger)trigger.setAttribute('aria-expanded','false');if(lastFocus&&lastFocus.focus)lastFocus.focus();}
+  return{open:open,close:close};
+})();
+
+// Wire the strip: scrub on the sparkline, click / expand-button to enlarge.
+(function(){
+  var sc=document.getElementById('an-spark');
+  if(sc){sc.addEventListener('mousemove',sparkAt);sc.addEventListener('mouseleave',sparkOff);sc.addEventListener('touchmove',function(e){sparkAt(e);e.preventDefault();},{passive:false});sc.addEventListener('touchend',sparkOff);sc.addEventListener('click',function(){PWM.open();});}
+  var xb=document.getElementById('an-expand');
+  if(xb){xb.addEventListener('click',function(){PWM.open();});xb.addEventListener('keydown',function(e){if(e.key==='Enter'||e.key===' '){e.preventDefault();PWM.open();}});}
+})();
+
+window.addEventListener('resize',()=> {drawSpark();drawPV();drawVol();drawStk();drawWal();drawMPS()});
+go();
+})();
+</script>

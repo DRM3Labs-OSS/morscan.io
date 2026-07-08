@@ -1,0 +1,234 @@
+<script>
+    var BASESCAN = 'https://basescan.org/address/';
+
+    function escHtml(s) {
+        var d = document.createElement('div');
+        d.textContent = String(s == null ? '' : s);
+        return d.innerHTML.replace(/'/g, '&#39;');
+    }
+    function shortAddr(a) { return a ? `${a.slice(0, 6)}...${a.slice(-4)}` : ''; }
+    function formatNum(n) { return new Intl.NumberFormat().format(n); }
+    function formatMor(v) {
+        var n = parseFloat(v || 0);
+        if (n >= 1000) return formatNum(Math.floor(n));
+        if (n >= 1) return n.toFixed(2);
+        return n.toFixed(4);
+    }
+    function formatTime(ts) {
+        if (!ts) return '-';
+        var d = new Date(ts * 1000);
+        var now = Date.now();
+        var diff = Math.floor((now - d.getTime()) / 1000);
+        if (diff < 60) return `${diff}s ago`;
+        if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+        if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+        return `${Math.floor(diff / 86400)}d ago`;
+    }
+    function formatDuration(openedAt, endsAt, closedAt) {
+        var end = closedAt && closedAt > 0 ? closedAt : (endsAt && endsAt > 0 ? endsAt : 0);
+        if (!openedAt || !end) return '-';
+        var secs = end - openedAt;
+        if (secs < 60) return `${secs}s`;
+        if (secs < 3600) return `${Math.floor(secs / 60)}m`;
+        if (secs < 86400) return `${Math.floor(secs / 3600)}h ${Math.floor((secs % 3600) / 60)}m`;
+        return `${Math.floor(secs / 86400)}d ${Math.floor((secs % 86400) / 3600)}h`;
+    }
+
+    function decodeModelName(modelId) {
+        if (!modelId || modelId === '0x' || modelId.length < 10) return null;
+        try {
+            const hex = modelId.replace('0x', ''); let str = '';
+            for (let i = 0; i < hex.length; i += 2) {
+                const c = parseInt(hex.substr(i, 2), 16);
+                if (c === 0) break;
+                if (c >= 32 && c < 127) str += String.fromCharCode(c); else return null;
+            }
+            return str.trim().length > 2 ? str.trim() : null;
+        } catch (_e) { return null; }
+    }
+
+    function getModelName(sess) {
+        if (sess.modelName) return sess.modelName;
+        var decoded = decodeModelName(sess.modelId);
+        if (decoded) return decoded;
+        return shortAddr(sess.modelId);
+    }
+
+    function _copyAddress(addr) {
+        navigator.clipboard.writeText(addr).then(() => {
+            var btn = document.getElementById('copy-btn');
+            if (btn) { btn.textContent = 'Copied'; setTimeout(() => { btn.textContent = 'Copy'; }, 1500); }
+        });
+    }
+
+    function renderSessionList(sessions, emptyMsg) {
+        if (!sessions || sessions.length === 0) return `<div class="empty-msg">${escHtml(emptyMsg)}</div>`;
+        var html = '';
+        sessions.forEach((sess) => {
+            var modelDisplay = getModelName(sess);
+            var isClaimable = sess.isClaimable;
+            var isActive = sess.isActive;
+            var badgeClass = isActive ? 'badge-active' : (isClaimable ? 'badge-claimable' : 'badge-closed');
+            var badgeText = isActive ? 'Active' : (isClaimable ? 'Claimable' : 'Closed');
+            html += '<div class="session-item">';
+            html += '<div class="session-row">';
+            html += `<span class="session-model">${escHtml(modelDisplay)}</span>`;
+            html += `<span class="badge ${badgeClass}">${badgeText}</span>`;
+            html += '</div>';
+            html += '<div class="session-meta">';
+            html += `<a href="/compute/providers/${encodeURIComponent(sess.provider)}" style="color:var(--cyan)">${escHtml(shortAddr(sess.provider))}</a>`;
+            html += `<span style="color:var(--mor)">${escHtml(formatMor(sess.stakeMor))} MOR</span>`;
+            html += `<span>${formatDuration(sess.openedAt, sess.endsAt, sess.closedAt)}</span>`;
+            html += `<span style="margin-left:auto">${formatTime(sess.openedAt)}</span>`;
+            html += '</div></div>';
+        });
+        return html;
+    }
+
+    function renderDetail(data) {
+        var root = document.getElementById('wallet-detail-root');
+        if (!data || !data.wallet) {
+            root.innerHTML = '<div class="empty-msg">Wallet not found.</div>';
+            return;
+        }
+
+        var wallet = data.wallet;
+        var bal = data.balances || {};
+        var stake = data.stake || {};
+        var counts = data.counts || {};
+        var html = '';
+
+        // Header
+        html += '<div class="detail-header">';
+        html += '<div class="detail-address">';
+        html += `<span>${escHtml(wallet)}</span>`;
+        html += `<a href="${BASESCAN}${encodeURIComponent(wallet)}" target="_blank">\u2197 BaseScan</a>`;
+        html += `<button class="copy-btn" id="copy-btn" onclick="copyAddress('${escHtml(wallet)}')">Copy</button>`;
+        html += '</div></div>';
+
+        // Stats row
+        html += '<div class="stats-row">';
+        html += `<div class="stat-item"><span class="stat-val green">${formatNum(counts.total || 0)}</span><span class="stat-label">Total Sessions</span></div>`;
+        html += `<div class="stat-item"><span class="stat-val green">${formatNum(counts.active || 0)}</span><span class="stat-label">Active Sessions</span></div>`;
+        html += `<div class="stat-item"><span class="stat-val mor">${formatMor(stake.active)}</span><span class="stat-label">MOR Staked (Active)</span></div>`;
+        html += `<div class="stat-item"><span class="stat-val mor">${formatMor(bal.morBalance)}</span><span class="stat-label">MOR Balance</span></div>`;
+        html += '</div>';
+
+        // Balances card
+        html += '<div class="card">';
+        html += '<div class="card-title">Balances</div>';
+        html += '<div class="bal-grid">';
+        html += `<div class="bal-item"><span class="bal-val" style="color:var(--mor)">${formatMor(bal.morBalance)}</span><span class="bal-label">MOR Balance</span></div>`;
+        html += `<div class="bal-item"><span class="bal-val" style="color:var(--cyan)">${escHtml(parseFloat(bal.ethBalance || 0).toFixed(6))}</span><span class="bal-label">ETH Balance</span></div>`;
+        var stakesOnHold = data.stakesOnHold || {};
+        html += `<div class="bal-item"><span class="bal-val" style="color:var(--green)">${formatMor(stakesOnHold.available)}</span><span class="bal-label">MOR Available</span></div>`;
+        html += `<div class="bal-item"><span class="bal-val" style="color:var(--orange)">${formatMor(stakesOnHold.onHold)}</span><span class="bal-label">MOR On Hold</span></div>`;
+        html += '</div></div>';
+
+        // ── Unified profile: every role this address plays ──
+        var wp = data.walletProfile || {};
+
+        // Provider section
+        if (wp.provider) {
+            var pv = wp.provider;
+            html += '<div class="card">';
+            html += '<div class="card-title">Provider</div>';
+            html += '<div class="bal-grid">';
+            html += `<div class="bal-item"><span class="bal-val" style="color:var(--cyan);font-size:0.85rem;overflow-wrap:anywhere;">${escHtml(pv.endpoint || '-')}</span><span class="bal-label">Endpoint</span></div>`;
+            html += `<div class="bal-item"><span class="bal-val" style="color:var(--mor)">${formatMor(pv.stakeMor)}</span><span class="bal-label">Provider Stake (MOR)</span></div>`;
+            html += `<div class="bal-item"><span class="bal-val" style="color:var(--green)">${formatNum(pv.activeBids || 0)}</span><span class="bal-label">Active Bids</span></div>`;
+            html += '</div>';
+            html += `<div class="role-meta" style="margin-top:0.6rem;"><a href="/compute/providers/${encodeURIComponent(wallet)}" style="color:var(--green)">Provider dashboard &rarr;</a></div>`;
+            html += '</div>';
+        }
+
+        // Builder section: stakes across ALL subnets + subnets it administers
+        var bstakes = wp.builderStakes || [];
+        var badmins = wp.adminSubnets || [];
+        if (bstakes.length > 0 || badmins.length > 0) {
+            var adminIds = {};
+            badmins.forEach((s) => { adminIds[String(s.subnetId).toLowerCase()] = true; });
+            html += '<div class="card">';
+            html += '<div class="card-title">Builder</div>';
+            var stakedIds = {};
+            bstakes.forEach((s) => {
+                stakedIds[String(s.subnetId).toLowerCase()] = true;
+                html += '<div class="role-row">';
+                html += `<span><a href="/builder/subnet/${encodeURIComponent(s.subnetId)}" style="color:var(--cyan)">${escHtml(s.name)}</a>`;
+                if (adminIds[String(s.subnetId).toLowerCase()]) html += '<span class="role-tag">Admin</span>';
+                html += '</span>';
+                html += `<span style="color:var(--mor)">${formatMor(s.depositedMor)} MOR staked</span>`;
+                html += '</div>';
+            });
+            badmins.forEach((s) => {
+                if (stakedIds[String(s.subnetId).toLowerCase()]) return;
+                html += '<div class="role-row">';
+                html += `<span><a href="/builder/subnet/${encodeURIComponent(s.subnetId)}" style="color:var(--cyan)">${escHtml(s.name)}</a><span class="role-tag">Admin</span></span>`;
+                html += '<span class="role-meta">No stake</span>';
+                html += '</div>';
+            });
+            html += '</div>';
+        }
+
+        // Stake breakdown card
+        html += '<div class="card">';
+        html += '<div class="card-title">Stake Breakdown</div>';
+        html += '<div class="bal-grid">';
+        html += `<div class="bal-item"><span class="bal-val" style="color:var(--green)">${formatMor(stake.active)}</span><span class="bal-label">Active Stake</span></div>`;
+        html += `<div class="bal-item"><span class="bal-val" style="color:var(--orange)">${formatMor(stake.claimable)}</span><span class="bal-label">Claimable Stake</span><span style="font-size:0.65rem;color:var(--text-muted);margin-top:0.15rem;">Session expired, MOR in escrow. Call withdrawUserStakes to reclaim</span></div>`;
+        html += `<div class="bal-item"><span class="bal-val" style="color:var(--text-muted)">${formatMor(stake.totalHistorical)}</span><span class="bal-label">Total Historical</span></div>`;
+        html += '</div></div>';
+
+        // Active sessions
+        var activeSessions = data.activeSessions || [];
+        html += `<div class="section-title">Active Sessions (${activeSessions.length})</div>`;
+        html += renderSessionList(activeSessions, 'No active sessions.');
+
+        // Claimable sessions
+        var claimableSessions = data.claimableSessions || [];
+        if (claimableSessions.length > 0) {
+            html += `<div class="section-title">Claimable Sessions (${claimableSessions.length})</div>`;
+            html += renderSessionList(claimableSessions, 'No claimable sessions.');
+        }
+
+        // Recent closed
+        var recentClosed = data.recentClosed || [];
+        html += `<div class="section-title">Recent Closed (${recentClosed.length})</div>`;
+        html += renderSessionList(recentClosed, 'No closed sessions.');
+
+        // Footer
+
+        root.innerHTML = html;
+    }
+
+    // Load from SSR data
+    (() => {
+        var data = window.__WALLET_DATA__;
+        if (data) {
+            renderDetail(data);
+        } else {
+            document.getElementById('wallet-detail-root').innerHTML = '<div class="empty-msg">No data available.</div>';
+        }
+    })();
+
+    // Verified-owner badge. The page is edge-cached, so ownership can never be
+    // baked into the HTML: ask the session endpoint (no-store) and inject the
+    // badge only when the signed-in wallet IS this page's address.
+    (() => {
+        var pageAddr = ((window.__WALLET_DATA__ || {}).wallet || '').toLowerCase();
+        if (!pageAddr) return;
+        fetch('/console/wallet/status').then((r) => (r.ok ? r.json() : null)).then((j) => {
+            if (!j || !j.wallet || String(j.wallet).toLowerCase() !== pageAddr) return;
+            var host = document.querySelector('.detail-address');
+            if (!host || host.querySelector('.owner-badge')) return;
+            var caps = j.caps || {};
+            var n = (x) => (typeof x === 'number' ? x.toLocaleString('en-US') : '-');
+            var wings = '<svg width="22" height="10" viewBox="0 0 89 40" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M44.5031 36.7108L52.2884 27.0574V39.5L75.154 30.3296L78.4294 22.9099L58.8453 30.8065V28.0173L80.2346 19.2454L83.6775 11.7472L58.7647 21.8776V19.1669L85.7246 7.99814L89 0.5L56.3826 13.818C56.3826 13.818 53.5973 14.8563 52.369 16.8486L44.5031 26.5805L36.6372 16.8486C35.4089 14.8563 32.6236 13.818 32.6236 13.818L0 0.5L3.27539 7.99814L30.2415 19.1608V21.8715L5.32871 11.7472L8.77159 19.2454L30.1609 28.0173V30.8065L10.5768 22.9099L13.8522 30.3296L36.7178 39.5V27.0574L44.5031 36.7108Z" fill="#22c55e"/></svg>';
+            var pill = document.createElement('span');
+            pill.className = 'owner-badge';
+            pill.innerHTML = `${wings}<span>Verified owner</span><span class="owner-caps">${n(caps.burst)}/min &middot; ${n(caps.daily)}/day &middot; ${n(caps.monthly)}/mo</span>`;
+            var anchor = host.querySelector('a');
+            host.insertBefore(pill, anchor || null);
+        }).catch(() => {});
+    })();
+</script>

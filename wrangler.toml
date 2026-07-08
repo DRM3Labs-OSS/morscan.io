@@ -1,0 +1,168 @@
+name = "morscan"
+main = "src/index.ts"
+compatibility_date = "2024-01-01"
+workers_dev = true
+
+# Stamp the git build identity into src/build-info.ts before every build/deploy
+# (surfaced at /version, in /health, and the UI footer).
+[build]
+command = "node scripts/stamp-build.mjs"
+
+# OSS template: configure your own zone/route, or rely on the workers.dev
+# subdomain (workers_dev = true above). Uncomment and edit to bind a custom domain.
+# routes = [
+#   { pattern = "morscan.example.com/*", zone_name = "example.com" }
+# ]
+
+[[rules]]
+type = "CompiledWasm"
+globs = ["**/*.wasm"]
+fallthrough = false
+
+[[rules]]
+type = "Text"
+globs = ["**/*.html", "**/*.mustache", "**/*.txt"]
+
+[[rules]]
+type = "Data"
+globs = ["**/*.png", "**/*.ttf", "**/*.woff2"]
+
+[[d1_databases]]
+binding = "DB"
+database_name = "morscan"
+# Run `npm run db:create` (wrangler d1 create morscan) and paste the printed
+# database_id here.
+database_id = "00000000-0000-0000-0000-000000000000"
+
+[triggers]
+# Three cron patterns, multiplexed in the scheduled() handler in src/index.ts:
+#   "* * * * *"    - every minute: delta sync + fatboy rebuild + DO liveness
+#   "*/3 * * * *"  - every 3 min: marketplace CDN snapshot writer. Writes a
+#                    signed slim JSON to R2 (SNAPSHOT_BUCKET). No-ops unless the
+#                    optional SNAPSHOT_BUCKET binding below is enabled.
+#   "0 3 * * *"    - daily 03:00 UTC: prune R2 snapshot objects >7 days old
+crons = ["* * * * *", "*/3 * * * *", "0 3 * * *"]
+
+# Secrets are set with `wrangler secret put <NAME>` (never committed):
+#   MORSCAN_JWT_SECRET  - UI session signing. `openssl rand -hex 32 | wrangler secret put MORSCAN_JWT_SECRET`
+#   MORSCAN_MNEMONIC    - BIP39 seed for Ed25519 provenance/snapshot signing (a REAL mnemonic, not random hex).
+#   MORSCAN_DEMO_KEY    - UI serving key embedded in explorer pages so page scripts can fetch /mor/v1 data (per-IP limits still apply).
+#   ALCHEMY_FALLBACK_URL - optional Alchemy RPC URL, last-resort fallback for the live sync.
+#
+# Alerting (all optional). MorScan records every alert to the D1 `alerts` table
+# and the /admin/alerts admin area with NO config. Set any subset of these to
+# also fan out to that channel. See docs/GETTING_STARTED.md "Alerting".
+#   ALERT_TELEGRAM_BOT_TOKEN   - @BotFather bot token (needs ALERT_TELEGRAM_CHAT_ID)
+#   ALERT_TELEGRAM_CHAT_ID     - target chat/channel id for Telegram
+#   ALERT_SLACK_WEBHOOK_URL    - Slack Incoming Webhook URL
+#   ALERT_DISCORD_WEBHOOK_URL  - Discord webhook URL
+#   ALERT_WEBHOOK_URL          - generic webhook (receives full JSON payload)
+#   ALERT_SYNC_STALL_SECONDS   - stall threshold override (default 120), set via [vars] or secret
+#
+# [vars] below are non-secret, committed config (local dev + prod defaults).
+[vars]
+# Morpheus Diamond contract on Base mainnet.
+DIAMOND_ADDRESS = "0x6aBE1d282f72B474E54527D93b979A4f64d3030a"
+RPC_URL = "https://base.llamarpc.com"
+BUILDER_CONTRACT = "0x42BB446eAE6dca7723a9eBdb81EA88aFe77eF4B9"
+# Deployment-neutral config (see src/config.ts). All optional.
+# Your deployed origin (no trailing slash). Used for OG tags, the OpenAPI
+# server URL, sitemap, llms.txt, and provenance content_uri.
+PUBLIC_BASE_URL = "https://morscan.example.com"
+# Public host fronting the optional R2 snapshot bucket, and the key id stamped
+# into the signed snapshot envelope.
+SNAPSHOT_PUBLIC_HOST = "snapshot.morscan.example.com"
+SNAPSHOT_SIGNER_KEY_ID = "morscan-snapshot-2026-07-a"
+# Optional BigQuery dual-write for analytics archive. Leave "false" to run on
+# D1 only. To enable, set the project/dataset and push a service-account key
+# via `wrangler secret put BIGQUERY_SERVICE_ACCOUNT_KEY`.
+BIGQUERY_ENABLED = "false"
+BIGQUERY_PROJECT_ID = "your-gcp-project"
+BIGQUERY_DATASET_ID = "morscan"
+# Sovereignty switches: every DRM3-published package is optional. Both default
+# to "true" when unset (unchanged behavior).
+#   PROVENANCE_ENABLED = "false"  -> run unsigned: no receipt fields, /version
+#     reports provenance "disabled", the @drm3labs-oss/provenance WASM is never
+#     initialized (no closed-source code on the request path).
+#   RPC_POOL_ENABLED = "false"    -> replace the @drm3labs-oss/rpc-pool failover
+#     pool with a plain fetch POST to RPC_URL (simple retry, no WASM).
+# PROVENANCE_ENABLED = "false"
+# RPC_POOL_ENABLED = "false"
+# D1 rows-read budget backstop (Free plan). Once the current UTC day's APPROX
+# rows-read total reaches this, the heavy UNCACHED /mor/v1 endpoints shed to a
+# 503 + Retry-After instead of silently blowing the ~5M/day free quota and taking
+# the whole site down. Cached endpoints keep serving. Default 4_000_000 (code).
+# See src/utils/d1-budget.ts and docs/deployment/cloudflare.md.
+D1_DAILY_READ_BUDGET = "4000000"
+
+# Historical backfill throttle (GET /sync/backfill?from=&to=, src/sync/backfill.ts).
+# Re-scans historical ranges on the ARCHIVE RPC (Alchemy) and upserts events
+# WITHOUT moving the live cursor. Tuned for a FREE Alchemy account. Defaults live
+# in code; override here. See docs/architecture/sync.md -> "Historical backfill".
+BACKFILL_CHUNK_BLOCKS = "2000"
+BACKFILL_DELAY_MS = "250"
+BACKFILL_MAX_CHUNKS_PER_RUN = "30"
+# Durable self-driving cron grind (src/index.ts minute tick): pull many backfill
+# windows per tick until the wall-clock budget or the block ceiling is hit, then
+# resume next minute from the persisted frontier. No external runner needed.
+BACKFILL_TICK_BUDGET_MS = "25000"
+BACKFILL_MAX_BLOCKS_PER_TICK = "50000"
+# x402 agent micropayments (src/utils/x402.ts): keyless calls to metered
+# /mor/v1 endpoints return HTTP 402 with an x402 envelope (x402.org) and accept
+# signed EIP-3009 USDC-on-Base authorizations via the X-PAYMENT header.
+# OFF by default: set X402_PAY_TO to your self-custodied Base address to enable.
+# X402_PRICE_USDC is the per-call price (default 0.01 = 10000 atomic units).
+# X402_FACILITATOR_URL empty (default) = verify-only mode: payments are
+# cryptographically verified at request time and queued in the x402_payments D1
+# table for later batch on-chain settlement (no broadcast, no relayer key in the
+# worker). Point it at an x402 facilitator to verify+settle on-chain per call.
+X402_PAY_TO = ""
+X402_PRICE_USDC = "0.01"
+X402_FACILITATOR_URL = ""
+
+# Durable Objects for real-time sync
+[durable_objects]
+bindings = [
+  { name = "SYNC_COORDINATOR", class_name = "SyncCoordinator" }
+]
+
+[[kv_namespaces]]
+binding = "NONCE_CACHE"
+# Run `wrangler kv namespace create NONCE_CACHE` and paste the printed id here.
+id = "0000000000000000000000000000000a"
+
+[[kv_namespaces]]
+binding = "MORSCAN_CACHE"
+# Run `wrangler kv namespace create MORSCAN_CACHE` and paste the printed id here.
+id = "0000000000000000000000000000000b"
+
+# Optional R2 bucket for the signed marketplace CDN snapshot. The snapshot
+# writer no-ops without this binding. To enable: create the bucket
+# (`wrangler r2 bucket create morscan-marketplace-snapshot`), uncomment, and
+# optionally bind a public custom domain in the Cloudflare dashboard.
+# [[r2_buckets]]
+# binding = "SNAPSHOT_BUCKET"
+# bucket_name = "morscan-marketplace-snapshot"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["SyncCoordinator"]
+
+# Optional: durable rate limiting (requires wrangler >= 4.36). Without these
+# bindings the worker falls back to best-effort per-isolate counters.
+# [[ratelimits]]
+# name = "RL_STANDARD"
+# namespace_id = "1001"
+# simple = { limit = 100, period = 60 }
+# [[ratelimits]]
+# name = "RL_STRICT"
+# namespace_id = "1002"
+# simple = { limit = 30, period = 60 }
+# [[ratelimits]]
+# name = "RL_LOW"
+# namespace_id = "1003"
+# simple = { limit = 10, period = 60 }
+# [[ratelimits]]
+# name = "RL_MED"
+# namespace_id = "1004"
+# simple = { limit = 60, period = 60 }
