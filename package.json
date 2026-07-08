@@ -35,7 +35,7 @@
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.3",
-    "@cloudflare/workers-types": "^5.20260705.1",
+    "@cloudflare/workers-types": "^5.20260708.1",
     "@playwright/test": "^1.61.1",
     "esbuild": "^0.28.1",
     "typescript": "^6.0.3",
