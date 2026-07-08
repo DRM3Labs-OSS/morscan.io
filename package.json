@@ -34,7 +34,7 @@
     "test:unit": "vitest run"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.4.8",
+    "@biomejs/biome": "^2.5.2",
     "@cloudflare/workers-types": "^5.20260705.1",
     "@playwright/test": "^1.61.1",
     "esbuild": "^0.28.1",
