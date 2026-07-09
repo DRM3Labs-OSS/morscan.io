@@ -24,8 +24,68 @@ import { getSyncStateTokenPrices } from "../db/explorer-market";
 
 export const TICKER_SLOT = "<!--MKT_TICKER-->";
 
+export type TickerIcon =
+	| "mor"
+	| "market"
+	| "staked"
+	| "session"
+	| "provider"
+	| "builder"
+	| "gold"
+	| "silver"
+	| "bronze"
+	| "funded"
+	| "consumer"
+	| "model";
+
+// Hand-cut brand icons - stroke-based, square corners, currentColor (green via
+// .mkt-ic) except the self-colored rank badges. Same visual language as the
+// header/footer SVGs; never emoji.
+const IC = (inner: string): string =>
+	`<svg width="13" height="13" viewBox="0 0 16 16" fill="none" aria-hidden="true" focusable="false">${inner}</svg>`;
+const RANK = (bg: string, n: number): string =>
+	`<svg width="13" height="13" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><rect x="1" y="1" width="14" height="14" fill="${bg}"/><text x="8" y="12" text-anchor="middle" font-family="inherit" font-size="10" font-weight="700" fill="#0c0a09">${n}</text></svg>`;
+
+export const TICKER_ICONS: Record<TickerIcon, string> = {
+	// The Morpheus wings (the MorScan brand mark), for the MOR price.
+	mor: `<svg width="18" height="9" viewBox="0 0 89 40" fill="none" aria-hidden="true" focusable="false"><path d="M44.5031 36.7108L52.2884 27.0574V39.5L75.154 30.3296L78.4294 22.9099L58.8453 30.8065V28.0173L80.2346 19.2454L83.6775 11.7472L58.7647 21.8776V19.1669L85.7246 7.99814L89 0.5L56.3826 13.818C56.3826 13.818 53.5973 14.8563 52.369 16.8486L44.5031 26.5805L36.6372 16.8486C35.4089 14.8563 32.6236 13.818 32.6236 13.818L0 0.5L3.27539 7.99814L30.2415 19.1608V21.8715L5.32871 11.7472L8.77159 19.2454L30.1609 28.0173V30.8065L10.5768 22.9099L13.8522 30.3296L36.7178 39.5V27.0574L44.5031 36.7108Z" fill="currentColor"/></svg>`,
+	// Ask book: ascending bars.
+	market: IC(
+		'<path d="M2.5 14V9.5M6.5 14V6.5M10.5 14V4M14.5 14V1.5" stroke="currentColor" stroke-width="2"/>',
+	),
+	// Locked stake.
+	staked: IC(
+		'<rect x="2.5" y="7" width="11" height="7.5" stroke="currentColor" stroke-width="1.6"/><path d="M5 7V4.5a3 3 0 0 1 6 0V7" stroke="currentColor" stroke-width="1.6"/>',
+	),
+	// Session spark.
+	session: IC('<path d="M9.5 1 3.5 9.5h3.5L6 15l6.5-8.5H9L9.5 1z" fill="currentColor"/>'),
+	// Broadcast mast.
+	provider: IC(
+		'<path d="M8 15V8" stroke="currentColor" stroke-width="1.6"/><path d="M2.5 6.5 8 1l5.5 5.5M5 9 8 6l3 3" stroke="currentColor" stroke-width="1.6"/>',
+	),
+	// Builder hammer.
+	builder: IC(
+		'<path d="M2 3h8v4H7.5v2" stroke="currentColor" stroke-width="1.6"/><path d="M7.5 9 13 14.5l1.5-1.5L9 7.5" stroke="currentColor" stroke-width="1.6"/>',
+	),
+	gold: RANK("#facc15", 1),
+	silver: RANK("#d6d3d1", 2),
+	bronze: RANK("#f97316", 3),
+	// Deposit: value dropping onto the ledger line.
+	funded: IC(
+		'<path d="M8 1.5V9M4.5 6 8 9.5 11.5 6" stroke="currentColor" stroke-width="1.6"/><path d="M2 13.5h12" stroke="currentColor" stroke-width="2"/>',
+	),
+	// Crown, sharp.
+	consumer: IC(
+		'<path d="M2 13.5h12M2 13.5V4.5l3.5 3L8 2.5l2.5 5 3.5-3v9" stroke="currentColor" stroke-width="1.6" fill="none"/>',
+	),
+	// Four-point spark: a new listing.
+	model: IC(
+		'<path d="M8 1.5 9.8 6.2 14.5 8 9.8 9.8 8 14.5 6.2 9.8 1.5 8l4.7-1.8L8 1.5z" fill="currentColor"/>',
+	),
+};
+
 export interface TickerItem {
-	icon: string; // emoji, decorative
+	icon: TickerIcon;
 	label: string; // small muted prefix ("" to omit)
 	value: string; // the bold linked text
 	href: string;
@@ -104,7 +164,7 @@ export function buildTickerItems(d: TickerData): TickerItem[] {
 
 	if (d.price && d.price.usd > 0) {
 		items.push({
-			icon: "🪙",
+			icon: "mor",
 			label: "MOR",
 			value: `$${d.price.usd.toFixed(2)}`,
 			href: "/analytics/overview",
@@ -113,7 +173,7 @@ export function buildTickerItems(d: TickerData): TickerItem[] {
 	}
 	if (d.liveBids && d.liveBids.bids > 0) {
 		items.push({
-			icon: "📊",
+			icon: "market",
 			label: "market",
 			value: `${d.liveBids.bids} bids`,
 			sub: `${d.liveBids.models} models`,
@@ -122,7 +182,7 @@ export function buildTickerItems(d: TickerData): TickerItem[] {
 	}
 	if (d.morStaked && d.morStaked > 0) {
 		items.push({
-			icon: "🔒",
+			icon: "staked",
 			label: "staked",
 			value: `${fmtMor(d.morStaked)} MOR`,
 			sub: "in sessions",
@@ -131,7 +191,7 @@ export function buildTickerItems(d: TickerData): TickerItem[] {
 	}
 	if (d.lastSession) {
 		items.push({
-			icon: "⚡",
+			icon: "session",
 			label: "last session",
 			value: d.lastSession.modelName || shortId(d.lastSession.modelId),
 			sub: `${fmtAgo(d.nowSec, d.lastSession.openedAt)} ago`,
@@ -140,7 +200,7 @@ export function buildTickerItems(d: TickerData): TickerItem[] {
 	}
 	if (d.topProvider) {
 		items.push({
-			icon: "📡",
+			icon: "provider",
 			label: "top provider",
 			value: providerDomain(d.topProvider.endpoint, d.topProvider.address),
 			sub: `${d.topProvider.sessions.toLocaleString("en-US")} sessions`,
@@ -149,13 +209,13 @@ export function buildTickerItems(d: TickerData): TickerItem[] {
 	}
 	if (d.builderTvlMor && d.builderTvlMor > 0) {
 		items.push({
-			icon: "🔨",
+			icon: "builder",
 			label: "builder staked",
 			value: `${fmtMor(d.builderTvlMor)} MOR`,
 			href: "/builder/subnets",
 		});
 	}
-	const medals = ["🥇", "🥈", "🥉"];
+	const medals: TickerIcon[] = ["gold", "silver", "bronze"];
 	d.topSubnets.slice(0, 3).forEach((s, i) => {
 		items.push({
 			icon: medals[i],
@@ -167,7 +227,7 @@ export function buildTickerItems(d: TickerData): TickerItem[] {
 	});
 	for (const dep of d.recentDeposits) {
 		items.push({
-			icon: "💰",
+			icon: "funded",
 			label: "funded",
 			value: dep.name || shortId(dep.subnetId),
 			sub: `+${fmtMor(dep.amountMor)} MOR · ${fmtAgo(d.nowSec, dep.ts)} ago`,
@@ -176,7 +236,7 @@ export function buildTickerItems(d: TickerData): TickerItem[] {
 	}
 	if (d.topConsumer) {
 		items.push({
-			icon: "👑",
+			icon: "consumer",
 			label: "top consumer",
 			value: shortAddr(d.topConsumer.wallet),
 			sub: `${d.topConsumer.sessions.toLocaleString("en-US")} sessions`,
@@ -185,7 +245,7 @@ export function buildTickerItems(d: TickerData): TickerItem[] {
 	}
 	for (const m of d.newestModels) {
 		items.push({
-			icon: "✨",
+			icon: "model",
 			label: "new model",
 			value: m.name || shortId(m.modelId),
 			href: "/compute/network",
@@ -206,7 +266,7 @@ export function renderTicker(items: TickerItem[]): string {
 					? `<span class="mkt-chg ${t.deltaPct > 0.05 ? "up" : t.deltaPct < -0.05 ? "down" : "flat"}">${t.deltaPct > 0 ? "+" : ""}${t.deltaPct.toFixed(1)}%</span>`
 					: "";
 			const tag = t.newTag ? '<span class="mkt-new">new</span>' : "";
-			return `<span class="mkt-item"><span class="mkt-ic" aria-hidden="true">${t.icon}</span>${label}<a href="${esc(t.href)}">${esc(t.value)}</a>${sub}${delta}${tag}</span>`;
+			return `<span class="mkt-item"><span class="mkt-ic" aria-hidden="true">${TICKER_ICONS[t.icon]}</span>${label}<a href="${esc(t.href)}">${esc(t.value)}</a>${sub}${delta}${tag}</span>`;
 		})
 		.join("");
 	// A short tape leaves a visible gap in the loop: repeat the items until one

@@ -75,21 +75,32 @@ export async function handleBuilderSubnetDetail(
 		}
 	}
 
+	const nowEpoch = Math.floor(Date.now() / 1000);
+
+	// Per-staker withdraw unlock: the subnet's withdraw_lock_period counted from
+	// that staker's LAST deposit (a new deposit resets the whole position's
+	// lock). Same formula as /mor/v1/builder/stakes/:wallet - one definition of
+	// "when can this stake come off".
+	const lockPeriod = (subnet.withdraw_lock_period as number) || 604800;
 	const stakerRows = topStakers;
 	const enrichedStakers = stakerRows
 		.filter((s) => BigInt((s.deposited as string) || "0") > BigInt(0))
-		.map((s) => ({
-			wallet: s.wallet as string,
-			deposited: formatMor((s.deposited as string) || "0"),
-			lastDepositAt: s.last_deposit_at,
-		}))
+		.map((s) => {
+			const lastDep = (s.last_deposit_at as number) || 0;
+			const unlockAt = lastDep > 0 ? lastDep + lockPeriod : null;
+			return {
+				wallet: s.wallet as string,
+				deposited: formatMor((s.deposited as string) || "0"),
+				lastDepositAt: s.last_deposit_at,
+				unlockAt,
+				locked: unlockAt !== null && nowEpoch < unlockAt,
+			};
+		})
 		.sort(
 			(a, b) =>
 				parseFloat(b.deposited.replace(/,/g, "")) -
 				parseFloat(a.deposited.replace(/,/g, "")),
 		);
-
-	const nowEpoch = Math.floor(Date.now() / 1000);
 
 	return new Response(
 		JSON.stringify({

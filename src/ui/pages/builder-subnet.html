@@ -234,14 +234,26 @@
   var stakers = (D.topStakers || []).slice(0, 10);
   var section = document.getElementById('stakers-section');
   if (stakers.length > 0) {
+    // Withdraw-unlock countdown per staker (unlockAt from the API: the
+    // subnet's withdraw_lock_period counted from that staker's last deposit).
+    // Locked reads amber with the exact date on hover; past-lock reads green.
+    var unlockCell = function (st) {
+      if (!st.unlockAt) return '<span style="color:var(--text-muted)">-</span>';
+      var secs = st.unlockAt - Math.floor(Date.now() / 1000);
+      if (secs <= 0) return '<span style="color:var(--green)">unlocked</span>';
+      var dd = Math.floor(secs / 86400), hh = Math.floor((secs % 86400) / 3600);
+      var t = dd > 0 ? dd + 'd ' + hh + 'h' : (hh > 0 ? hh + 'h ' + Math.floor((secs % 3600) / 60) + 'm' : Math.max(1, Math.floor(secs / 60)) + 'm');
+      return '<span style="color:var(--yellow)" title="withdrawable ' + new Date(st.unlockAt * 1000).toLocaleString() + '">' + t + '</span>';
+    };
     var html = '<div class="section-title" style="margin-top:2rem;">Top Stakers</div>' +
-      '<div class="table-scroll"><table class="staker-table"><thead><tr><th>Wallet</th><th style="text-align:right">Staked</th><th style="text-align:right">Last Deposit</th></tr></thead><tbody>';
+      '<div class="table-scroll"><table class="staker-table"><thead><tr><th>Wallet</th><th style="text-align:right">Staked</th><th style="text-align:right">Last Deposit</th><th style="text-align:right">Unlocks</th></tr></thead><tbody>';
     html += stakers.map((st, i) => {
       var isSelf = st.wallet && s.admin && st.wallet.toLowerCase() === s.admin.toLowerCase();
       return '<tr>' +
         '<td data-label="Wallet" class="addr"><a href="' + basescan + st.wallet + '" target="_blank">' + st.wallet.slice(0,6) + '...' + st.wallet.slice(-4) + '</a>' + (isSelf ? '<span class="self-stake">admin</span>' : '') + '</td>' +
         '<td data-label="Amount" class="mono" style="color:var(--green);text-align:right">' + fmtMor(st.deposited) + ' MOR</td>' +
-        '<td data-label="Date" style="text-align:right">' + fmtDate(st.lastDepositAt) + '</td></tr>';
+        '<td data-label="Date" style="text-align:right">' + fmtDate(st.lastDepositAt) + '</td>' +
+        '<td data-label="Unlocks" class="mono" style="text-align:right">' + unlockCell(st) + '</td></tr>';
     }).join('');
     html += '</tbody></table></div>';
     section.innerHTML = html;

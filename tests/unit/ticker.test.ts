@@ -23,6 +23,7 @@ import {
 	marketTickerHtml,
 	providerDomain,
 	renderTicker,
+	TICKER_ICONS,
 	type TickerData,
 	type TickerItem,
 } from "../../src/ui/ticker";
@@ -99,39 +100,39 @@ describe("buildTickerItems", () => {
 	it("renders every item class from full data, in tape order", () => {
 		const items = buildTickerItems(fullData());
 		expect(items.map((i) => i.icon)).toEqual([
-			"🪙",
-			"📊",
-			"🔒",
-			"⚡",
-			"📡",
-			"🔨",
-			"🥇",
-			"🥈",
-			"🥉",
-			"💰",
-			"👑",
-			"✨",
+			"mor",
+			"market",
+			"staked",
+			"session",
+			"provider",
+			"builder",
+			"gold",
+			"silver",
+			"bronze",
+			"funded",
+			"consumer",
+			"model",
 		]);
 		const by = (icon: string) => items.find((i) => i.icon === icon) as TickerItem;
-		expect(by("🪙")).toMatchObject({ value: "$2.10", deltaPct: -0.7 });
-		expect(by("📊")).toMatchObject({ value: "34 bids", sub: "16 models" });
-		expect(by("🔒")).toMatchObject({ value: "1.53M MOR", sub: "in sessions" });
-		expect(by("⚡")).toMatchObject({ value: "qwen3-235b", sub: "2m ago" });
-		expect(by("📡")).toMatchObject({
+		expect(by("mor")).toMatchObject({ value: "$2.10", deltaPct: -0.7 });
+		expect(by("market")).toMatchObject({ value: "34 bids", sub: "16 models" });
+		expect(by("staked")).toMatchObject({ value: "1.53M MOR", sub: "in sessions" });
+		expect(by("session")).toMatchObject({ value: "qwen3-235b", sub: "2m ago" });
+		expect(by("provider")).toMatchObject({
 			value: "gpu.titan.io",
 			sub: "1,841 sessions",
 			href: "/compute/providers/0xAbCd000000000000000000000000000000001234",
 		});
-		expect(by("🔨")).toMatchObject({ value: "2.45M MOR" });
-		expect(by("🥇")).toMatchObject({ value: "Mor Builders", sub: "1.20M MOR" });
-		expect(by("🥉").value).toBe("0xs3…"); // unnamed subnet -> short id
-		expect(by("💰")).toMatchObject({
+		expect(by("builder")).toMatchObject({ value: "2.45M MOR" });
+		expect(by("gold")).toMatchObject({ value: "Mor Builders", sub: "1.20M MOR" });
+		expect(by("bronze").value).toBe("0xs3…"); // unnamed subnet -> short id
+		expect(by("funded")).toMatchObject({
 			value: "Venice",
 			sub: "+5,000 MOR · 60m ago",
 			href: "/builder/subnet/0xs2",
 		});
-		expect(by("👑")).toMatchObject({ value: "0xFeed…5678", sub: "912 sessions" });
-		expect(by("✨")).toMatchObject({ value: "kimi-k2.6", newTag: true });
+		expect(by("consumer")).toMatchObject({ value: "0xFeed…5678", sub: "912 sessions" });
+		expect(by("model")).toMatchObject({ value: "kimi-k2.6", newTag: true });
 	});
 
 	it("missing data drops items instead of rendering placeholders", () => {
@@ -152,7 +153,7 @@ describe("buildTickerItems", () => {
 
 describe("renderTicker", () => {
 	const one: TickerItem = {
-		icon: "🪙",
+		icon: "mor",
 		label: "MOR",
 		value: "$2.10",
 		href: "/analytics/overview",
@@ -163,9 +164,12 @@ describe("renderTicker", () => {
 		expect(renderTicker([])).toBe("");
 	});
 
-	it("renders icon, label, linked value, and colored delta", () => {
+	it("renders the brand SVG icon, label, linked value, and colored delta", () => {
 		const html = renderTicker([one]);
-		expect(html).toContain('<span class="mkt-ic" aria-hidden="true">🪙</span>');
+		// The icon key resolves to its hand-cut SVG (the Morpheus wings), never
+		// an emoji or the raw key.
+		expect(html).toContain(`<span class="mkt-ic" aria-hidden="true">${TICKER_ICONS.mor}</span>`);
+		expect(TICKER_ICONS.mor).toContain("<svg");
 		expect(html).toContain('<span class="mkt-lb">MOR</span>');
 		expect(html).toContain('<a href="/analytics/overview">$2.10</a>');
 		expect(html).toContain('class="mkt-chg down">-0.7%');

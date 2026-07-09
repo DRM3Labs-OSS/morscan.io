@@ -10,8 +10,12 @@
   .subnet-table .mono { font-variant-numeric: tabular-nums; white-space: nowrap; }
   .subnet-name-wrap { display: flex; align-items: center; gap: 0.5rem; }
   .subnet-logo { width: 28px; height: 28px; border-radius: 6px; object-fit: contain; flex-shrink: 0; background: var(--bg-primary); }
-  .subnet-logo-none { width: 28px; height: 28px; border-radius: 6px; flex-shrink: 0; background: linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-primary) 100%); border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; }
-  .subnet-logo-none::after { content: ''; display: block; width: 10px; height: 10px; border-radius: 50%; background: var(--border); opacity: 0.5; }
+  /* Monogram avatar - deterministic hue per subnet (inline style), two-letter
+     label. Doubles as the layer UNDER a real logo: the img overlays it inside
+     .subnet-logo-wrap and removes itself on load failure, no layout shift. */
+  .subnet-logo-none { width: 28px; height: 28px; flex-shrink: 0; border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; font-size: 0.6rem; font-weight: 700; letter-spacing: 0.03em; }
+  .subnet-logo-wrap { position: relative; width: 28px; height: 28px; flex-shrink: 0; }
+  .subnet-logo-wrap .subnet-logo { position: absolute; inset: 0; transition: opacity 0.2s ease; }
   .subnet-name { font-weight: 600; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 200px; }
   .subnet-id { font-size: 0.65rem; color: var(--text-muted); }
   .pool-share-bar { display: inline-block; height: 4px; background: var(--green); min-width: 2px; vertical-align: middle; }
@@ -42,13 +46,17 @@
   .subnet-card-img-none {
     width: 120px;
     height: 120px;
-    background: linear-gradient(135deg, var(--bg-primary) 0%, var(--bg-secondary) 100%);
     border: 1px solid var(--border);
     display: flex;
     align-items: center;
     justify-content: center;
+    font-size: 1.6rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    flex-shrink: 0;
   }
-  .subnet-card-img-none::after { content: ''; width: 18px; height: 18px; border-radius: 50%; background: var(--border); opacity: 0.4; }
+  .subnet-card-img-wrap { position: relative; width: 120px; height: 120px; flex-shrink: 0; }
+  .subnet-card-img-wrap .subnet-card-img { position: absolute; inset: 0; transition: opacity 0.2s ease; }
   .subnet-card-body { min-width: 0; display: flex; flex-direction: column; gap: 0.55rem; }
   .subnet-card-name { font-weight: 600; font-size: 0.9rem; color: var(--text-primary); line-height: 1.2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .subnet-card-desc { font-size: 0.7rem; color: var(--text-muted); line-height: 1.45; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
@@ -65,7 +73,7 @@
   @media (max-width: 640px) {
     .subnet-cards { grid-template-columns: 1fr; }
     .subnet-card { grid-template-columns: 104px 1fr; padding: 0.75rem; gap: 0.85rem; }
-    .subnet-card-img, .subnet-card-img-none { width: 104px; height: 104px; }
+    .subnet-card-img, .subnet-card-img-none, .subnet-card-img-wrap { width: 104px; height: 104px; }
     .subnet-card-name { font-size: 0.85rem; }
     .subnet-card-stats { grid-template-columns: 1fr 1fr; }
   }
@@ -94,7 +102,19 @@
 (async () => {
   var B = window.__BUILDER_DATA__;
   function fmt(n) { return new Intl.NumberFormat().format(n); }
-  function fmtMor(s) { var parts = String(s).split('.'); parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ','); return parts.join('.'); }
+  // Whole MOR above 100 (nobody reads .4253 on a 1.9M stat), 2dp below.
+  function fmtMor(s) { var n = parseFloat(String(s).replace(/,/g, '')) || 0; return n >= 100 ? Math.round(n).toLocaleString('en-US') : n.toFixed(2); }
+  // Pool share reads at 2dp in the UI; the API keeps its full precision.
+  function fmtPct(s) { var n = parseFloat(String(s)); return isNaN(n) ? s : n.toFixed(2) + '%'; }
+  // Deterministic monogram avatar - hue from the subnet id, first two letters
+  // of the name. Fills the dead grey box when a subnet has no (or a broken)
+  // logo; the real logo overlays it and removes itself on load error, so
+  // there is never a layout shift.
+  function subnetAvatar(id, name, cls) {
+    var h = 0; for (var i = 2; i < Math.min(String(id).length, 26); i++) h = (h * 31 + String(id).charCodeAt(i)) % 360;
+    var label = String(name || '').replace(/[^a-zA-Z0-9]/g, '').slice(0, 2).toUpperCase() || 'SN';
+    return '<div class="' + (cls || 'subnet-logo-none') + '" style="background:hsl(' + h + ' 45% 20%);color:hsl(' + h + ' 75% 68%)">' + label + '</div>';
+  }
 
   if (!B) {
     try {
@@ -199,12 +219,12 @@
       var barWidth = Math.max(2, Math.min(100, share));
       var displayName = s.name || s.metadataName;
       var logoHtml = s.metadataLogo
-        ? `<img class="subnet-logo" loading="lazy" decoding="async" data-src="${escHtml(s.metadataLogo)}" data-retries="0" src="${escHtml(s.metadataLogo)}" alt="" onerror="var r=parseInt(this.dataset.retries||0);if(r<3){this.dataset.retries=r+1;var self=this;setTimeout(function(){self.src=self.dataset.src+'?r='+r},1000*(r+1))}else{this.outerHTML='<div class=subnet-logo-none></div>'}">`
-        : '<div class="subnet-logo-none"></div>';
+        ? '<div class="subnet-logo-wrap">' + subnetAvatar(s.subnetId, displayName) + `<img class="subnet-logo" loading="lazy" decoding="async" data-src="${escHtml(s.metadataLogo)}" data-retries="0" src="${escHtml(s.metadataLogo)}" alt="" onerror="var r=parseInt(this.dataset.retries||0);if(r<3){this.dataset.retries=r+1;var self=this;setTimeout(function(){self.src=self.dataset.src+'?r='+r},1000*(r+1))}else{this.remove()}">` + '</div>'
+        : subnetAvatar(s.subnetId, displayName);
       return '<tr onclick="window.location.href=\'/builder/subnet/' + s.subnetId + '\'">' +
         '<td data-label="Subnet"><div class="subnet-name-wrap">' + logoHtml + '<div><div class="subnet-name">' + escHtml(displayName) + '</div><div class="subnet-id">' + s.subnetId.slice(0,10) + '...' + s.subnetId.slice(-6) + '</div></div></div></td>' +
         '<td data-label="Staked" class="mono" style="' + green(staked) + '">' + fmtMor(s.totalDeposited) + ' MOR</td>' +
-        '<td data-label="Pool %" style="' + green(share) + '"><span class="pool-share-bar" style="width:' + barWidth + 'px"></span> ' + s.poolShare + '</td>' +
+        '<td data-label="Pool %" style="' + green(share) + '"><span class="pool-share-bar" style="width:' + barWidth + 'px"></span> ' + fmtPct(s.poolShare) + '</td>' +
         '<td data-label="Est. Daily" class="mono" style="' + green(daily) + '">' + fmtMor(s.estimatedDailyEmissions) + ' MOR</td>' +
         '</tr>';
     }).join('');
@@ -217,8 +237,8 @@
       var displayName = s.name || s.metadataName;
       var desc = s.metadataDescription || '';
       var imgHtml = s.metadataLogo
-        ? `<img class="subnet-card-img" loading="lazy" decoding="async" data-src="${escHtml(s.metadataLogo)}" data-retries="0" src="${escHtml(s.metadataLogo)}" alt="" onerror="var r=parseInt(this.dataset.retries||0);if(r<3){this.dataset.retries=r+1;var self=this;setTimeout(function(){self.src=self.dataset.src+'?r='+r},1000*(r+1))}else{this.outerHTML='<div class=subnet-card-img-none></div>'}">`
-        : '<div class="subnet-card-img-none"></div>';
+        ? '<div class="subnet-card-img-wrap">' + subnetAvatar(s.subnetId, displayName, 'subnet-card-img-none') + `<img class="subnet-card-img" loading="lazy" decoding="async" data-src="${escHtml(s.metadataLogo)}" data-retries="0" src="${escHtml(s.metadataLogo)}" alt="" onerror="var r=parseInt(this.dataset.retries||0);if(r<3){this.dataset.retries=r+1;var self=this;setTimeout(function(){self.src=self.dataset.src+'?r='+r},1000*(r+1))}else{this.remove()}">` + '</div>'
+        : subnetAvatar(s.subnetId, displayName, 'subnet-card-img-none');
       return '<div class="subnet-card" onclick="window.location.href=\'/builder/subnet/' + s.subnetId + '\'">' +
         imgHtml +
         '<div class="subnet-card-body">' +
@@ -226,7 +246,7 @@
           (desc ? `<div class="subnet-card-desc">${escHtml(desc)}</div>` : '') +
           '<div class="subnet-card-stats">' +
             '<div class="subnet-card-stat"><div class="subnet-card-stat-label">Staked</div><div class="subnet-card-stat-value ' + (staked > 0 ? 'green' : '') + '">' + fmtMorShort(s.totalDeposited) + ' MOR</div></div>' +
-            '<div class="subnet-card-stat"><div class="subnet-card-stat-label">Pool %</div><div class="subnet-card-stat-value ' + (share > 0 ? 'green' : '') + '">' + s.poolShare + '</div></div>' +
+            '<div class="subnet-card-stat"><div class="subnet-card-stat-label">Pool %</div><div class="subnet-card-stat-value ' + (share > 0 ? 'green' : '') + '">' + fmtPct(s.poolShare) + '</div></div>' +
             '<div class="subnet-card-stat"><div class="subnet-card-stat-label">Est. Daily</div><div class="subnet-card-stat-value ' + (daily > 0 ? 'green' : '') + '">' + fmtMorShort(s.estimatedDailyEmissions) + ' MOR</div></div>' +
           '</div>' +
         '</div>' +
