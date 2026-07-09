@@ -1,6 +1,6 @@
 {
   "name": "morscan",
-  "version": "2.34.0",
+  "version": "2.35.0",
   "license": "FSL-1.1-MIT",
   "description": "MorScan - Morpheus blockchain explorer. Open core (FSL-1.1-MIT): consumable standalone (default export = reference composition) or as a dependency of a private composition repo via createMorscanApp. TypeScript source is the published surface; a Workers consumer bundles src/ directly (see docs/architecture/providers.md for the required wrangler rules).",
   "main": "./src/index.ts",

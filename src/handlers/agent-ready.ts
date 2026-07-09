@@ -96,11 +96,13 @@ export function handleOauthProtectedResource(): Response {
 	const body = {
 		resource: `${b}/mor/v1`,
 		resource_name: "MorScan API",
-		// HONEST: there is no OAuth authorization server. Access tokens are
-		// MorScan API keys (mor_...) minted by a wallet-signature challenge at
-		// /console. The key is accepted as `Authorization: Bearer <key>` or the
-		// canonical `X-Morscan-Key: <key>` header. See /auth.md.
-		authorization_servers: [],
+		// The issuer below publishes RFC 8414 metadata at
+		// /.well-known/oauth-authorization-server with EMPTY grant lists (no
+		// OAuth flows exist) and an agent_auth block describing the real
+		// scheme: MorScan API keys (mor_...) minted by a wallet-signature
+		// challenge at /console, accepted as `Authorization: Bearer <key>` or
+		// the canonical `X-Morscan-Key: <key>` header. See /auth.md.
+		authorization_servers: [baseUrl()],
 		bearer_methods_supported: ["header"],
 		resource_documentation: `${b}/auth.md`,
 		// Non-standard but honest extensions describing the real scheme:
@@ -117,9 +119,46 @@ export function handleOauthProtectedResource(): Response {
 	return jsonResponse(body, "application/json");
 }
 
+// ─── RFC 8414 authorization server metadata (honest: no OAuth grants) ───
+
+/** GET /.well-known/oauth-authorization-server - RFC 8414 shape, truthful.
+ * MorScan runs NO OAuth flows: the empty grant/response lists say so
+ * explicitly, and the agent_auth block (WorkOS auth.md agent-registration
+ * draft) describes the real scheme - wallet-signature key mint + x402 - so
+ * an agent that discovers this document knows exactly how to get in. */
+export function handleOauthAuthServer(): Response {
+	const b = baseUrl();
+	const body = {
+		issuer: b,
+		// HONEST: no authorization/token endpoints exist. Empty capability
+		// lists are the RFC-shaped way to say "no OAuth grants here"; the
+		// agent_auth block below is how you actually authenticate.
+		grant_types_supported: [],
+		response_types_supported: [],
+		token_endpoint_auth_methods_supported: [],
+		service_documentation: `${b}/auth.md`,
+		agent_auth: {
+			register_uri: `${b}/console/wallet/challenge`,
+			registration_flow:
+				"GET /console/wallet/challenge -> sign the returned message with EIP-191 personal_sign -> POST { wallet, signature, nonce } to /console/wallet/verify. The response includes the API key. No email, no signup, no payment.",
+			identity_types_supported: ["evm_wallet"],
+			credential_types_supported: ["api_key", "x402_payment"],
+			credential_header: "X-Morscan-Key",
+			also_accepted: "Authorization: Bearer <key>",
+			claim_uri: `${b}/console/wallet/verify`,
+			status_uri: `${b}/console/wallet/status`,
+			pricing_uri: `${b}/auth.md`,
+			documentation: `${b}/auth.md`,
+		},
+	};
+	return jsonResponse(body, "application/json");
+}
+
 // ─── /auth.md - agent registration instructions ───
 
-const authMd = async (env: Env) => `# MorScan API access for agents
+const authMd = async (env: Env) => `# Auth.md
+
+> MorScan API access for agents
 
 MorScan is the block explorer and real-time API for the Morpheus AI network on
 Base L2. This page tells an agent (or its operator) exactly how to get and use
@@ -609,6 +648,8 @@ export async function handleAgentReadyRoutes(
 	if (path === "/.well-known/api-catalog") return handleApiCatalog();
 	if (path === "/.well-known/oauth-protected-resource")
 		return handleOauthProtectedResource();
+	if (path === "/.well-known/oauth-authorization-server")
+		return handleOauthAuthServer();
 	if (path === "/auth.md") return handleAuthMd(env);
 	if (path === "/.well-known/mcp/server-card.json") return handleMcpServerCard(env);
 	if (path === "/.well-known/agent-skills/index.json")

@@ -8,12 +8,28 @@ import {
 	countSubnetDepositors,
 	selectFirstSubnetDepositBlock,
 	selectLastSubnetClaimBlock,
+	selectLatestDepositBlocksBySubnet,
+	selectLatestDepositBlocksByWallet,
 	selectRecentSubnetEvents,
 	selectSubnetById,
 	selectTopSubnetStakers,
 	selectWalletBuilderStakes,
 	sumSubnetClaims,
 } from "../db/explorer-builder";
+
+/** Deposit time from its BLOCK NUMBER: Base blocks are a fixed 2s, so
+ * now - (head - block) * 2 is chain-derived truth. Falls back to the
+ * indexer's processing stamp only when the deposit event is not indexed. */
+function depositTsFromBlock(
+	nowEpoch: number,
+	currentBlock: number,
+	blk: number | undefined,
+	fallbackTs: number,
+): number {
+	if (blk && currentBlock > 0 && blk <= currentBlock)
+		return nowEpoch - (currentBlock - blk) * 2;
+	return fallbackTs;
+}
 import { getBuilderSyncStateValue } from "../db/sync-builder";
 import { selectCurrentBlockValue } from "../db/explorer-core";
 
@@ -30,6 +46,7 @@ export async function handleBuilderSubnetDetail(
 		claimedRow,
 		uniqueStakerRow,
 		currentBlockRow,
+		depositBlocks,
 	] = await Promise.all([
 		selectSubnetById(env.DB, subnetId),
 		selectTopSubnetStakers(env.DB, subnetId),
@@ -38,6 +55,7 @@ export async function handleBuilderSubnetDetail(
 		sumSubnetClaims(env.DB, subnetId),
 		countSubnetDepositors(env.DB, subnetId),
 		selectCurrentBlockValue(env.DB),
+		selectLatestDepositBlocksBySubnet(env.DB, subnetId),
 	]);
 	const currentBlock = parseInt(currentBlockRow?.value || "0", 10);
 
@@ -78,20 +96,28 @@ export async function handleBuilderSubnetDetail(
 	const nowEpoch = Math.floor(Date.now() / 1000);
 
 	// Per-staker withdraw unlock: the subnet's withdraw_lock_period counted from
-	// that staker's LAST deposit (a new deposit resets the whole position's
-	// lock). Same formula as /mor/v1/builder/stakes/:wallet - one definition of
-	// "when can this stake come off".
+	// that staker's LAST deposit (the contract keeps ONE lastDeposit per
+	// position - every new deposit relocks the whole stake). Deposit time is
+	// derived from the deposit's block number (Base's fixed 2s clock), not the
+	// indexer's processing stamp, so backfilled history reads chain-true. Same
+	// basis as /mor/v1/builder/stakes/:wallet - one definition.
 	const lockPeriod = (subnet.withdraw_lock_period as number) || 604800;
+	const blkByWallet = new Map(depositBlocks.map((d) => [d.wallet, d.blk]));
 	const stakerRows = topStakers;
 	const enrichedStakers = stakerRows
 		.filter((s) => BigInt((s.deposited as string) || "0") > BigInt(0))
 		.map((s) => {
-			const lastDep = (s.last_deposit_at as number) || 0;
+			const lastDep = depositTsFromBlock(
+				nowEpoch,
+				currentBlock,
+				blkByWallet.get(s.wallet as string),
+				(s.last_deposit_at as number) || 0,
+			);
 			const unlockAt = lastDep > 0 ? lastDep + lockPeriod : null;
 			return {
 				wallet: s.wallet as string,
 				deposited: formatMor((s.deposited as string) || "0"),
-				lastDepositAt: s.last_deposit_at,
+				lastDepositAt: lastDep || s.last_deposit_at,
 				unlockAt,
 				locked: unlockAt !== null && nowEpoch < unlockAt,
 			};
@@ -152,19 +178,30 @@ export async function handleBuilderWalletStakes(
 	env: Env,
 	wallet: string,
 ): Promise<Response> {
-	const stakes = await selectWalletBuilderStakes(env.DB, wallet.toLowerCase());
-
-	const globalRow = await getBuilderSyncStateValue(env.DB, "global_stats");
+	const [stakes, globalRow, currentBlockRow, depositBlocks] = await Promise.all([
+		selectWalletBuilderStakes(env.DB, wallet.toLowerCase()),
+		getBuilderSyncStateValue(env.DB, "global_stats"),
+		selectCurrentBlockValue(env.DB),
+		selectLatestDepositBlocksByWallet(env.DB, wallet.toLowerCase()),
+	]);
 	const globalStats = globalRow ? JSON.parse(globalRow.value as string) : {};
 	const totalDepositedMor = morNumber(globalStats.total_deposited || "0");
+	const currentBlock = parseInt(currentBlockRow?.value || "0", 10);
+	const blkBySubnet = new Map(depositBlocks.map((d) => [d.subnet_id, d.blk]));
 
 	const results = stakes.map((s) => {
 		const depositedMor = morNumber((s.deposited as string) || "0");
 		const share = totalDepositedMor > 0 ? depositedMor / totalDepositedMor : 0;
 		const lockPeriod = (s.withdraw_lock_period as number) || 604800;
-		const lastDeposit = (s.last_deposit_at as number) || 0;
-		const unlockAt = lastDeposit + lockPeriod;
 		const now = Math.floor(Date.now() / 1000);
+		// Same chain-derived deposit clock as the subnet detail (one definition).
+		const lastDeposit = depositTsFromBlock(
+			now,
+			currentBlock,
+			blkBySubnet.get(s.subnet_id as string),
+			(s.last_deposit_at as number) || 0,
+		);
+		const unlockAt = lastDeposit + lockPeriod;
 		return {
 			subnetId: s.subnet_id,
 			subnetName: s.name || "(unnamed)",

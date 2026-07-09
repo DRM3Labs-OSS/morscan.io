@@ -148,6 +148,36 @@ export async function selectRecentSessions(db: D1Database): Promise<RawRow[]> {
 	return r.results ?? [];
 }
 
+// ─── Newcomers (fatboy-build only): newest arrivals by their on-chain
+// created_at. NOT selectRecentProviders (that is a rowid proxy). ───
+
+export async function selectNewestProviders(db: D1Database): Promise<RawRow[]> {
+	const r = await db
+		.prepare(
+			"SELECT address, endpoint, stake, created_at FROM providers WHERE created_at > 0 ORDER BY created_at DESC LIMIT 5",
+		)
+		.all();
+	return r.results ?? [];
+}
+
+export async function selectNewestModels(db: D1Database): Promise<RawRow[]> {
+	const r = await db
+		.prepare(
+			"SELECT model_id, name, created_at FROM models WHERE name IS NOT NULL AND name != '' AND created_at > 0 ORDER BY created_at DESC LIMIT 5",
+		)
+		.all();
+	return r.results ?? [];
+}
+
+export async function selectNewestSubnets(db: D1Database): Promise<RawRow[]> {
+	const r = await db
+		.prepare(
+			"SELECT subnet_id, name, metadata_name, total_deposited, staker_count, created_at FROM builder_subnets WHERE created_at > 0 ORDER BY created_at DESC LIMIT 5",
+		)
+		.all();
+	return r.results ?? [];
+}
+
 /** Top consumer wallets by total sessions. */
 export async function selectTopWalletStats(db: D1Database): Promise<RawRow[]> {
 	const r = await db

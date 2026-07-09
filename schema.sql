@@ -80,6 +80,7 @@ CREATE INDEX idx_builder_stakes_subnet ON builder_stakes(subnet_id);
 CREATE INDEX idx_builder_events_subnet ON builder_events(subnet_id);
 CREATE INDEX idx_builder_events_block ON builder_events(block_number DESC);
 CREATE INDEX idx_builder_events_type ON builder_events(event_type);
+CREATE INDEX idx_builder_events_wallet ON builder_events(wallet);
 CREATE INDEX idx_sessions_provider ON sessions(provider);
 CREATE INDEX idx_sessions_model_id ON sessions(model_id);
 CREATE INDEX idx_sessions_bid_id ON sessions(bid_id);

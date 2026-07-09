@@ -78,6 +78,40 @@ export function selectSubnetById(
 		.first();
 }
 
+/** Latest deposit BLOCK per staker of one subnet. Base blocks are a fixed 2s,
+ * so the block number is a clock: deposit time derives from it exactly
+ * (now - (head - block) * 2), unlike builder_stakes.last_deposit_at which is
+ * stamped at event-PROCESSING time and drifts badly for backfilled history.
+ * This is the one honest basis for the withdraw-unlock countdown. */
+export async function selectLatestDepositBlocksBySubnet(
+	db: D1Database,
+	subnetId: string,
+): Promise<{ wallet: string; blk: number }[]> {
+	const r = await db
+		.prepare(
+			`SELECT wallet, MAX(block_number) as blk FROM builder_events
+       WHERE subnet_id = ? AND event_type = 'deposit' GROUP BY wallet`,
+		)
+		.bind(subnetId)
+		.all<{ wallet: string; blk: number }>();
+	return r.results ?? [];
+}
+
+/** Latest deposit BLOCK per subnet for one wallet (same clock as above). */
+export async function selectLatestDepositBlocksByWallet(
+	db: D1Database,
+	wallet: string,
+): Promise<{ subnet_id: string; blk: number }[]> {
+	const r = await db
+		.prepare(
+			`SELECT subnet_id, MAX(block_number) as blk FROM builder_events
+       WHERE wallet = ? AND event_type = 'deposit' GROUP BY subnet_id`,
+		)
+		.bind(wallet)
+		.all<{ subnet_id: string; blk: number }>();
+	return r.results ?? [];
+}
+
 /** Top stakers of one subnet by deposited amount. */
 export async function selectTopSubnetStakers(
 	db: D1Database,

@@ -26,6 +26,9 @@ import {
 	selectGasLifecycleStats,
 	selectLatestEconomics,
 	selectModelDemand,
+	selectNewestModels,
+	selectNewestProviders,
+	selectNewestSubnets,
 	selectProviderLeaderboardAllTime,
 	selectProviderLeaderboardSince,
 	selectRecentProviders,
@@ -83,6 +86,9 @@ export async function buildFatboy(env: Env): Promise<Record<string, unknown>> {
 		activeByProvider,
 		activeByBid,
 		modelDemandRows,
+		newProviders,
+		newModels,
+		newSubnets,
 	] = await Promise.all([
 		getSyncState(env),
 		getSyncStateTokenPrices(env.DB),
@@ -113,6 +119,10 @@ export async function buildFatboy(env: Env): Promise<Record<string, unknown>> {
 		selectActiveSessionsByBid(env.DB),
 		// Model demand: aggregate sessions by model across all providers
 		selectModelDemand(env.DB, nowTs - 86400, nowTs - 604800),
+		// Newcomers: newest arrivals by on-chain created_at (tiny tables)
+		selectNewestProviders(env.DB),
+		selectNewestModels(env.DB),
+		selectNewestSubnets(env.DB),
 	]);
 
 	// Parse cached values
@@ -209,6 +219,7 @@ export async function buildFatboy(env: Env): Promise<Record<string, unknown>> {
 			wallets: { allTime: walLbAll, weekly: walLbWeek },
 		},
 		consumers: { wallets: walletRows, sessions: sessionRows },
+		newcomers: { providers: newProviders, models: newModels, subnets: newSubnets },
 		models,
 		modelDemand: modelDemandRows.map((m: Record<string, unknown>) => ({
 			modelId: m.model_id,
