@@ -194,9 +194,16 @@ export function upsertModelStmt(
 	tags: string,
 	updatedAt: number,
 ): D1PreparedStatement {
+	// ON CONFLICT (not INSERT OR REPLACE): REPLACE deleted the whole row and
+	// re-inserted WITHOUT created_at, so every sync refresh wiped every
+	// model's first-seen stamp back to NULL (the newcomers panel read empty
+	// forever). New models stamp first-seen at insert; refreshes preserve it.
 	return db
 		.prepare(
-			`INSERT OR REPLACE INTO models (model_id, name, tags, updated_at) VALUES (?, ?, ?, ?)`,
+			`INSERT INTO models (model_id, name, tags, updated_at, created_at)
+       VALUES (?, ?, ?, ?, unixepoch())
+       ON CONFLICT(model_id) DO UPDATE SET
+         name = excluded.name, tags = excluded.tags, updated_at = excluded.updated_at`,
 		)
 		.bind(modelId, name, tags, updatedAt);
 }
