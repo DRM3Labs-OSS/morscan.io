@@ -158,13 +158,19 @@
     .stat-bar-label { color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; font-size: 0.65rem; }
     .stat-bar-value { font-weight: 600; color: var(--text-primary); font-variant-numeric: tabular-nums; font-size: 0.75rem; }
     .stat-bar-value.green { color: var(--green); text-shadow: 0 0 10px rgba(34,197,94,0.3); }
-    /* Contract banner + sync bar - shared across all planes */
-    .contract-banner { display: flex; align-items: center; gap: 0.75rem; padding: 0.6rem 1rem; background: var(--bg-secondary); border: 1px solid var(--border); margin-bottom: 0; font-size: 0.7rem; flex-wrap: wrap; }
+    /* Contract strip - ONE compact row shared across all planes: contract
+       identity + Read/Write left, block + live badge + chain note right.
+       (Was two stacked banners + a decorative always-full progress bar.) */
+    .contract-banner { display: flex; align-items: center; gap: 0.5rem 0.75rem; padding: 0.5rem 1rem; background: var(--bg-secondary); border: 1px solid var(--border); margin-bottom: 0; font-size: 0.7rem; flex-wrap: wrap; }
     .contract-banner a { color: var(--cyan); }
-    .contract-links { margin-left: auto; display: flex; gap: 0.5rem; }
+    .cb-label { font-size: 0.6rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.08em; }
+    .cb-main { display: inline-flex; align-items: baseline; flex-wrap: wrap; gap: 0.1rem 0.55rem; min-width: 0; }
+    .cb-sync { margin-left: auto; display: inline-flex; align-items: center; gap: 0.6rem; }
+    .cb-sync .sync-note { width: auto; border-top: none; margin-top: 0; padding-top: 0; text-align: left; display: inline-flex; align-items: center; gap: 0.35rem; }
+    .contract-links { display: flex; gap: 0.5rem; }
     .contract-links a { color: var(--text-muted); border: 1px solid var(--border); padding: 0.2rem 0.4rem; font-size: 0.65rem; text-decoration: none; }
     .contract-links a:hover { border-color: var(--green); color: var(--text-primary); }
-    .sync-bar { display: flex; align-items: center; gap: 0.75rem; background: var(--bg-secondary); border: 1px solid var(--border); padding: 0.6rem 1rem; margin-bottom: 1.5rem; font-size: 0.7rem; flex-wrap: wrap; }
+    .sync-bar { display: flex; align-items: center; gap: 0.5rem 0.75rem; background: var(--bg-secondary); border: 1px solid var(--border); padding: 0.5rem 1rem; margin-bottom: 1.5rem; font-size: 0.7rem; flex-wrap: wrap; }
     .sync-label { font-size: 0.65rem; color: var(--text-muted); text-transform: uppercase; }
     .sync-val { font-weight: 600; font-variant-numeric: tabular-nums; }
     .sync-badge { font-size: 0.65rem; font-weight: 600; padding: 0.2rem 0.4rem; background: var(--green-dim); color: var(--green); margin-left: auto; display: inline-flex; align-items: center; gap: 0.35rem; }
@@ -195,6 +201,8 @@
     @media (max-width: 768px) {
       .addr-full { display: none; } .addr-short { display: inline; }
       .contract-banner { flex-wrap: wrap; }
+      /* Sync cluster wraps to its own row under the contract line on phones */
+      .cb-sync { margin-left: 0; flex-wrap: wrap; }
       /* Finger-friendly tabs: nowrap scroll rows, >=40px tall tap targets */
       .plane-tabs a, header nav a { white-space: nowrap; flex: 0 0 auto; display: inline-flex; align-items: center; min-height: 40px; }
       .plane-tabs a { font-size: 0.7rem; padding: 0.4rem 0.75rem; letter-spacing: 0.04em; }

@@ -229,21 +229,22 @@ function renderContract(c: ContractInfo): string {
 	const basescanUrl = `https://basescan.org/${c.basescanPath || "address"}/${c.address}`;
 	const shortAddr = `${c.address.slice(0, 6)}...${c.address.slice(-4)}`;
 	const upgradeLine = c.upgradeStatus
-		? `<div id="diamond-upgrade-status" style="font-size:0.65rem;margin-top:2px;">${c.upgradeStatus}</div>`
+		? `<div id="diamond-upgrade-status" style="font-size:0.62rem;flex-basis:100%;">${c.upgradeStatus}</div>`
 		: "";
-	return `<div class="contract-banner">
-      <span>${esc(c.icon)}</span>
-      <span><span style="font-size:0.65rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.1em;">${esc(c.label)}</span><br><a id="contract-link" href="${esc(basescanUrl)}" target="_blank" rel="noopener"><span class="addr-full" id="contract-addr-full">${esc(c.address)}</span><span class="addr-short" id="contract-addr-short">${esc(shortAddr)}</span></a>${upgradeLine}</span>
+	// ONE compact strip: contract identity + Read/Write left, block + live
+	// badge + chain note right. The old layout stacked two full banners (plus
+	// a decorative progress bar that only ever read full) and cost ~3x the
+	// height for the same information. Keeps the same element ids the shared
+	// layout script updates (#sync-chain, #sync-badge, #contract-*), and the
+	// same .sync-bar class the sync-status card line appends into.
+	return `<div class="contract-banner sync-bar">
+      <span aria-hidden="true">${esc(c.icon)}</span>
+      <span class="cb-main"><span class="cb-label">${esc(c.label)}</span><a id="contract-link" href="${esc(basescanUrl)}" target="_blank" rel="noopener"><span class="addr-full" id="contract-addr-full">${esc(c.address)}</span><span class="addr-short" id="contract-addr-short">${esc(shortAddr)}</span></a>${upgradeLine}</span>
       <div class="contract-links">
         <a id="contract-read" href="${esc(basescanUrl)}#readContract" target="_blank">Read</a>
         <a id="contract-write" href="${esc(basescanUrl)}#writeContract" target="_blank">Write</a>
       </div>
-    </div>
-    <div class="sync-bar">
-      <div><span class="sync-label">Block</span><br><span class="sync-val" id="sync-chain">-</span></div>
-      <div style="flex:1;height:4px;background:var(--bg-card);"><div id="sync-fill" style="height:100%;background:var(--green);width:100%;transition:width 0.3s;"></div></div>
-      <div class="sync-badge" id="sync-badge">-</div>
-      <div class="sync-note">${BASE_ICON_SVG} Base L2 &middot; ~2s block time</div>
+      <span class="cb-sync"><span class="sync-label">Block</span><span class="sync-val" id="sync-chain">-</span><span class="sync-badge" id="sync-badge">-</span><span class="sync-note">${BASE_ICON_SVG} Base L2 &middot; ~2s blocks</span></span>
     </div>`;
 }
 
