@@ -221,6 +221,44 @@ export async function getBidStatsByModel(
 	return r.results ?? [];
 }
 
+/** Per-model market tape row: cheapest active ask now + cheapest ask as of a
+ * past cutoff (both from on-chain bid lifecycle timestamps), provider count.
+ * Feeds the scrolling header ticker; models with the deepest supply first. */
+export interface TickerModelRow {
+	model_id: string;
+	name: string | null;
+	min_price: number | null;
+	min_price_then: number | null;
+	provider_count: number;
+	bid_count: number;
+}
+
+export async function getTickerModels(
+	db: D1Database,
+	cutoffUnixSec: number,
+	limit = 24,
+): Promise<TickerModelRow[]> {
+	const r = await db
+		.prepare(`
+      SELECT b.model_id, m.name,
+             MIN(CAST(b.price_per_second AS REAL)) as min_price,
+             COUNT(DISTINCT b.provider) as provider_count,
+             COUNT(*) as bid_count,
+             (SELECT MIN(CAST(p.price_per_second AS REAL)) FROM bids p
+                WHERE p.model_id = b.model_id AND p.created_at <= ?1
+                  AND (p.deleted_at = 0 OR p.deleted_at IS NULL OR p.deleted_at > ?1)
+             ) as min_price_then
+      FROM bids b LEFT JOIN models m ON m.model_id = b.model_id
+      WHERE (b.deleted_at = 0 OR b.deleted_at IS NULL) AND b.model_id != ''
+      GROUP BY b.model_id, m.name
+      ORDER BY provider_count DESC, bid_count DESC, min_price ASC
+      LIMIT ?2
+    `)
+		.bind(cutoffUnixSec, limit)
+		.all<TickerModelRow>();
+	return r.results ?? [];
+}
+
 /** Active/retracted bid counts per provider. */
 export async function countBidsByProvider(
 	db: D1Database,

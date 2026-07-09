@@ -34,12 +34,28 @@ import {
 import { handleOgCard, handleFavicon } from "../handlers/og-image";
 import { AGENT_LINK_HEADER } from "../handlers/agent-ready";
 import { wantsMarkdown, handleMarkdownPage } from "../handlers/markdown-pages";
+import { TICKER_SLOT, marketTickerHtml } from "../ui/ticker";
 import swJs from "../ui/vendor/sw.txt";
+
+/** Fill the layout's market-tape slot on pages that carry it. One place, so
+ * every unified-header page gets the ticker and the tape rides the same page
+ * cache (one D1 aggregate per cache miss). Pages without the slot (landing,
+ * standalone side pages) pass through untouched. */
+async function withMarketTicker(env: Env, fresh: Response): Promise<Response> {
+	const ct = fresh.headers.get("Content-Type") || "";
+	if (!ct.includes("text/html")) return fresh;
+	const html = await fresh.text();
+	const filled = html.includes(TICKER_SLOT)
+		? html.replace(TICKER_SLOT, await marketTickerHtml(env))
+		: html;
+	return new Response(filled, { status: fresh.status, headers: fresh.headers });
+}
 
 /** Cache SSR pages at the Worker level (CF Cache API). */
 async function cachedPage(
 	url: URL,
 	ctx: ExecutionContext,
+	env: Env,
 	handler: () => Promise<Response>,
 	ttl = 30,
 ): Promise<Response> {
@@ -47,7 +63,7 @@ async function cachedPage(
 	const cache = caches.default;
 	const cached = await cache.match(cacheKey);
 	if (cached) return cached;
-	const fresh = await handler();
+	const fresh = await withMarketTicker(env, await handler());
 	// Edge + browser cache for `ttl`s. s-maxage drives Cloudflare's edge cache
 	// (CF-Cache-Status: HIT on repeat hits within the window); max-age matches it
 	// so a client also holds the page briefly. Time-sensitive live data still
@@ -90,7 +106,7 @@ export async function handleUiRoutes(
 	// Open access: the read-only explorer UI is public. Per-IP rate limits and
 	// the cache layers protect the backend; /login remains for the API console.
 	if (path === "/" || path === "/ui") {
-		return await cachedPage(url, ctx, async () => handleLandingPage(env));
+		return await cachedPage(url, ctx, env, async () => handleLandingPage(env));
 	}
 
 	// ── Canonical URL scheme: /<parent>/<subtab> mirrors the tab language. ──
@@ -125,45 +141,45 @@ export async function handleUiRoutes(
 	if (path === "/builder/calc") return redirect301("/builder/calculator");
 
 	if (path === "/analytics/overview") {
-		return await cachedPage(url, ctx, () => handleAnalyticsTabPage(env));
+		return await cachedPage(url, ctx, env, () => handleAnalyticsTabPage(env));
 	}
 	// Provider detail - must be before the compute subtab routes
 	if (path.match(/^\/compute\/providers\/0x[0-9a-fA-F]{40}$/)) {
 		const address = path.split("/").pop() || "";
-		return await cachedPage(url, ctx, () => handleProviderDetailPage(env, address));
+		return await cachedPage(url, ctx, env, () => handleProviderDetailPage(env, address));
 	}
 	// Wallet detail
 	if (path.match(/^\/compute\/consumers\/wallet\/0x[0-9a-fA-F]{40}$/)) {
 		const address = path.split("/").pop() || "";
-		return await cachedPage(url, ctx, () => handleWalletDetailPage(env, address));
+		return await cachedPage(url, ctx, env, () => handleWalletDetailPage(env, address));
 	}
 	// About page - public, standalone, no auth, no shell header.
 	if (path === "/about") {
-		return await cachedPage(url, ctx, async () => handleAboutPage());
+		return await cachedPage(url, ctx, env, async () => handleAboutPage());
 	}
 	// Verify page - public, standalone: the human-facing in-browser receipt check.
 	if (path === "/verify") {
-		return await cachedPage(url, ctx, async () => handleVerifyPage());
+		return await cachedPage(url, ctx, env, async () => handleVerifyPage());
 	}
 	// Legal pages - public, standalone.
 	if (path === "/terms") {
-		return await cachedPage(url, ctx, async () => handleTermsPage());
+		return await cachedPage(url, ctx, env, async () => handleTermsPage());
 	}
 	if (path === "/privacy") {
-		return await cachedPage(url, ctx, async () => handlePrivacyPage());
+		return await cachedPage(url, ctx, env, async () => handlePrivacyPage());
 	}
 	// Contribute page - public, standalone, open-source invitation.
 	if (path === "/contribute") {
-		return await cachedPage(url, ctx, async () => handleContributePage());
+		return await cachedPage(url, ctx, env, async () => handleContributePage());
 	}
 	// Stake-for-capacity page - public, standalone.
 	if (path === "/stake") {
-		return await cachedPage(url, ctx, async () => handleStakePage(env));
+		return await cachedPage(url, ctx, env, async () => handleStakePage(env));
 	}
 	// API playground - standalone page (not part of SPA)
 	// /api/docs serves same page, client-side switches to OpenAPI docs tab
 	if (path === "/api/playground" || path === "/api/docs") {
-		return await cachedPage(url, ctx, () => handleApiPage(env, path));
+		return await cachedPage(url, ctx, env, () => handleApiPage(env, path));
 	}
 	// SPA - 4 tabs served by one handler (fatboy data)
 	if (
@@ -174,33 +190,33 @@ export async function handleUiRoutes(
 			"/compute/sessions",
 		].includes(path)
 	) {
-		return await cachedPage(url, ctx, () => handleAppPage(env, path));
+		return await cachedPage(url, ctx, env, () => handleAppPage(env, path));
 	}
 	// Pools plane UI
 	if (path === "/pools") {
-		return await cachedPage(url, ctx, () => handlePoolsPage(env));
+		return await cachedPage(url, ctx, env, () => handlePoolsPage(env));
 	}
 	// MOR Holders page
 	if (path === "/holders/all") {
-		return await cachedPage(url, ctx, () => handleHoldersPage(env));
+		return await cachedPage(url, ctx, env, () => handleHoldersPage(env));
 	}
 	// Dust wallets page
 	if (path === "/holders/dust") {
-		return await cachedPage(url, ctx, () => handleHoldersPage(env, "dust"));
+		return await cachedPage(url, ctx, env, () => handleHoldersPage(env, "dust"));
 	}
 	// Builder plane UI
 	if (path === "/builder/subnets") {
-		return await cachedPage(url, ctx, () => handleBuilderPage(env));
+		return await cachedPage(url, ctx, env, () => handleBuilderPage(env));
 	}
 	if (path === "/builder/calculator") {
-		return await cachedPage(url, ctx, () => handleBuilderCalcPage(env));
+		return await cachedPage(url, ctx, env, () => handleBuilderCalcPage(env));
 	}
 	if (path === "/builder/api") {
-		return await cachedPage(url, ctx, () => handleBuilderApiPage(env));
+		return await cachedPage(url, ctx, env, () => handleBuilderApiPage(env));
 	}
 	if (path.match(/^\/builder\/subnet\/0x[0-9a-fA-F]{64}$/)) {
 		const subnetId = path.split("/").pop() || "";
-		return await cachedPage(url, ctx, () => handleBuilderSubnetPage(env, subnetId));
+		return await cachedPage(url, ctx, env, () => handleBuilderSubnetPage(env, subnetId));
 	}
 	if (path === "/og-image.png" || path === "/og-image.svg") {
 		return handleOgImage();
