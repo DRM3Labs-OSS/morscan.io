@@ -26,6 +26,13 @@ import type { Env } from "../types";
 import { getNetworkMetrics } from "../utils/metrics";
 import { getSyncStateTokenPrices } from "../db/explorer-market";
 import { countDiscoveredHolders } from "../db/explorer-core";
+import {
+	assembleChartPoints,
+	chartWindowDays,
+	CHART_WINDOWS,
+	DEFAULT_CHART_WINDOW_DAYS,
+	type ChartPoint,
+} from "./price";
 import resvgWasm from "../vendor/og/resvg.wasm";
 import monoRegular from "../vendor/og/mono-regular.ttf";
 import monoBold from "../vendor/og/mono-bold.ttf";
@@ -35,6 +42,7 @@ import { MORSCAN_ICON_SVG } from "./ui/assets";
 const BG = "#0c0a09";
 const GREEN = "#22c55e";
 const CYAN = "#22d3ee";
+const RED = "#ef4444";
 const INK = "#fafaf9";
 const MUTE = "#a8a29e";
 const FAINT = "#78716c";
@@ -97,6 +105,11 @@ const CARDS: Record<string, CardDef> = {
 		subtitle: "Live intelligence for the Morpheus AI network",
 		stats: ["providers", "sessions", "price"],
 	},
+	price: {
+		title: ["MOR Price"],
+		subtitle: "Live MOR price on Morpheus, Base",
+		stats: ["price", "providers", "staked"],
+	},
 	compute: {
 		title: ["Providers, Sessions", "and Models"],
 		subtitle: "The compute layer of Morpheus, in real time",
@@ -141,6 +154,7 @@ const STAT_LABELS: Record<StatKey, string> = {
 // ---- Live stats ------------------------------------------------------------
 interface LiveStats {
 	price?: number;
+	change24h?: number;
 	providers?: number;
 	sessions?: number;
 	activeSessions?: number;
@@ -165,8 +179,10 @@ async function gatherStats(env: Env): Promise<LiveStats> {
 	}
 	if (priceRow?.value) {
 		try {
-			const usd = JSON.parse(priceRow.value)?.mor?.usd;
+			const mor = JSON.parse(priceRow.value)?.mor;
+			const usd = mor?.usd;
 			if (typeof usd === "number" && usd > 0) out.price = usd;
+			if (typeof mor?.change24h === "number") out.change24h = mor.change24h;
 		} catch {
 			// ignore malformed price cache
 		}
@@ -310,6 +326,168 @@ function buildCardSvg(slug: string, stats: LiveStats): string {
 </svg>`;
 }
 
+// ---- Price-graph hero card -------------------------------------------------
+// The analytics / price slugs render the PRICE GRAPH itself as the hero: a
+// smooth MOR/USD line with a gradient area fill drawn from the same D1
+// price_history series the widget uses, the current price and 24h change called
+// out big, and the timeframe labelled. A share of the price is the chart.
+const CHART_SLUGS = new Set(["analytics", "price"]);
+
+// Keep the emitted SVG small: sample the series down to at most `max` evenly
+// spaced points, always keeping the first and last so the window edges are true.
+function downsample(pts: ChartPoint[], max: number): ChartPoint[] {
+	if (pts.length <= max) return pts;
+	const out: ChartPoint[] = [];
+	const step = (pts.length - 1) / (max - 1);
+	for (let i = 0; i < max; i++) out.push(pts[Math.round(i * step)]);
+	out[out.length - 1] = pts[pts.length - 1];
+	return out;
+}
+
+// Catmull-Rom -> cubic Bezier: a smooth line through every point (no overshoot
+// tuning needed at this density). Returns an SVG path "d" starting with M.
+function smoothPath(p: { x: number; y: number }[]): string {
+	if (p.length < 2) return "";
+	let d = `M ${p[0].x.toFixed(1)} ${p[0].y.toFixed(1)}`;
+	for (let i = 0; i < p.length - 1; i++) {
+		const p0 = p[i - 1] || p[i];
+		const p1 = p[i];
+		const p2 = p[i + 1];
+		const p3 = p[i + 2] || p2;
+		const c1x = p1.x + (p2.x - p0.x) / 6;
+		const c1y = p1.y + (p2.y - p0.y) / 6;
+		const c2x = p2.x - (p3.x - p1.x) / 6;
+		const c2y = p2.y - (p3.y - p1.y) / 6;
+		d += ` C ${c1x.toFixed(1)} ${c1y.toFixed(1)}, ${c2x.toFixed(1)} ${c2y.toFixed(1)}, ${p2.x.toFixed(1)} ${p2.y.toFixed(1)}`;
+	}
+	return d;
+}
+
+function usd(n: number): string {
+	return `$${n.toFixed(2)}`;
+}
+
+function buildChartCardSvg(
+	stats: LiveStats,
+	series: ChartPoint[],
+	windowLabel: string,
+): string {
+	const pts = downsample(series, 160);
+	const vals = pts.map((p) => p.v);
+	const min = Math.min(...vals);
+	const max = Math.max(...vals);
+	const range = max - min || Math.max(max * 0.01, 0.0001);
+
+	// Chart plot rect (area fills to its bottom; the line is inset top/bottom).
+	const cx = 90;
+	const cy = 328;
+	const cw = 1020;
+	const ch = 226;
+	const padTop = 22;
+	const padBot = 12;
+	const plotTop = cy + padTop;
+	const plotH = ch - padTop - padBot;
+	const bottom = cy + ch;
+
+	const xy = pts.map((p, i) => ({
+		x: cx + (pts.length === 1 ? 0 : (i / (pts.length - 1)) * cw),
+		y: plotTop + plotH - ((p.v - min) / range) * plotH,
+	}));
+	const line = smoothPath(xy);
+	const first = xy[0];
+	const last = xy[xy.length - 1];
+	const area = `${line} L ${last.x.toFixed(1)} ${bottom.toFixed(1)} L ${first.x.toFixed(1)} ${bottom.toFixed(1)} Z`;
+
+	// Gridlines (dashed, faint) at quarters of the plot band.
+	const grid = [0.25, 0.5, 0.75]
+		.map((f) => {
+			const gy = (plotTop + plotH * f).toFixed(1);
+			return `<line x1="${cx}" y1="${gy}" x2="${cx + cw}" y2="${gy}" stroke="#2a2725" stroke-width="1" stroke-dasharray="3,6"/>`;
+		})
+		.join("");
+
+	// Current price (hero) + 24h change badge.
+	const priceStr = stats.price === undefined ? "MOR / USD" : usd(stats.price);
+	const priceSize = 82;
+	const priceW = priceStr.length * priceSize * MONO_ADVANCE;
+	const priceBaseline = 292;
+
+	const chg = stats.change24h;
+	const up = (chg ?? 0) >= 0;
+	const chgColor = chg === undefined ? MUTE : up ? GREEN : RED;
+	let changeSvg = "";
+	if (chg !== undefined) {
+		const bx = 90 + priceW + 36;
+		const triTop = priceBaseline - 30;
+		const tri = up
+			? `${bx},${triTop + 18} ${bx + 20},${triTop + 18} ${bx + 10},${triTop}`
+			: `${bx},${triTop} ${bx + 20},${triTop} ${bx + 10},${triTop + 18}`;
+		const chgStr = `${up ? "+" : ""}${chg.toFixed(2)}% 24h`;
+		changeSvg = `
+    <polygon points="${tri}" fill="${chgColor}"/>
+    <text x="${bx + 32}" y="${priceBaseline - 6}" font-family="IBM Plex Mono" font-size="38" font-weight="700" fill="${chgColor}">${esc(chgStr)}</text>`;
+	}
+
+	// Timeframe pill (top-right), e.g. "90D".
+	const pillLabel = windowLabel.toUpperCase();
+	const pillW = Math.ceil(pillLabel.length * 22 * MONO_ADVANCE + 44);
+	const pillX = 1110 - pillW;
+	const pillSvg = `
+    <rect x="${pillX}" y="150" width="${pillW}" height="46" rx="23" fill="#151312" stroke="#2a2725" stroke-width="1.5"/>
+    <circle cx="${pillX + 22}" cy="173" r="5" fill="${GREEN}"/>
+    <text x="${pillX + 36}" y="181" font-family="IBM Plex Mono" font-size="22" font-weight="700" letter-spacing="2" fill="${MUTE}">${esc(pillLabel)}</text>`;
+
+	return `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <defs>
+    <radialGradient id="glowA" cx="82%" cy="6%" r="62%">
+      <stop offset="0" stop-color="${GREEN}" stop-opacity="0.18"/>
+      <stop offset="0.6" stop-color="${GREEN}" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="glowB" cx="4%" cy="104%" r="55%">
+      <stop offset="0" stop-color="${CYAN}" stop-opacity="0.10"/>
+      <stop offset="0.6" stop-color="${CYAN}" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="wings" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#eafbe7"/>
+      <stop offset="0.4" stop-color="#57b45c"/>
+      <stop offset="0.55" stop-color="#2f8f3f"/>
+      <stop offset="0.75" stop-color="#4aa551"/>
+      <stop offset="1" stop-color="#d8f2d2"/>
+    </linearGradient>
+    <linearGradient id="chartLine" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="${CYAN}"/>
+      <stop offset="1" stop-color="${GREEN}"/>
+    </linearGradient>
+    <linearGradient id="chartArea" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="${GREEN}" stop-opacity="0.34"/>
+      <stop offset="1" stop-color="${GREEN}" stop-opacity="0.02"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="630" fill="${BG}"/>
+  <rect width="1200" height="630" fill="url(#glowA)"/>
+  <rect width="1200" height="630" fill="url(#glowB)"/>
+  <rect x="0" y="0" width="1200" height="6" fill="${GREEN}"/>
+  <rect x="0" y="624" width="1200" height="6" fill="${GREEN}" opacity="0.65"/>
+  <g transform="translate(90 62) scale(1.45)">
+    <path d="${WINGS_PATH}" fill="url(#wings)"/>
+  </g>
+  <text x="238" y="107" font-family="IBM Plex Mono" font-size="30" font-weight="700" letter-spacing="10" fill="${WORDMARK}">MorScan</text>
+  ${pillSvg}
+  <text x="90" y="230" font-family="IBM Plex Mono" font-size="44" font-weight="700" fill="${INK}">MOR Price</text>
+  <text x="90" y="${priceBaseline}" font-family="IBM Plex Mono" font-size="${priceSize}" font-weight="700" fill="${CYAN}">${esc(priceStr)}</text>
+  ${changeSvg}
+  ${grid}
+  <path d="${area}" fill="url(#chartArea)"/>
+  <path d="${line}" fill="none" stroke="url(#chartLine)" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="${last.x.toFixed(1)}" cy="${last.y.toFixed(1)}" r="9" fill="${GREEN}" opacity="0.25"/>
+  <circle cx="${last.x.toFixed(1)}" cy="${last.y.toFixed(1)}" r="5" fill="${GREEN}"/>
+  <text x="${cx + 4}" y="${(plotTop + 4).toFixed(1)}" font-family="IBM Plex Mono" font-size="20" font-weight="400" fill="${FAINT}">${esc(usd(max))}</text>
+  <text x="${cx + 4}" y="${(bottom - 6).toFixed(1)}" font-family="IBM Plex Mono" font-size="20" font-weight="400" fill="${FAINT}">${esc(usd(min))}</text>
+  <text x="90" y="600" font-family="IBM Plex Mono" font-size="25" font-weight="400" letter-spacing="1" fill="${FAINT}">MOR / USD on Base</text>
+  <text x="1110" y="600" text-anchor="end" font-family="IBM Plex Mono" font-size="25" font-weight="700" letter-spacing="1" fill="${GREEN}">morscan.io</text>
+</svg>`;
+}
+
 // ---- Rasterization ---------------------------------------------------------
 let wasmReady: Promise<void> | null = null;
 function ensureWasm(): Promise<void> {
@@ -342,6 +520,10 @@ function renderPng(svg: string): Uint8Array {
 // ---- Public entry ----------------------------------------------------------
 const CACHE_VERSION = "v2";
 const OG_TTL_SECONDS = 3600;
+// The price-graph card shows "now": keep it fresh with a modest 10-minute cache
+// so a shared graph stays current, while still rasterizing at most once per
+// window per colo (per timeframe).
+const CHART_OG_TTL_SECONDS = 600;
 
 /**
  * Render (or serve from cache) the branded OG card for a slug.
@@ -354,11 +536,26 @@ export async function handleOgCard(
 	ctx: ExecutionContext,
 ): Promise<Response> {
 	const normalized = slug.toLowerCase();
+	const isChart = CHART_SLUGS.has(normalized);
+	const ttl = isChart ? CHART_OG_TTL_SECONDS : OG_TTL_SECONDS;
+
+	// Timeframe (chart cards only): validate against the widget's own window keys
+	// and fall back to the default (90d) when absent or invalid. The key folds
+	// into the cache id so a share of a specific view caches independently.
+	let windowDays = DEFAULT_CHART_WINDOW_DAYS;
+	let tfSuffix = "";
+	if (isChart) {
+		const tfParam = (url.searchParams.get("tf") || "").toLowerCase();
+		const valid = CHART_WINDOWS.some((w) => w.key === tfParam);
+		windowDays = chartWindowDays(valid ? tfParam : undefined);
+		tfSuffix = `:tf-${valid ? tfParam : "def"}`;
+	}
 
 	// Cache key folds in a coarse time bucket so live stats refresh once per TTL
 	// window even behind an immutable Cache-Control on the client.
-	const bucket = Math.floor(Date.now() / (OG_TTL_SECONDS * 1000));
-	const idSuffix = normalized === "subnet" ? `:${url.searchParams.get("id") || "x"}` : "";
+	const bucket = Math.floor(Date.now() / (ttl * 1000));
+	const idSuffix =
+		normalized === "subnet" ? `:${url.searchParams.get("id") || "x"}` : tfSuffix;
 	const cacheUrl = new URL(
 		`https://morscan-og.internal/${CACHE_VERSION}/${normalized}${idSuffix}/${bucket}`,
 	);
@@ -374,14 +571,33 @@ export async function handleOgCard(
 
 	await ensureWasm();
 	const stats = await gatherStats(env);
-	const svg = buildCardSvg(normalized, stats);
+
+	// Price-graph hero for the analytics / price slugs. Read the cached D1 series
+	// (never a live CoinGecko fetch here); if it has too few points to draw, fall
+	// back to the standard stat-chip card so the preview still renders.
+	let svg: string;
+	if (isChart) {
+		const { prices } = await assembleChartPoints(env, windowDays, false).catch(() => ({
+			prices: [] as ChartPoint[],
+		}));
+		if (prices.length >= 2) {
+			const label =
+				CHART_WINDOWS.find((w) => w.days === windowDays)?.label ??
+				`${windowDays}d`;
+			svg = buildChartCardSvg(stats, prices, label);
+		} else {
+			svg = buildCardSvg(normalized, stats);
+		}
+	} else {
+		svg = buildCardSvg(normalized, stats);
+	}
 	const png = renderPng(svg);
 	// Copy into a standalone ArrayBuffer so the body is a clean, cacheable blob.
 	const body = png.slice();
 
 	const headers = {
 		"Content-Type": "image/png",
-		"Cache-Control": `public, max-age=${OG_TTL_SECONDS}, s-maxage=${OG_TTL_SECONDS}, immutable`,
+		"Cache-Control": `public, max-age=${ttl}, s-maxage=${ttl}, immutable`,
 		"X-Cache": "MISS",
 	};
 	ctx.waitUntil(cache.put(cacheReq, new Response(body, { status: 200, headers })));
@@ -443,4 +659,4 @@ export async function handleFavicon(
 }
 
 // Exported for offline/visual tests.
-export { buildCardSvg, CARDS };
+export { buildCardSvg, buildChartCardSvg, CARDS };

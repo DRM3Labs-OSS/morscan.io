@@ -355,7 +355,7 @@ export function chartWindowDays(key: string | null | undefined): number {
 	return w ? w.days : DEFAULT_CHART_WINDOW_DAYS;
 }
 
-interface ChartPoint {
+export interface ChartPoint {
 	t: number;
 	v: number;
 }
@@ -371,8 +371,11 @@ async function ownChartPoints(env: Env, windowSec: number): Promise<ChartPoint[]
 	}
 }
 
-/** Read the cached CoinGecko 90-day baseline (mor_price_chart), refreshing it if stale. */
-async function coingeckoBaseline(env: Env): Promise<ChartPoint[]> {
+/** Read the cached CoinGecko 90-day baseline (mor_price_chart), refreshing it if
+ * stale. When allowFetch is false (the OG-card path), never make a live
+ * CoinGecko call: serve whatever baseline is cached in D1 so rasterization stays
+ * fast and never stalls on an external request. */
+async function coingeckoBaseline(env: Env, allowFetch = true): Promise<ChartPoint[]> {
 	let cached: { prices: ChartPoint[]; fetchedAt: number } | null = null;
 	try {
 		const row = await getSyncStatePriceChart(env.DB);
@@ -380,6 +383,7 @@ async function coingeckoBaseline(env: Env): Promise<ChartPoint[]> {
 	} catch {}
 	const age = Math.floor(Date.now() / 1000) - (cached?.fetchedAt || 0);
 	if (cached && age < CHART_CACHE_TTL) return cached.prices || [];
+	if (!allowFetch) return cached?.prices || [];
 
 	try {
 		const resp = await fetch(CHART_URL, {
@@ -410,9 +414,10 @@ async function coingeckoBaseline(env: Env): Promise<ChartPoint[]> {
  * our earliest point. Once our own points reach back to the window start it is
  * fully self-owned (no CoinGecko dependency). Shared by the JSON + SVG chart
  * endpoints and every timeframe pill. */
-async function assembleChartPoints(
+export async function assembleChartPoints(
 	env: Env,
 	windowDays: number = DEFAULT_CHART_WINDOW_DAYS,
+	allowFetch = true,
 ): Promise<{ prices: ChartPoint[]; source: string }> {
 	const windowMs = windowDays * DAY_MS;
 	const windowStartMs = Date.now() - windowMs;
@@ -427,7 +432,7 @@ async function assembleChartPoints(
 
 	// Transition / short history: CoinGecko baseline for the part of the window
 	// older than our earliest owned point, then our own on-chain points forward.
-	const baseline = await coingeckoBaseline(env);
+	const baseline = await coingeckoBaseline(env, allowFetch);
 	const inWindow = baseline.filter((p) => p.t >= windowStartMs);
 	const historical = inWindow.filter((p) => p.t < earliestOwnMs);
 	const merged = [...historical, ...own];
