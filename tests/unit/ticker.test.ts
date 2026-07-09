@@ -1,135 +1,249 @@
 /**
  * Market tape tests (src/ui/ticker.ts).
  *
- * Pins the tape's honesty + loop contracts:
- *  - The 24h change comes from a real baseline; a model with no baseline
- *    renders a NEW tag, never a fabricated 0.0%.
+ * Pins the tape's contracts:
+ *  - buildTickerItems is pure: every item class renders from data, and
+ *    missing data DROPS its item instead of rendering a placeholder.
+ *  - Provider identity prefers the endpoint domain; bare IPs and empty
+ *    endpoints fall back to the short 0x address.
  *  - The track is two IDENTICAL halves (the -50% translate loops seamlessly)
  *    and the clone is aria-hidden; short tapes repeat items to fill the half.
- *  - Model names are HTML-escaped.
- *  - marketTickerHtml maps wei/sec to MOR/day and NEVER throws: a broken DB
- *    renders nothing (the layout slot simply disappears).
+ *  - Values and hrefs are HTML-escaped.
+ *  - The request path never computes: marketTickerHtml serves the KV summary
+ *    (zero D1) and a broken env renders nothing - the page always lives.
  *  - No em/en dashes anywhere in the rendered tape (hard copy law).
  */
 
 import { describe, expect, it } from "vitest";
 import type { Env } from "../../src/types";
-import { marketTickerHtml, renderTicker } from "../../src/ui/ticker";
+import {
+	buildTickerItems,
+	fmtAgo,
+	fmtMor,
+	marketTickerHtml,
+	providerDomain,
+	renderTicker,
+	type TickerData,
+	type TickerItem,
+} from "../../src/ui/ticker";
 
-const item = (over: Record<string, unknown> = {}) => ({
-	name: "Llama 3.3 70B",
-	morPerDay: 9.216,
-	changePct: 1.23,
-	providers: 4,
-	...over,
+const NOW = 1_800_000_000;
+
+const emptyData = (): TickerData => ({
+	nowSec: NOW,
+	price: null,
+	morStaked: null,
+	liveBids: null,
+	lastSession: null,
+	topProvider: null,
+	builderTvlMor: null,
+	topSubnets: [],
+	recentDeposits: [],
+	topConsumer: null,
+	newestModels: [],
 });
 
-/** Env stub whose DB answers the single ticker aggregate with fixed rows. */
-function envWithRows(rows: Record<string, unknown>[]): Env {
-	return {
-		DB: {
-			prepare: () => ({
-				bind: () => ({ all: async () => ({ results: rows }) }),
-			}),
-		},
-	} as unknown as Env;
-}
+const fullData = (): TickerData => ({
+	nowSec: NOW,
+	price: { usd: 2.1, change24h: -0.7 },
+	morStaked: 1_534_796,
+	liveBids: { bids: 34, models: 16 },
+	lastSession: { modelName: "qwen3-235b", modelId: "0xq", openedAt: NOW - 120 },
+	topProvider: {
+		address: "0xAbCd000000000000000000000000000000001234",
+		endpoint: "https://gpu.titan.io:3333",
+		sessions: 1841,
+	},
+	builderTvlMor: 2_450_000,
+	topSubnets: [
+		{ subnetId: "0xs1", name: "Mor Builders", depositedMor: 1_200_000 },
+		{ subnetId: "0xs2", name: "Venice", depositedMor: 800_000 },
+		{ subnetId: "0xs3", name: null, depositedMor: 450_000 },
+	],
+	recentDeposits: [
+		{ subnetId: "0xs2", name: "Venice", amountMor: 5000, ts: NOW - 3600 },
+	],
+	topConsumer: {
+		wallet: "0xFeed000000000000000000000000000000005678",
+		sessions: 912,
+	},
+	newestModels: [{ modelId: "0xm", name: "kimi-k2.6", createdAt: NOW - 86400 }],
+});
+
+describe("formatters", () => {
+	it("fmtMor compacts across magnitudes", () => {
+		expect(fmtMor(2_450_000)).toBe("2.45M");
+		expect(fmtMor(15_300)).toBe("15.3K");
+		expect(fmtMor(842)).toBe("842");
+		expect(fmtMor(4.0)).toBe("4.0");
+		expect(fmtMor(0.42)).toBe("0.42");
+	});
+
+	it("fmtAgo picks the readable unit", () => {
+		expect(fmtAgo(NOW, NOW - 42)).toBe("42s");
+		expect(fmtAgo(NOW, NOW - 420)).toBe("7m");
+		expect(fmtAgo(NOW, NOW - 7200)).toBe("2h");
+		expect(fmtAgo(NOW, NOW - 3 * 86400)).toBe("3d");
+	});
+
+	it("providerDomain extracts the host, falls back to short address", () => {
+		const addr = "0xAbCd000000000000000000000000000000001234";
+		expect(providerDomain("https://gpu.titan.io:3333/v1", addr)).toBe("gpu.titan.io");
+		expect(providerDomain("gpu.titan.io:3333", addr)).toBe("gpu.titan.io");
+		expect(providerDomain("http://93.184.216.34:8080", addr)).toBe("0xAbCd…1234");
+		expect(providerDomain(null, addr)).toBe("0xAbCd…1234");
+	});
+});
+
+describe("buildTickerItems", () => {
+	it("renders every item class from full data, in tape order", () => {
+		const items = buildTickerItems(fullData());
+		expect(items.map((i) => i.icon)).toEqual([
+			"🪙",
+			"📊",
+			"🔒",
+			"⚡",
+			"📡",
+			"🔨",
+			"🥇",
+			"🥈",
+			"🥉",
+			"💰",
+			"👑",
+			"✨",
+		]);
+		const by = (icon: string) => items.find((i) => i.icon === icon) as TickerItem;
+		expect(by("🪙")).toMatchObject({ value: "$2.10", deltaPct: -0.7 });
+		expect(by("📊")).toMatchObject({ value: "34 bids", sub: "16 models" });
+		expect(by("🔒")).toMatchObject({ value: "1.53M MOR", sub: "in sessions" });
+		expect(by("⚡")).toMatchObject({ value: "qwen3-235b", sub: "2m ago" });
+		expect(by("📡")).toMatchObject({
+			value: "gpu.titan.io",
+			sub: "1,841 sessions",
+			href: "/compute/providers/0xAbCd000000000000000000000000000000001234",
+		});
+		expect(by("🔨")).toMatchObject({ value: "2.45M MOR" });
+		expect(by("🥇")).toMatchObject({ value: "Mor Builders", sub: "1.20M MOR" });
+		expect(by("🥉").value).toBe("0xs3…"); // unnamed subnet -> short id
+		expect(by("💰")).toMatchObject({
+			value: "Venice",
+			sub: "+5,000 MOR · 60m ago",
+			href: "/builder/subnet/0xs2",
+		});
+		expect(by("👑")).toMatchObject({ value: "0xFeed…5678", sub: "912 sessions" });
+		expect(by("✨")).toMatchObject({ value: "kimi-k2.6", newTag: true });
+	});
+
+	it("missing data drops items instead of rendering placeholders", () => {
+		expect(buildTickerItems(emptyData())).toEqual([]);
+		const d = emptyData();
+		d.price = { usd: 2.1, change24h: 0 };
+		expect(buildTickerItems(d)).toHaveLength(1);
+	});
+
+	it("zero-value guards: no 0-bid market, no $0 price, no empty stake", () => {
+		const d = emptyData();
+		d.price = { usd: 0, change24h: 0 };
+		d.liveBids = { bids: 0, models: 0 };
+		d.morStaked = 0;
+		expect(buildTickerItems(d)).toEqual([]);
+	});
+});
 
 describe("renderTicker", () => {
-	it("renders nothing for an empty marketplace", () => {
+	const one: TickerItem = {
+		icon: "🪙",
+		label: "MOR",
+		value: "$2.10",
+		href: "/analytics/overview",
+		deltaPct: -0.7,
+	};
+
+	it("renders nothing for an empty tape", () => {
 		expect(renderTicker([])).toBe("");
 	});
 
-	it("renders price, change class, and provider count per item", () => {
-		const html = renderTicker([item()]);
-		expect(html).toContain("Llama 3.3 70B");
-		expect(html).toContain("9.22 <i>MOR/day</i>");
-		expect(html).toContain('class="mkt-chg up">+1.2%');
-		expect(html).toContain("4 providers");
-		const down = renderTicker([item({ changePct: -2.5 })]);
-		expect(down).toContain('class="mkt-chg down">-2.5%');
-		const flat = renderTicker([item({ changePct: 0 })]);
-		expect(flat).toContain('class="mkt-chg flat">0.0%');
+	it("renders icon, label, linked value, and colored delta", () => {
+		const html = renderTicker([one]);
+		expect(html).toContain('<span class="mkt-ic" aria-hidden="true">🪙</span>');
+		expect(html).toContain('<span class="mkt-lb">MOR</span>');
+		expect(html).toContain('<a href="/analytics/overview">$2.10</a>');
+		expect(html).toContain('class="mkt-chg down">-0.7%');
+		const up = renderTicker([{ ...one, deltaPct: 1.2 }]);
+		expect(up).toContain('class="mkt-chg up">+1.2%');
 	});
 
-	it("no 24h baseline renders NEW, never a fabricated change", () => {
-		const html = renderTicker([item({ changePct: null })]);
-		expect(html).toContain('class="mkt-new">new');
-		expect(html).not.toContain("mkt-chg");
+	it("omits empty labels (medal items carry the icon alone)", () => {
+		const html = renderTicker([{ ...one, label: "", deltaPct: undefined }]);
+		expect(html).not.toContain("mkt-lb");
 	});
 
 	it("loops seamlessly: two identical halves, clone aria-hidden", () => {
-		const html = renderTicker([item(), item({ name: "Qwen 2.5" })]);
+		const html = renderTicker([one, { ...one, value: "x" }]);
 		const halves = html.split('<span class="mkt-half"');
 		expect(halves).toHaveLength(3);
 		expect(halves[2].startsWith(' aria-hidden="true"')).toBe(true);
-		// Identical content once the aria-hidden attribute and the tape's
-		// closing tags are stripped.
 		expect(
 			halves[2].replace(' aria-hidden="true"', "").replace("</div></div>", ""),
 		).toBe(halves[1]);
 	});
 
 	it("repeats a short tape so the half fills the viewport", () => {
-		const html = renderTicker([item()]);
+		const html = renderTicker([one]);
 		// 1 item -> 12 repeats per half, two halves.
 		expect(html.match(/mkt-item/g)).toHaveLength(24);
 	});
 
-	it("escapes model names", () => {
-		const html = renderTicker([item({ name: '<img src=x onerror="1">' })]);
+	it("escapes values and hrefs", () => {
+		const html = renderTicker([
+			{ ...one, value: '<img src=x onerror="1">', href: '/x"><script>' },
+		]);
 		expect(html).not.toContain("<img");
+		expect(html).not.toContain("<script>");
 		expect(html).toContain("&lt;img src=x onerror=&quot;1&quot;&gt;");
 	});
 
 	it("never contains em or en dashes", () => {
-		expect(renderTicker([item(), item({ changePct: null })])).not.toMatch(
-			/[–—]/,
-		);
+		expect(renderTicker(buildTickerItems(fullData()))).not.toMatch(/[–—]/);
 	});
 });
 
 describe("marketTickerHtml", () => {
-	it("maps wei/sec to MOR/day and computes the 24h change", async () => {
-		// 1e13 wei/sec * 86400 / 1e18 = 0.864 MOR/day; baseline 8e12 -> +25%.
-		const html = await marketTickerHtml(
-			envWithRows([
-				{
-					model_id: "0xabc",
-					name: "Llama 3.3 70B",
-					min_price: 1e13,
-					min_price_then: 8e12,
-					provider_count: 3,
-					bid_count: 5,
-				},
-			]),
-		);
-		expect(html).toContain("0.8640 <i>MOR/day</i>");
-		expect(html).toContain("+25.0%");
-	});
-
-	it("falls back to a short model id when the name is missing", async () => {
-		const html = await marketTickerHtml(
-			envWithRows([
-				{
-					model_id: "0x1234567890abcdef",
-					name: null,
-					min_price: 1e13,
-					min_price_then: null,
-					provider_count: 1,
-					bid_count: 1,
-				},
-			]),
-		);
-		expect(html).toContain("0x12345678");
-		expect(html).toContain('class="mkt-new">new');
-	});
-
-	it("renders nothing when the DB is broken (slot disappears, page lives)", async () => {
+	it("serves the KV summary with zero D1 reads", async () => {
+		let d1Touched = false;
+		const entry = { cachedAt: Date.now(), data: fullData() };
 		const env = {
+			MORSCAN_CACHE: { get: async () => JSON.stringify(entry) },
 			DB: {
 				prepare: () => {
-					throw new Error("boom");
+					d1Touched = true;
+					throw new Error("request path must not read D1");
+				},
+				batch: () => {
+					d1Touched = true;
+					throw new Error("request path must not read D1");
+				},
+			},
+		} as unknown as Env;
+		const html = await marketTickerHtml(env);
+		expect(html).toContain("gpu.titan.io");
+		expect(html).toContain("Mor Builders");
+		expect(d1Touched).toBe(false);
+	});
+
+	it("renders nothing when everything is broken (page still lives)", async () => {
+		const env = {
+			MORSCAN_CACHE: {
+				get: async () => {
+					throw new Error("kv down");
+				},
+			},
+			DB: {
+				prepare: () => {
+					throw new Error("d1 down");
+				},
+				batch: () => {
+					throw new Error("d1 down");
 				},
 			},
 		} as unknown as Env;

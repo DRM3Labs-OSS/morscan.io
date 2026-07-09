@@ -233,11 +233,13 @@
        SSR'd via the MKT_TICKER slot (src/ui/ticker.ts); pauses on hover/focus.
        The global reduced-motion rule freezes the loop to a static first half. */
     .mkt-ticker { background: var(--bg-primary); border-bottom: 1px solid var(--border); overflow: hidden; white-space: nowrap; }
-    .mkt-track { display: inline-flex; align-items: center; animation: mktScroll 80s linear infinite; will-change: transform; }
+    .mkt-track { display: inline-flex; align-items: center; animation: mktScroll 110s linear infinite; will-change: transform; }
     .mkt-ticker:hover .mkt-track, .mkt-ticker:focus-within .mkt-track { animation-play-state: paused; }
     @keyframes mktScroll { from { transform: translateX(0); } to { transform: translateX(-50%); } }
-    .mkt-half { display: inline-flex; align-items: center; gap: 1.6rem; padding: 0.45rem 1.6rem 0.45rem 0; }
+    .mkt-half { display: inline-flex; align-items: center; gap: 1.7rem; padding: 0.45rem 1.7rem 0.45rem 0; }
     .mkt-item { display: inline-flex; align-items: baseline; gap: 0.45rem; font-size: 0.72rem; line-height: 1.4; }
+    .mkt-ic { font-size: 0.78rem; align-self: center; }
+    .mkt-lb { color: var(--text-muted); font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.08em; }
     .mkt-item a { color: var(--text-primary); font-weight: 600; text-decoration: none; }
     .mkt-item a:hover, .mkt-item a:focus-visible { color: var(--green); }
     .mkt-p { color: var(--text-muted); font-variant-numeric: tabular-nums; }

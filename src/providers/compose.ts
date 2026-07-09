@@ -384,6 +384,17 @@ export function createMorscanApp(options: MorscanAppOptions = {}): MorscanApp {
 				),
 			);
 
+			// Precompute the header market-tape data (price, staked, top provider/
+			// consumer/subnets, fresh deposits, newest models) into KV, same model as
+			// the metrics summary above: the tape's D1 batch runs HERE once per
+			// minute and every page render reads the summary (see src/ui/ticker.ts).
+			ctx.waitUntil(
+				safe(
+					import("../ui/ticker").then((m) => m.refreshTickerData(env)),
+					"refreshTickerData",
+				),
+			);
+
 			// Record OUR own MOR price point from the on-chain Base DEX read (deduped to
 			// ~1 point / 10 min inside recordPriceHistory). This builds MorScan's own
 			// price series with zero external dependency and powers change24h + the
