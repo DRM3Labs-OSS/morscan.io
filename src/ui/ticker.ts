@@ -210,7 +210,7 @@ export function buildTickerItems(d: TickerData): TickerItem[] {
 	if (d.builderTvlMor && d.builderTvlMor > 0) {
 		items.push({
 			icon: "builder",
-			label: "builder staked",
+			label: "builder pool",
 			value: `${fmtMor(d.builderTvlMor)} MOR`,
 			href: "/builder/subnets",
 		});
