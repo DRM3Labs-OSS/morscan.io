@@ -117,20 +117,34 @@
     .hdr-pop-item { font-family: inherit; text-align: left; background: transparent; border: none; color: var(--text-secondary); font-size: 0.72rem; padding: 0 0.55rem; cursor: pointer; text-decoration: none; display: flex; align-items: center; min-height: 40px; }
     .hdr-pop-item:hover, .hdr-pop-item:focus-visible { background: var(--green-dim); color: var(--green); outline: none; }
     .hdr-pop-disconnect:hover, .hdr-pop-disconnect:focus-visible { color: var(--red); background: rgba(248,113,113,0.12); }
-    .plane-tabs { display: flex; gap: 0; margin-bottom: -1px; position: relative; z-index: 1; }
+    /* Plane tabs - actual tabs: boxes seated on one clean baseline. The active
+       tab is outlined with a green top edge and punches a gap in the baseline
+       (its bottom border matches the page bg over a -1px overlap). No filler
+       pseudo-element: the baseline is the container's own border, so it always
+       spans the full row - no floating line fragment on wide screens. */
+    .plane-tabs { display: flex; gap: 0.3rem; align-items: flex-end; border-bottom: 1px solid var(--border); position: relative; z-index: 1; }
     .plane-tabs a {
       color: var(--text-secondary); text-decoration: none; font-size: 0.85rem; font-weight: 600;
-      padding: 0.5rem 1.25rem; border-bottom: 2px solid transparent;
-      text-transform: uppercase; letter-spacing: 0.08em; background: transparent;
-      transition: color 0.15s ease, border-color 0.15s ease;
+      padding: 0.5rem 1.1rem; text-transform: uppercase; letter-spacing: 0.08em;
+      background: transparent; border: 1px solid transparent; border-bottom: none; margin-bottom: -1px;
+      transition: color 0.15s ease, background 0.15s ease, border-color 0.15s ease;
     }
-    .plane-tabs a:hover { color: var(--text-primary); }
-    .plane-tabs a.active { color: var(--green); border-bottom-color: var(--green); }
-    .plane-tabs::after { content: ''; flex: 1; border-bottom: 1px solid var(--border); }
+    .plane-tabs a:hover { color: var(--text-primary); background: rgba(255,255,255,0.035); }
+    .plane-tabs a.active {
+      color: var(--green); background: var(--bg-primary);
+      border-color: var(--border); border-top: 2px solid var(--green);
+      border-bottom: 1px solid var(--bg-primary);
+    }
     nav { display: flex; gap: 0.5rem; }
     nav a { color: var(--text-muted); text-decoration: none; font-size: 0.8rem; padding: 0.5rem 1rem; border-bottom: 2px solid transparent; transition: color 0.15s ease, border-color 0.15s ease; }
     nav a:hover { color: var(--text-primary); }
     nav a.active { color: var(--green); border-bottom-color: var(--green); }
+    /* Subtabs (header nav) - quiet headings under the tab row, not a second
+       tab bar: small uppercase labels, active reads green, no underline. Kept
+       header-scoped so the footer nav is untouched. */
+    header nav { gap: 0.25rem; padding-top: 0.2rem; }
+    header nav a { font-size: 0.72rem; padding: 0.5rem 0.75rem; border-bottom: none; text-transform: uppercase; letter-spacing: 0.07em; }
+    header nav a.active { color: var(--green); font-weight: 700; }
     nav a.logout { margin-left: auto; border: none; padding: 0.5rem; color: var(--text-muted); display: flex; align-items: center; }
     nav a.logout:hover { color: var(--red); background: none; }
     /* Horizontal tab scrollers - no wrap, no visible scrollbar, subtle edge fade */
