@@ -282,8 +282,10 @@
     .mkt-chg.up { color: var(--green); }
     .mkt-chg.down { color: var(--red); }
     .mkt-chg.flat { color: var(--text-muted); }
-    /* Compact-unit suffix (M/K): blue so it reads as a unit, not a stray glyph on the white number. */
-    .mkt-u { color: var(--blue); font-weight: 700; }
+    /* Compact-unit suffix (M/K): inherits the number's color (white value, green hover),
+       stepped down in size + opacity so it reads as a unit with no color break. Opacity
+       0.65 on --text-primary over --bg still clears 7:1, well past AA. */
+    .mkt-u { color: inherit; opacity: 0.65; font-size: 0.78em; font-weight: 800; letter-spacing: 0.045em; }
     .mkt-new { font-size: 0.55rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--green); border: 1px solid var(--green); padding: 0.05rem 0.3rem; align-self: center; }
     @media (max-width: 500px) { .mkt-item { font-size: 0.66rem; } .mkt-half { gap: 1.1rem; } }
     /* Skeleton loading */
