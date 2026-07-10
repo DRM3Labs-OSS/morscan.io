@@ -203,7 +203,9 @@ function renderPrice(price: PriceData | null | undefined): string {
 	const sign = ch >= 0 ? "+" : "";
 	const color = ch >= 0 ? "var(--green)" : "var(--red)";
 	const mcapText =
-		p && p.marketCap >= 1e6 ? `MCap $${(p.marketCap / 1e6).toFixed(1)}M` : "";
+		p && p.marketCap >= 1e6
+			? `MCap $${(p.marketCap / 1e6).toFixed(1)}<span class="mkt-u">M</span>`
+			: "";
 	const valText = p ? `$${p.usd.toFixed(2)}` : "";
 	const chText = p ? `${sign}${ch.toFixed(2)}% (24h)` : "";
 	return `<div id="header-price" class="header-price" aria-live="polite">

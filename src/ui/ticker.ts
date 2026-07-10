@@ -123,6 +123,13 @@ function esc(s: string): string {
 		.replace(/"/g, "&quot;");
 }
 
+// Color the compact-unit suffix (M / K) so it reads as a unit, not a stray white
+// glyph jammed against the number. Runs AFTER esc(), and only wraps a digit-followed
+// M/K, so it can never introduce markup from the value text itself.
+function unitize(s: string): string {
+	return s.replace(/(\d)([MK])\b/g, '$1<span class="mkt-u">$2</span>');
+}
+
 /** Compact MOR amount: 1.53M, 12.4K, 842, 0.42. */
 export function fmtMor(n: number): string {
 	if (n >= 1e6) return `${(n / 1e6).toFixed(2)}M`;
@@ -260,13 +267,13 @@ export function renderTicker(items: TickerItem[]): string {
 	const ticks = items
 		.map((t) => {
 			const label = t.label ? `<span class="mkt-lb">${esc(t.label)}</span>` : "";
-			const sub = t.sub ? `<span class="mkt-p">${esc(t.sub)}</span>` : "";
+			const sub = t.sub ? `<span class="mkt-p">${unitize(esc(t.sub))}</span>` : "";
 			const delta =
 				t.deltaPct !== undefined
 					? `<span class="mkt-chg ${t.deltaPct > 0.05 ? "up" : t.deltaPct < -0.05 ? "down" : "flat"}">${t.deltaPct > 0 ? "+" : ""}${t.deltaPct.toFixed(1)}%</span>`
 					: "";
 			const tag = t.newTag ? '<span class="mkt-new">new</span>' : "";
-			return `<span class="mkt-item"><span class="mkt-ic" aria-hidden="true">${TICKER_ICONS[t.icon]}</span>${label}<a href="${esc(t.href)}">${esc(t.value)}</a>${sub}${delta}${tag}</span>`;
+			return `<span class="mkt-item"><span class="mkt-ic" aria-hidden="true">${TICKER_ICONS[t.icon]}</span>${label}<a href="${esc(t.href)}">${unitize(esc(t.value))}</a>${sub}${delta}${tag}</span>`;
 		})
 		.join("");
 	// A short tape leaves a visible gap in the loop: repeat the items until one

@@ -282,6 +282,8 @@
     .mkt-chg.up { color: var(--green); }
     .mkt-chg.down { color: var(--red); }
     .mkt-chg.flat { color: var(--text-muted); }
+    /* Compact-unit suffix (M/K): blue so it reads as a unit, not a stray glyph on the white number. */
+    .mkt-u { color: var(--blue); font-weight: 700; }
     .mkt-new { font-size: 0.55rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--green); border: 1px solid var(--green); padding: 0.05rem 0.3rem; align-self: center; }
     @media (max-width: 500px) { .mkt-item { font-size: 0.66rem; } .mkt-half { gap: 1.1rem; } }
     /* Skeleton loading */
@@ -553,7 +555,7 @@
           var ce=document.getElementById('header-price-change');
           if(ce){ce.textContent=(ch>=0?'+':'')+ch.toFixed(2)+'% (24h)';ce.style.color=ch>=0?'var(--green)':'var(--red)';}
           var me=document.getElementById('header-price-mcap');
-          if(me){var t=(d.marketCap>=1e6)?'MCap $'+(d.marketCap/1e6).toFixed(1)+'M':'';me.textContent=t;me.style.display=t?'block':'none';}
+          if(me){var t=(d.marketCap>=1e6)?'MCap $'+(d.marketCap/1e6).toFixed(1)+'<span class="mkt-u">M</span>':'';me.innerHTML=t;me.style.display=t?'block':'none';}
         }).catch(function(){});
       }
       updatePrice();
