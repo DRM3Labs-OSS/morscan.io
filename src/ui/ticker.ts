@@ -447,8 +447,10 @@ export async function refreshTickerData(env: Env): Promise<TickerData> {
 }
 
 /** HOT PATH read: the precomputed tape data from KV, zero D1 rows. Only a
- * missing/stale summary (cold start, cron outage) computes once. */
-async function getTickerData(env: Env): Promise<TickerData> {
+ * missing/stale summary (cold start, cron outage) computes once. Exported for
+ * the warehouse dump (src/sync/warehouse-dump.ts), which ships this same
+ * summary to the data lake. */
+export async function getTickerData(env: Env): Promise<TickerData> {
 	const kv = env.MORSCAN_CACHE;
 	if (kv) {
 		try {

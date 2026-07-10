@@ -395,6 +395,19 @@ export function createMorscanApp(options: MorscanAppOptions = {}): MorscanApp {
 				),
 			);
 
+			// Warehouse raw-dump (the Morpheus sense organ): ship the SAME
+			// precomputed summaries (metrics KV + tape KV + fatboy modelDemand) to
+			// raw_morscan.rows through the analytics seam, when a private BQ tier
+			// is composed AND enabled. Zero new D1 scans; KV-stamped to ~15 min
+			// (network snapshot) / daily (model batch). No-op in the OSS
+			// standalone: the reference provider has no dump methods.
+			ctx.waitUntil(
+				safe(
+					import("../sync/warehouse-dump").then((m) => m.dumpWarehousePulse(env)),
+					"warehouseDump",
+				),
+			);
+
 			// Record OUR own MOR price point from the on-chain Base DEX read (deduped to
 			// ~1 point / 10 min inside recordPriceHistory). This builds MorScan's own
 			// price series with zero external dependency and powers change24h + the

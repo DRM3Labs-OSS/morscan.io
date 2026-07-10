@@ -19,9 +19,31 @@ import { handleAnalytics } from "../../handlers/analytics";
 import { handleBqBackfill, handleBqStatus } from "../../handlers/bq";
 import { isBqEnabled } from "../../utils/bigquery";
 
+/** One observation for the OPTIONAL warehouse raw-dump seam. Mirrors the
+ * private tier's dump-row contract structurally so the OSS side never imports
+ * a private type. */
+export interface AnalyticsDumpInput {
+	/** e.g. "network", "session", "model", "provider", "price". */
+	kind: string;
+	/** Natural id within the kind. */
+	id: string;
+	/** The raw observation, as-is. */
+	payload: Record<string, unknown>;
+	/** When the event happened (unix seconds, ISO string, or Date). */
+	eventAt?: number | string | Date;
+	/** Chain block for the observation, when the row carries one. */
+	block?: number | null;
+}
+
 export interface AnalyticsProvider {
 	/** D1-backed network analytics aggregate (/mor/v1/analytics). */
 	overview(env: Env, headers: Record<string, string>): Promise<Response>;
+	/** OPTIONAL warehouse raw-dump seam: is the dump path live? A private
+	 * warehouse tier implements these; the OSS reference omits them, so the
+	 * dump call site (src/sync/warehouse-dump.ts) is a standalone no-op. */
+	dumpEnabled?(env: Env): boolean;
+	/** OPTIONAL fire-and-forget batched dump of raw observations. Never throws. */
+	dumpSafe?(env: Env, inputs: AnalyticsDumpInput[]): Promise<void>;
 	/** Is the optional BigQuery dual-write / archive tier enabled? */
 	bqEnabled(env: Env): boolean;
 	/** BQ dual-write status (/mor/v1/bq/status). */
