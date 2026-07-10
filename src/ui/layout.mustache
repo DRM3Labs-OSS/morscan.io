@@ -139,12 +139,17 @@
     nav a { color: var(--text-muted); text-decoration: none; font-size: 0.8rem; padding: 0.5rem 1rem; border-bottom: 2px solid transparent; transition: color 0.15s ease, border-color 0.15s ease; }
     nav a:hover { color: var(--text-primary); }
     nav a.active { color: var(--green); border-bottom-color: var(--green); }
-    /* Subtabs (header nav) - quiet headings under the tab row, not a second
-       tab bar: small uppercase labels, active reads green, no underline. Kept
-       header-scoped so the footer nav is untouched. */
+    /* Subtabs (header nav) - only rendered when a plane has a real choice
+       (>= 2 views; a lone "Overview" row is skipped entirely). Small uppercase
+       labels with a short green underline on the active view - tab language
+       one level quieter than the boxed plane tabs. Header-scoped so the
+       footer nav is untouched. */
     header nav { gap: 0.25rem; padding-top: 0.2rem; }
-    header nav a { font-size: 0.72rem; padding: 0.5rem 0.75rem; border-bottom: none; text-transform: uppercase; letter-spacing: 0.07em; }
+    header nav a { position: relative; font-size: 0.72rem; padding: 0.5rem 0.75rem; border-bottom: none; text-transform: uppercase; letter-spacing: 0.07em; }
+    header nav a::after { content: ''; position: absolute; left: 0.75rem; right: 0.75rem; bottom: 0.28rem; height: 2px; background: transparent; transition: background 0.15s ease; }
+    header nav a:hover::after { background: var(--border); }
     header nav a.active { color: var(--green); font-weight: 700; }
+    header nav a.active::after { background: var(--green); }
     nav a.logout { margin-left: auto; border: none; padding: 0.5rem; color: var(--text-muted); display: flex; align-items: center; }
     nav a.logout:hover { color: var(--red); background: none; }
     /* Horizontal tab scrollers - no wrap, no visible scrollbar, subtle edge fade */

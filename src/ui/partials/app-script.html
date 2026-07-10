@@ -8,6 +8,9 @@ var allSessions = (F.consumers?.sessions || []);
 
 function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
 function short(a) { return a ? `${a.slice(0,6)}...${a.slice(-4)}` : '-'; }
+// Deterministic monogram avatar: hue from the address, initials from the
+// domain (falls back to 0X). Same visual language as builder + the tape.
+function pav(seed, label) { var h = 0; for (var i = 2; i < Math.min(String(seed).length, 26); i++) h = (h * 31 + String(seed).charCodeAt(i)) % 360; var l = String(label || '').replace(/[^a-zA-Z0-9]/g, '').slice(0, 2).toUpperCase() || '0X'; return `<span class="pav" style="background:hsl(${h} 45% 20%);color:hsl(${h} 75% 68%)">${l}</span>`; }
 function fmt(n) { return new Intl.NumberFormat().format(n); }
 function fmtTime(ts) { if (!ts) return '-'; const d=Math.floor((Date.now()/1000)-ts); return d<60?`${d}s ago`:d<3600?`${Math.floor(d/60)}m ago`:d<86400?`${Math.floor(d/3600)}h ago`:`${Math.floor(d/86400)}d ago`; }
 function parseDomain(ep) { if(!ep)return null; try{const h=ep.replace(/^https?:\/\//,'').split(':')[0].split('/')[0]; if(/^\d{1,3}(\.\d{1,3}){3}$/.test(h))return h; const p=h.split('.'); return p.length>=2?p.slice(-2).join('.'):h;}catch(e){return null;} }
@@ -108,7 +111,7 @@ function renderProviders() {
     }
     var bidLabel = hasBids ? `<div class="bid-count">${bids.length} model${bids.length!==1?'s':''}</div>` : '<div style="background:rgba(250,204,21,0.15);color:var(--yellow);padding:0.2rem 0.5rem;font-size:0.65rem;font-weight:600;">OFFLINE</div>';
 
-    card.innerHTML=`<div class="provider-header"${hasBids?' data-expandable':''}>${domain?`<div class="provider-info"><div class="provider-domain">${esc(domain)}</div><div class="provider-address"><a href="/compute/providers/${p.address}"><span class="addr-full">${esc(p.address)}</span><span class="addr-short">${short(p.address)}</span></a> <a href="${BASESCAN}${p.address}" target="_blank" style="color:var(--text-muted);font-size:0.65rem;">↗</a></div><div class="provider-endpoint">${esc(p.endpoint||'')}</div></div>`:`<div class="provider-info"><div class="provider-address"><a href="/compute/providers/${p.address}"><span class="addr-full">${esc(p.address)}</span><span class="addr-short">${short(p.address)}</span></a></div></div>`}<div class="provider-meta">${statusHtml}${bidLabel}${hasBids?'<div class="expand-icon">▼</div>':''}</div></div>${hasBids?`<div class="bids-panel">${bidsHtml}</div>`:''}`;
+    card.innerHTML=`<div class="provider-header"${hasBids?' data-expandable':''}>${pav(p.address,domain||'')}${domain?`<div class="provider-info"><div class="provider-domain">${esc(domain)}</div><div class="provider-address"><a href="/compute/providers/${p.address}"><span class="addr-full">${esc(p.address)}</span><span class="addr-short">${short(p.address)}</span></a> <a href="${BASESCAN}${p.address}" target="_blank" style="color:var(--text-muted);font-size:0.65rem;">↗</a></div><div class="provider-endpoint">${esc(p.endpoint||'')}</div></div>`:`<div class="provider-info"><div class="provider-address"><a href="/compute/providers/${p.address}"><span class="addr-full">${esc(p.address)}</span><span class="addr-short">${short(p.address)}</span></a></div></div>`}<div class="provider-meta">${statusHtml}${bidLabel}${hasBids?'<div class="expand-icon">▼</div>':''}</div></div>${hasBids?`<div class="bids-panel">${bidsHtml}</div>`:''}`;
     list.appendChild(card);
   });
 }
@@ -162,7 +165,7 @@ function filterSessions(){
   filtered.slice(0,20).forEach((s)=> {
     var mor=(s.stake&&s.stake!=='0')?(Number(BigInt(s.stake))/1e18).toFixed(2):'0';
     var badge=s.is_active?'<span class="badge badge-active">Active</span>':'<span class="badge badge-closed">Closed</span>';
-    var c=document.createElement('div');c.className='session-card';
+    var c=document.createElement('div');c.className='session-card'+(s.is_active?' live':'');
     c.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center;"><span style="font-size:0.7rem;font-weight:500;">${esc(modelName(s.model_id))}</span>${badge}</div><div style="display:flex;gap:0.75rem;margin-top:0.2rem;font-size:0.65rem;"><a href="/compute/consumers/wallet/${s.user_address}" style="color:var(--cyan);">${esc(short(s.user_address))}</a><span style="color:var(--mor);">${mor} MOR</span><span style="color:var(--text-muted);margin-left:auto;">${fmtTime(s.opened_at)}</span></div>`;
     list.appendChild(c);
   });

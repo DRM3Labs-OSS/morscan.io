@@ -267,7 +267,10 @@ function renderPlaneTabs(plane: PlaneConfig): string {
 }
 
 function renderSubTabs(tabs: SubTab[], label: string): string {
-	if (!tabs.length) return "";
+	// A lone subtab is pure noise (an "Overview" row restating the plane) and
+	// costs a full header row on phones - render subtabs only when there is a
+	// real choice to make.
+	if (tabs.length < 2) return "";
 	const items = tabs
 		.map(
 			(t) =>
