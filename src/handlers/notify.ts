@@ -13,6 +13,35 @@ import { insertNotifyEmail } from "../db/ops";
 
 const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]{2,}$/;
 
+/**
+ * Forward a capture to the configured forwarding endpoint when
+ * INTEREST_FORWARD_URL + INTEREST_FORWARD_KEY are set, so an operator
+ * CRM/admin surface can show every form in one place. The local notify_list row is
+ * already written; a failed or duplicate (409) forward must never fail the
+ * visitor's signup, so every outcome is swallowed.
+ */
+async function forwardToInterest(env: Env, email: string): Promise<void> {
+	if (!env.INTEREST_FORWARD_URL || !env.INTEREST_FORWARD_KEY) return;
+	try {
+		await fetch(`${env.INTEREST_FORWARD_URL.replace(/\/+$/, "")}/submit`, {
+			method: "POST",
+			headers: {
+				"Content-Type": "application/json",
+				"X-Interest-Key": env.INTEREST_FORWARD_KEY,
+			},
+			body: JSON.stringify({
+				product: env.INTEREST_FORWARD_PRODUCT || "morscan",
+				role: "waitlist",
+				email,
+				source: "coming-soon/notify",
+			}),
+			signal: AbortSignal.timeout(3000),
+		});
+	} catch {
+		// notify_list keeps the capture; the sink can be re-synced from it.
+	}
+}
+
 export async function handleNotify(
 	request: Request,
 	env: Env,
@@ -78,6 +107,8 @@ export async function handleNotify(
 			{ status: 500, headers: HEADERS },
 		);
 	}
+
+	await forwardToInterest(env, email);
 
 	return new Response(JSON.stringify({ ok: true }), { status: 200, headers: HEADERS });
 }

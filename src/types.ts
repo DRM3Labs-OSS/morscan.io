@@ -21,6 +21,14 @@ export interface Env {
 	PUBLIC_BASE_URL?: string; // Explorer origin, e.g. https://morscan.example.com
 	LOCK_WORKERS_DEV?: string; // "true" = admin-key-only API on *.workers.dev (no UI). Default: open.
 	COMING_SOON_HOSTS?: string; // Comma-separated hostnames that serve the coming-soon page instead of the UI
+	// Optional forwarding endpoint for /notify captures. With URL + KEY set, every
+	// launch-list email is ALSO forwarded there server-side so an operator
+	// CRM/admin surface can show all forms in one place. The local notify_list
+	// capture always lands first and stays the source of record; a failed forward never
+	// fails the signup.
+	INTEREST_FORWARD_URL?: string; // Sink origin, e.g. https://interest.example.com; unset = no forwarding
+	INTEREST_FORWARD_KEY?: string; // Submit key sent as X-Interest-Key (wrangler secret)
+	INTEREST_FORWARD_PRODUCT?: string; // Product tag on forwarded captures (default "morscan")
 	REGISTER_URL?: string; // Signup/upgrade link on the access tier cards (default: /about)
 	SSO_APP_KEY?: string; // This app's derived IdP launch key (wrangler secret); unset = IdP sign-in disabled
 	SSO_APP_ID?: string; // Audience id for launch tokens (default: morscan)
