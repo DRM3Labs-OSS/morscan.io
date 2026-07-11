@@ -507,6 +507,21 @@
       var copyBtn = document.getElementById('cap-copy');
       var statusEl = document.getElementById('cap-status');
       var jsonEl = document.getElementById('cap-json');
+      // House law: rendered JSON is ALWAYS syntax-highlighted. Escape first, then
+      // wrap tokens - never interpolate raw response bytes into innerHTML unescaped.
+      function escJC(s){return String(s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
+      function hlJsonC(src){
+        var re=/("(?:[^"\\]|\\.)*")(\s*:)?|\b(true|false|null)\b|(-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)/g;
+        var out='',last=0,m;
+        while((m=re.exec(src))){
+          out+=escJC(src.slice(last,m.index));
+          if(m[1]!==undefined){out+= m[2]!==undefined ? '<span class="jk">'+escJC(m[1])+'</span>'+m[2] : '<span class="js">'+escJC(m[1])+'</span>';}
+          else if(m[3]){out+='<span class="jb">'+m[3]+'</span>';}
+          else{out+='<span class="jn">'+m[0]+'</span>';}
+          last=re.lastIndex;
+        }
+        return out+escJC(src.slice(last));
+      }
       var capFmt = function(n){ return (n || 0).toLocaleString('en-US'); };
       var DATA_PATH = '/mor/v1/holders?limit=1';
 
@@ -583,7 +598,7 @@
           .then(function(r){ return r.text().then(function(t){ var j; try { j = JSON.parse(t); } catch (e) { j = { raw: t }; } return { status: r.status, ok: r.ok, j: j, headers: r.headers }; }); })
           .then(function(res){
             var ms = Date.now() - t0;
-            jsonEl.textContent = JSON.stringify(res.j, null, 2);
+            jsonEl.innerHTML = hlJsonC(JSON.stringify(res.j, null, 2));
             if (res.status === 429) {
               statusEl.className = 'cap-status err';
               var ra = (res.j && (res.j.retryAfter || res.j.retry_after)) || 60;

@@ -217,6 +217,12 @@
     details.raw .raw-label { padding: 0.55rem 1rem 0; border-top: 1px solid var(--border); font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.14em; color: var(--text-muted); }
     details.raw .raw-label + pre { border-top: none; }
 
+    /* House law: rendered JSON is ALWAYS syntax-highlighted. */
+    .jk { color: var(--cyan); }
+    .js { color: #a9c1a0; }
+    .jn { color: #e0af68; }
+    .jb { color: #bb9af7; }
+
     :focus-visible { outline: 2px solid var(--green); outline-offset: 2px; }
     .skip-link { position: absolute; left: -9999px; top: 0; z-index: 100; background: var(--green); color: var(--bg-primary); font-weight: 700; font-size: 0.8rem; padding: 0.6rem 1rem; text-decoration: none; }
     .skip-link:focus { left: 0.5rem; top: 0.5rem; }
@@ -556,8 +562,32 @@
       return keys.length ? "fields: " + keys.join(", ") : "an empty body";
     }
 
+    // House law: rendered JSON is ALWAYS syntax-highlighted. Escape first, then wrap
+    // tokens - never interpolate raw response bytes into innerHTML unescaped.
+    function escJ(s) {
+      return String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+    }
+    function hlJson(src) {
+      const re = /("(?:[^"\\]|\\.)*")(\s*:)?|\b(true|false|null)\b|(-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)/g;
+      let out = "", last = 0, m;
+      while ((m = re.exec(src))) {
+        out += escJ(src.slice(last, m.index));
+        if (m[1] !== undefined) {
+          out += m[2] !== undefined
+            ? '<span class="jk">' + escJ(m[1]) + "</span>" + m[2]
+            : '<span class="js">' + escJ(m[1]) + "</span>";
+        } else if (m[3]) {
+          out += '<span class="jb">' + m[3] + "</span>";
+        } else {
+          out += '<span class="jn">' + m[0] + "</span>";
+        }
+        last = re.lastIndex;
+      }
+      return out + escJ(src.slice(last));
+    }
+
     function fillRaw(body, receipt) {
-      $("raw-json").textContent = JSON.stringify(body, null, 2);
+      $("raw-json").innerHTML = hlJson(JSON.stringify(body, null, 2));
       $("raw-canonical").textContent = receipt ? V.receiptPayload(receipt) : "(no receipt)";
       $("raw-panel").style.display = "block";
     }
