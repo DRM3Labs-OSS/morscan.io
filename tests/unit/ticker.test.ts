@@ -208,7 +208,8 @@ describe("renderTicker", () => {
 	});
 
 	it("never contains em or en dashes", () => {
-		expect(renderTicker(buildTickerItems(fullData()))).not.toMatch(/[–—]/);
+		// Unicode escapes, not literal dashes: the repo-wide CI dash grep scans this file too.
+		expect(renderTicker(buildTickerItems(fullData()))).not.toMatch(/[\u2013\u2014]/);
 	});
 });
 

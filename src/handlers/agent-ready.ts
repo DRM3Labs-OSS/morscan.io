@@ -648,8 +648,7 @@ export async function handleAgentReadyRoutes(
 	if (path === "/.well-known/api-catalog") return handleApiCatalog();
 	if (path === "/.well-known/oauth-protected-resource")
 		return handleOauthProtectedResource();
-	if (path === "/.well-known/oauth-authorization-server")
-		return handleOauthAuthServer();
+	if (path === "/.well-known/oauth-authorization-server") return handleOauthAuthServer();
 	if (path === "/auth.md") return handleAuthMd(env);
 	if (path === "/.well-known/mcp/server-card.json") return handleMcpServerCard(env);
 	if (path === "/.well-known/agent-skills/index.json")

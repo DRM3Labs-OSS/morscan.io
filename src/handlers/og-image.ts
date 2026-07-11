@@ -582,8 +582,7 @@ export async function handleOgCard(
 		}));
 		if (prices.length >= 2) {
 			const label =
-				CHART_WINDOWS.find((w) => w.days === windowDays)?.label ??
-				`${windowDays}d`;
+				CHART_WINDOWS.find((w) => w.days === windowDays)?.label ?? `${windowDays}d`;
 			svg = buildChartCardSvg(stats, prices, label);
 		} else {
 			svg = buildCardSvg(normalized, stats);

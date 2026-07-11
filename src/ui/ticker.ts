@@ -158,7 +158,8 @@ export function providerDomain(endpoint: string | null, address: string): string
 		.trim()
 		.toLowerCase();
 	// A bare IP or empty host reads worse than the address.
-	if (!host || /^[\d.]+$/.test(host)) return `${address.slice(0, 6)}…${address.slice(-4)}`;
+	if (!host || /^[\d.]+$/.test(host))
+		return `${address.slice(0, 6)}…${address.slice(-4)}`;
 	return host;
 }
 
@@ -331,8 +332,7 @@ async function computeTickerData(env: Env): Promise<TickerData> {
 		if (row) {
 			const c: PriceCacheShape = JSON.parse(row.value);
 			const usd = c.mor?.usd ?? c.usd ?? 0;
-			if (usd > 0)
-				d.price = { usd, change24h: c.mor?.change24h ?? c.change24h ?? 0 };
+			if (usd > 0) d.price = { usd, change24h: c.mor?.change24h ?? c.change24h ?? 0 };
 		}
 	} catch {}
 
