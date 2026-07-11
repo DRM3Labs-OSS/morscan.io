@@ -415,10 +415,18 @@
       return "{" + keys.map((k) => JSON.stringify(k) + ":" + canonicalize(v[k])).join(",") + "}";
     }
 
-    // The signing payload (receipt-spec 1.0): the receipt fields with sorted
-    // keys and the optional fields present as null when absent.
+    // The signing payload: the ten base fields with sorted keys and the optional
+    // ones present as null when absent, PLUS any receipt-spec 1.1 fields that are
+    // set. The reference verifier (crates/provenance/src/receipt.rs
+    // build_signing_payload) inserts the 1.1 fields only when present, so an
+    // all-absent 1.1 receipt canonicalizes byte-identically to a 1.0 one and
+    // every existing MorScan signature keeps verifying. Without them, the day a
+    // producer starts emitting content_sig (or purpose/caller/inputs/outputs)
+    // this verifier would call its own GENUINE receipts invalid. Sibling bug,
+    // found live in @drm3/net-sdk on 2026-07-11 and fixed there in v0.8.1.
+    var SPEC11 = ["purpose", "caller", "inputs", "outputs", "content_sig"];
     function receiptPayload(r) {
-      return canonicalize({
+      const p = {
         id: r.id,
         action: r.action,
         timestamp: r.timestamp,
@@ -429,7 +437,11 @@
         parent_id: r.parent_id ?? null,
         metadata: r.metadata ?? null,
         public_key: r.public_key,
-      });
+      };
+      for (const k of SPEC11) {
+        if (r[k] !== undefined && r[k] !== null) p[k] = r[k];
+      }
+      return canonicalize(p);
     }
 
     function hexBytes(s) {
