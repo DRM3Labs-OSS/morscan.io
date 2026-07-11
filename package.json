@@ -21,7 +21,7 @@
     "prebuild": "node scripts/stamp-build.mjs",
     "build": "wrangler deploy --dry-run",
     "build:wc": "esbuild tools/wc-build/wc-entry.js --bundle --minify --format=iife --outfile=src/ui/vendor/wc-provider.txt --platform=browser --define:process.env.NODE_ENV=\"production\" --define:global=globalThis",
-    "predeploy": "node scripts/stamp-build.mjs",
+    "predeploy": "node scripts/stamp-build.mjs && npm run typecheck && npm run lint && npm run format:check && npm run test:unit",
     "deploy": "wrangler deploy",
     "db:create": "wrangler d1 create morscan",
     "pretypecheck": "node scripts/stamp-build.mjs",
