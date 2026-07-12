@@ -8,7 +8,7 @@
  * host-scoped session. A token is valid at exactly one app; no app can replay or
  * forge a token for another.
  *
- * Ported from @drm3/net-sso (verifyLaunchToken); self-contained so a fresh clone
+ * Ported from @drm3/sdk/sso (verifyLaunchToken); self-contained so a fresh clone
  * builds with no private deps. Configure via SSO_APP_KEY + SSO_APP_ID +
  * SSO_LAUNCH_URL; leave unset to disable the IdP sign-in path entirely.
  */
