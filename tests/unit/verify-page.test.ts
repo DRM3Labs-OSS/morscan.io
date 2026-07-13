@@ -52,6 +52,8 @@ interface VerifierApi {
 	matchPublishedKey(keys: unknown, r: Receipt): Record<string, string> | null;
 	ed25519Supported(): Promise<boolean>;
 	verifySignature(r: Receipt): Promise<boolean>;
+	receiptFieldOf(body: unknown): string | null;
+	verifyContentSig(r: Receipt, content: string): Promise<boolean>;
 }
 
 function loadPageVerifier(): VerifierApi {
@@ -153,6 +155,56 @@ describe("verify page: canonicalization port (live fixture)", () => {
 		expect(
 			page.matchPublishedKey(keysFixture, { ...receipt, timestamp: "2020-01-01T00:00:00Z" }),
 		).toBeNull();
+	});
+});
+
+describe("verify page: content_sig body binding", () => {
+	// Simulate the server: content_sig is an Ed25519 signature over the canonical
+	// bytes of the served body - exactly what signResponse hands to
+	// contentPayload(canonicalize(body)) and what the core signs. noble here
+	// mirrors the provenance core's pure-Ed25519-over-payload-bytes (the same
+	// interop the live-signature test above already proves), so this exercises the
+	// page's real content-verification path against a correctly-produced content_sig.
+	// A fixed 32-byte Ed25519 seed keeps the test deterministic (any 32 bytes are
+	// a valid secret key; the public key is derived from it).
+	const priv = new Uint8Array(32).fill(7);
+	const pub = ed25519.getPublicKey(priv);
+	const toHex = (u: Uint8Array) => Buffer.from(u).toString("hex");
+	const body = {
+		usd: 2.2417504064898686,
+		change24h: -2.83,
+		eth: { usd: 1766.12, change24h: null },
+		cached: false,
+		source: "base-dex",
+		fetchedAt: 1783960689,
+	};
+	const contentSig = (b: unknown): string =>
+		`ed25519:${toHex(ed25519.sign(new TextEncoder().encode(page.canonicalize(b)), priv))}`;
+	const receiptLike = () =>
+		({ public_key: `ed25519:${toHex(pub)}`, content_sig: contentSig(body) }) as unknown as Receipt;
+
+	it("verifyContentSig accepts a body bound by a correct content signature", async () => {
+		expect(await page.verifyContentSig(receiptLike(), page.canonicalize(body))).toBe(true);
+	});
+
+	it("a single changed body field fails the content signature", async () => {
+		const tampered = page.canonicalize({ ...body, usd: 9.99 });
+		expect(await page.verifyContentSig(receiptLike(), tampered)).toBe(false);
+	});
+
+	it("receiptFieldOf finds the signed envelope field, skipping the batch summary", () => {
+		expect(
+			page.receiptFieldOf({ _provenance_aggregate: receipt, _provenance: { merkle_root: "x" } }),
+		).toBe("_provenance_aggregate");
+		expect(page.receiptFieldOf({ _provenance: receipt })).toBe("_provenance");
+		expect(page.receiptFieldOf({ receipt })).toBe("receipt");
+		expect(page.receiptFieldOf({ usd: 1 })).toBeNull();
+		expect(page.receiptFieldOf(null)).toBeNull();
+	});
+
+	it("CLI verifier includes spec-1.1 fields so it won't reject content_sig receipts", () => {
+		expect(cliSource).toContain("content_sig");
+		expect(cliSource).toMatch(/SPEC11|purpose.*caller.*inputs.*outputs.*content_sig/);
 	});
 });
 

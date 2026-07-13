@@ -144,6 +144,7 @@ export async function handleAllSessions(
 			{ total: totalCount, pageSize: sessions.length },
 			mnemonic,
 			env.DB,
+			responseData,
 		);
 		if (aggregateReceipt)
 			responseData._provenance_aggregate = JSON.parse(aggregateReceipt);
@@ -246,6 +247,7 @@ export async function handleWalletSessions(
 			{ total: sessions.length, active },
 			mnemonic,
 			env.DB,
+			responseData,
 		);
 		if (receipt) responseData._provenance = JSON.parse(receipt);
 	}

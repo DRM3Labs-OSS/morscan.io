@@ -347,12 +347,13 @@
     <h2>What was verified</h2>
     <div class="block">
       This response carries a receipt signed by the key <code id="who-path-inline">the signing key</code>
-      when it was served. The signature covers a canonical form of that receipt: its id,
-      action, timestamp, and the SHA-256 hashes of the query and of the values MorScan
-      attested for this response (its signed summary). Change any of those signed fields and
-      the signature stops verifying. The receipt attests MorScan's summary of the response,
-      not every field of the body, so read it as MorScan's signed, non-repudiable statement
-      about these values, not an independent re-derivation of the whole payload.
+      at the time MorScan served it. The signature covers a canonical form of that receipt:
+      its id, action, timestamp, the SHA-256 hashes of the query and of MorScan's attested
+      values, and, where present, a content signature over the exact response body. Change any
+      signed field, or any bound byte of the body, and the signature stops verifying. It is
+      MorScan's signed, non-repudiable statement about this response, attested at the moment
+      it was served.
+      <div id="bind-line" style="margin-top:0.6rem;color:var(--green);font-size:0.8rem;"></div>
     </div>
     </section>
 
@@ -460,14 +461,23 @@
       return out;
     }
 
-    // Endpoints embed the receipt as _provenance_aggregate (data responses) or
-    // receipt (/version). A bare pasted receipt object also works.
+    // Endpoints embed the receipt as _provenance_aggregate (aggregate data
+    // responses, alongside a batch _provenance merkle summary that carries no
+    // signature), _provenance (single-entity detail responses), or receipt
+    // (/version). A bare pasted receipt object also works. receiptFieldOf reports
+    // which envelope field holds the signed receipt so the content-signature
+    // check can re-derive the served body (the body minus that field).
+    function receiptFieldOf(body) {
+      if (!body || typeof body !== "object") return null;
+      for (const f of ["_provenance_aggregate", "_provenance", "receipt"]) {
+        if (body[f] && body[f].signature && body[f].public_key) return f;
+      }
+      return null;
+    }
     function extractReceipt(body) {
       if (!body || typeof body !== "object") return null;
-      const agg = body._provenance_aggregate;
-      if (agg && agg.signature && agg.public_key) return agg;
-      const r = body.receipt;
-      if (r && r.signature && r.public_key) return r;
+      const f = receiptFieldOf(body);
+      if (f) return body[f];
       if (body.signature && body.public_key && body.id) return body;
       return null;
     }
@@ -515,10 +525,33 @@
       );
     }
 
+    // Body binding (receipt-spec 1.1 content_sig): the same key's Ed25519
+    // signature over the exact served bytes. The caller re-derives those bytes
+    // as canonicalize(response body minus its receipt field) - the same
+    // canonicalize the server signed - so a valid content_sig means the response
+    // you see, field for field, is what MorScan attested, not just the summary.
+    async function verifyContentSig(receipt, contentString) {
+      const key = await crypto.subtle.importKey(
+        "raw",
+        hexBytes(receipt.public_key),
+        { name: "Ed25519" },
+        false,
+        ["verify"],
+      );
+      return crypto.subtle.verify(
+        { name: "Ed25519" },
+        key,
+        hexBytes(receipt.content_sig),
+        new TextEncoder().encode(contentString),
+      );
+    }
+
     globalThis.MorscanVerify = {
       canonicalize: canonicalize,
       receiptPayload: receiptPayload,
       hexBytes: hexBytes,
+      receiptFieldOf: receiptFieldOf,
+      verifyContentSig: verifyContentSig,
       extractReceipt: extractReceipt,
       matchPublishedKey: matchPublishedKey,
       ed25519Supported: ed25519Supported,
@@ -551,6 +584,7 @@
       $("raw-panel").style.display = "none";
       $("who-kv").style.display = "none";
       var wv = $("what-verified"); if (wv) wv.style.display = "none";
+      var bl0 = $("bind-line"); if (bl0) bl0.textContent = "";
     }
 
     async function showStep(n, state, detail) {
@@ -721,15 +755,46 @@
         } catch (_e) {
           sigOk = false;
         }
-        await showStep(4, sigOk ? "ok" : "bad", "Your browser rebuilt the canonical signed payload and ran Ed25519 verification locally, via WebCrypto. Not on our server: we cannot fake what your own machine computes.");
+
+        // Step 4b: the body binding. When the receipt carries a content signature
+        // (receipt-spec 1.1), re-derive the exact served bytes - this response
+        // minus its receipt field - and check the Ed25519 content signature over
+        // them, so the verdict covers the body you see, not just the summary.
+        // contentOk: true = body matches, false = body altered, null = the receipt
+        // attests a summary only (no content signature, e.g. a pasted bare receipt).
+        let contentOk = null;
+        const rf = V.receiptFieldOf(body);
+        if (sigOk && receipt.content_sig && rf) {
+          try {
+            const content = Object.assign({}, body);
+            delete content[rf];
+            contentOk = await V.verifyContentSig(receipt, V.canonicalize(content));
+          } catch (_e) {
+            contentOk = false;
+          }
+        }
+        const bound = contentOk === true
+          ? " Your browser also rebuilt the exact response body and confirmed the content signature over it: every field you see is what MorScan attested when it served this."
+          : "";
+        await showStep(4, sigOk ? "ok" : "bad", "Your browser rebuilt the canonical signed payload and ran Ed25519 verification locally, via WebCrypto. Not on our server: we cannot fake what your own machine computes." + bound);
 
         // Step 5: verdict.
         const rejected = published && (published.status === "compromised" || published.status === "revoked");
-        const ok = sigOk && !!published && !rejected;
+        const ok = sigOk && !!published && !rejected && contentOk !== false;
         if (ok) {
-          $("step-5-title").textContent = "Verdict: signature valid";
-          await showStep(5, "ok", "MorScan's signed attestation for this response was issued by " + published.path + ", and your browser confirmed it is genuinely MorScan's and unaltered. If the signed receipt had been changed, this check would fail.");
-          verdict("verified", "VERIFIED", "Signed by " + published.path + " at " + receipt.timestamp + ". Checked by your browser against the published key.");
+          $("step-5-title").textContent = contentOk === true ? "Verdict: signature and body valid" : "Verdict: signature valid";
+          var okDetail = contentOk === true
+            ? "MorScan attested this response as it was served, signed by " + published.path + ": your browser confirmed both the receipt and the exact response body match what MorScan signed. Change any field and this check fails."
+            : "MorScan's signed attestation for this response was issued by " + published.path + ", and your browser confirmed it is genuinely MorScan's and unaltered. If the signed receipt had been changed, this check would fail.";
+          await showStep(5, "ok", okDetail);
+          var vLine = contentOk === true
+            ? "Signed by " + published.path + " at " + receipt.timestamp + "; the response body is bound by its content signature and matches. Checked by your browser against the published key."
+            : "Signed by " + published.path + " at " + receipt.timestamp + ". Checked by your browser against the published key.";
+          verdict("verified", "VERIFIED", vLine);
+          var bl = $("bind-line");
+          if (bl) bl.textContent = contentOk === true
+            ? "Body binding: MorScan's content signature over this exact response verified. Every field above is attested as served."
+            : "This receipt attests MorScan's signed summary of the response.";
           var wv2 = $("what-verified"); if (wv2) wv2.style.display = "block";
         } else {
           $("step-5-title").textContent = "Verdict: verification failed";
@@ -737,7 +802,9 @@
             ? "The signature does not match these bytes: either the response was altered after signing, or the signature is not over this content."
             : rejected
               ? "The signing key is published but marked " + published.status + ": signatures from it must be rejected."
-              : "The signature is internally consistent, but the key is not one MorScan publishes, so it proves nothing about MorScan.";
+              : !published
+                ? "The signature is internally consistent, but the key is not one MorScan publishes, so it proves nothing about MorScan."
+                : "The receipt is authentic and its key is published, but the response body does not match what was signed: the content signature failed, so the body was altered after signing.";
           await showStep(5, "bad", why);
           verdict("failed", "FAILED", why + " Do not trust this response; refetch it, or verify with the CLI.");
         }

@@ -270,6 +270,12 @@ export async function handleAll(env: Env, headers: Record<string, string>) {
 				merkle_root: batch.merkleRoot,
 			};
 		}
+		// The SyncCoordinator DO re-signs this aggregate every ~5s (traffic-independent);
+		// persisting each copy grew provenance_receipts unbounded for no benefit. Sign
+		// and serve it live (receipt embedded below, content-bound to the exact served
+		// body) but do NOT write it to D1 - pass no db. Per-endpoint user receipts still
+		// persist. `responseData` here is the full body minus the receipt we add next,
+		// which is exactly what the verify page re-derives to check content_sig.
 		const aggregateReceipt = await signResponse(
 			"blockchain.marketplace",
 			{ endpoint: "/mor/v1/all", syncedBlock: lastBlock },
@@ -280,7 +286,8 @@ export async function handleAll(env: Env, headers: Record<string, string>) {
 					((totalSessionsResult as Record<string, unknown>)?.count as number) || 0,
 			},
 			mnemonic,
-			env.DB,
+			undefined,
+			responseData,
 		);
 		if (aggregateReceipt)
 			responseData._provenance_aggregate = JSON.parse(aggregateReceipt);

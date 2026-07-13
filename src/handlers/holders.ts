@@ -111,6 +111,7 @@ export async function handleHolders(env: Env, headers: Record<string, string>, u
 				{ total, totalDiscovered: totalDiscovered?.cnt || 0, returned: holders.length },
 				mnemonic,
 				env.DB,
+				responseData,
 			);
 			if (receipt) responseData._provenance_aggregate = JSON.parse(receipt);
 		}
@@ -187,6 +188,7 @@ export async function handleDustHolders(
 				{ total, returned: holders.length },
 				mnemonic,
 				env.DB,
+				responseData,
 			);
 			if (receipt) responseData._provenance_aggregate = JSON.parse(receipt);
 		}

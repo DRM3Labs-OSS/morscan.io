@@ -311,6 +311,33 @@ export function insertProvenanceReceiptStmt(
 		);
 }
 
+/**
+ * Retention prune for provenance_receipts: delete rows older than `days`,
+ * bounded to `limit` per call so it never becomes a blanket sweep. These are
+ * ephemeral explorer attestations (a signed snapshot of cached chain data),
+ * not durable cited claims, so a rolling window is safe and caps the unbounded
+ * D1 growth from per-endpoint signing. The signed bytes still ship inline in
+ * every response and stay independently verifiable at serve time.
+ *
+ * ISO-to-ISO comparison only (the column and the cutoff are both JS ISO-8601,
+ * which sorts chronologically) - never compared against SQLite datetime().
+ * Uses idx_prov_timestamp via the bounded subselect.
+ */
+export async function pruneOldReceipts(
+	db: D1Database,
+	days: number,
+	limit = 25000,
+): Promise<number> {
+	const cutoffIso = new Date(Date.now() - days * 86_400_000).toISOString();
+	const r = await db
+		.prepare(
+			"DELETE FROM provenance_receipts WHERE id IN (SELECT id FROM provenance_receipts WHERE timestamp < ? ORDER BY timestamp LIMIT ?)",
+		)
+		.bind(cutoffIso, limit)
+		.run();
+	return (r.meta?.changes as number) || 0;
+}
+
 /** Store one provenance receipt (audit trail). */
 export function insertProvenanceReceipt(
 	db: D1Database,

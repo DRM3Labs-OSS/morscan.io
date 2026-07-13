@@ -125,6 +125,7 @@ export async function handleModelDemand(env: Env, headers: Record<string, string
 			{ modelCount: models.length, deadModelCount: deadModels.length },
 			mnemonic,
 			env.DB,
+			responseData,
 		);
 		if (receipt) responseData._provenance = JSON.parse(receipt);
 	}
@@ -174,6 +175,7 @@ export async function handleDailySessions(env: Env, headers: Record<string, stri
 			{ dayCount: days.length },
 			mnemonic,
 			env.DB,
+			responseData,
 		);
 		if (receipt) responseData._provenance = JSON.parse(receipt);
 	}

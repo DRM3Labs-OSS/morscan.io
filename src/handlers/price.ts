@@ -52,6 +52,7 @@ async function attachPriceProvenance(
 		},
 		mnemonic,
 		env.DB,
+		body,
 	);
 	if (receipt) body._provenance_aggregate = JSON.parse(receipt);
 	return body;

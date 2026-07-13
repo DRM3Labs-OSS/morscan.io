@@ -53,6 +53,7 @@ export async function handleGetModels(env: Env, headers: Record<string, string>)
 			{ count: rows.length },
 			mnemonic,
 			env.DB,
+			responseData,
 		);
 		if (aggregateReceipt) {
 			responseData._provenance_aggregate = JSON.parse(aggregateReceipt);

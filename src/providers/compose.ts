@@ -58,6 +58,7 @@ import {
 	getMaxSyncedHead,
 	getSyncStateValue,
 	putSyncStateValue,
+	pruneOldReceipts,
 } from "../db/ops";
 import { selectSyncStateIn3 } from "../db/explorer-core";
 
@@ -316,6 +317,17 @@ export function createMorscanApp(options: MorscanAppOptions = {}): MorscanApp {
 							console.log(`[snapshot-prune] deleted=${r.deleted} kept=${r.kept}`);
 						}),
 						"snapshotPrune",
+					),
+				);
+				// Retention prune for provenance_receipts: caps the D1 growth from
+				// per-endpoint signing (the 5s warm aggregate no longer persists).
+				// 30-day rolling window; receipts still ship inline + stay verifiable.
+				ctx.waitUntil(
+					safe(
+						pruneOldReceipts(env.DB, 30).then((n) => {
+							if (n) console.log(`[provenance-prune] deleted ${n} receipts >30d`);
+						}),
+						"provenancePrune",
 					),
 				);
 				return;

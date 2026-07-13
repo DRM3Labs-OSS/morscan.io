@@ -5,12 +5,34 @@ import {
 	Receipt,
 	Chain,
 	ReceiptBuilder,
+	canonicalize,
 } from "@drm3labs-oss/provenance/drm3_provenance.js";
 import { insertProvenanceReceipt } from "../db/ops";
 import { MORSCAN_VERSION } from "../version";
 import { BUILD_INFO } from "../build-info";
 import { baseUrl } from "../config";
 import { ensureInit, formatErr } from "./provenance-core";
+
+// The signing keypair is constant for an isolate's life, but
+// Keyring.fromMnemonic runs PBKDF2 (2048 HMAC-SHA512 rounds) on every call.
+// Deriving it once per cold start (like ensureInit and the memoized build
+// receipt) removes that per-sign cost from the 5s warm loop and every signed
+// response. Workers isolates are single-threaded, so reusing the cached keypair
+// across in-flight requests is safe; we keep the keyring ref alive alongside it.
+type SigningKeypair = ReturnType<Keyring["derive"]>;
+let _signingKeypair:
+	| { mnemonic: string; keyring: Keyring; keypair: SigningKeypair }
+	| undefined;
+function cacheSigningKeypair(mnemonic: string): SigningKeypair {
+	if (_signingKeypair && _signingKeypair.mnemonic === mnemonic) {
+		return _signingKeypair.keypair;
+	}
+	ensureInit();
+	const keyring = Keyring.fromMnemonic(mnemonic);
+	const keypair = keyring.derive("morscan/cache");
+	_signingKeypair = { mnemonic, keyring, keypair };
+	return keypair;
+}
 
 /**
  * Sign a MorScan API response with a provenance receipt.
@@ -30,11 +52,10 @@ export async function signResponse(
 	outputs: Record<string, unknown>,
 	mnemonic: string,
 	db?: D1Database,
+	content?: unknown,
 ): Promise<string | null> {
 	try {
-		ensureInit();
-		const keyring = Keyring.fromMnemonic(mnemonic);
-		const keypair = keyring.derive("morscan/cache");
+		const keypair = cacheSigningKeypair(mnemonic);
 		const meta = {
 			protocol: "drm3-provenance-v1",
 			service: "morscan",
@@ -46,10 +67,19 @@ export async function signResponse(
 			vendor_uri: "https://base-rpc.publicnode.com",
 			attestation: `DRM3 Labs attests this blockchain data was indexed from Base mainnet and cached by MorScan.`,
 		};
-		const receipt = Receipt.create(action)
+		let builder = Receipt.create(action)
 			.inputs(inputs)
-			.outputs({ ...outputs, _meta: meta })
-			.sign(keypair);
+			.outputs({ ...outputs, _meta: meta });
+		// When the caller hands us the exact response body (everything except the
+		// _provenance_aggregate receipt embedded after signing), bind it: content_sig
+		// is an Ed25519 signature over these canonical bytes with the same key. The
+		// verify page re-derives canonicalize(body without _provenance_aggregate) and
+		// checks it, so the attestation covers the served bytes, not just the summary.
+		// Uses the package canonicalize so client and server agree byte-for-byte.
+		if (content !== undefined && content !== null) {
+			builder = builder.contentPayload(canonicalize(content));
+		}
+		const receipt = builder.sign(keypair);
 		const json = receipt.toJson();
 
 		// Store receipt in D1 for audit trail
@@ -182,11 +212,9 @@ export function signBatchResponse(
 	mnemonic: string,
 ): { receipts: string[]; merkleRoot: string | null; receiptIds: string[] } | null {
 	try {
-		ensureInit();
 		if (items.length === 0) return null;
 
-		const keyring = Keyring.fromMnemonic(mnemonic);
-		const keypair = keyring.derive("morscan/cache");
+		const keypair = cacheSigningKeypair(mnemonic);
 
 		// Sign each item individually
 		const signedReceipts: Receipt[] = [];

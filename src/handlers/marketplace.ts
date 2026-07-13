@@ -53,6 +53,7 @@ export async function handleProviders(env: Env, headers: Record<string, string>)
 			{ total: providers.length },
 			mnemonic,
 			env.DB,
+			responseData,
 		);
 		if (aggregateReceipt)
 			responseData._provenance_aggregate = JSON.parse(aggregateReceipt);
@@ -107,6 +108,7 @@ export async function handleBids(env: Env, headers: Record<string, string>) {
 			{ total: bids.length },
 			mnemonic,
 			env.DB,
+			responseData,
 		);
 		if (aggregateReceipt)
 			responseData._provenance_aggregate = JSON.parse(aggregateReceipt);

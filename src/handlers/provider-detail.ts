@@ -183,6 +183,7 @@ export async function handleProviderDetail(
 			{ activeBids: bids.length, totalSessions, activeSessions },
 			mnemonic,
 			env.DB,
+			responseData,
 		);
 		if (receipt) responseData._provenance = JSON.parse(receipt);
 	}

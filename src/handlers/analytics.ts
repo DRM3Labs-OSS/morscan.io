@@ -124,6 +124,7 @@ export async function handleAnalytics(
 			},
 			mnemonic,
 			env.DB,
+			responseData,
 		);
 		if (aggregateReceipt) {
 			responseData._provenance_aggregate = JSON.parse(aggregateReceipt);
