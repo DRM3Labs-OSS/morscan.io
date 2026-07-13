@@ -8,7 +8,7 @@
   <meta name="keywords" content="provenance receipt, Ed25519 verification, signed API response, verify blockchain data, Morpheus AI, MOR token, cryptographic attestation, Base network AI">
   <link rel="canonical" href="https://morscan.io/verify">
   <meta property="og:title" content="Verify a Response - MorScan">
-  <meta property="og:description" content="Your browser checks the Ed25519 signature on a live MorScan API response against the published public keys. The math does the trusting.">
+  <meta property="og:description" content="Your browser checks the Ed25519 signature on a live MorScan API response against the published public keys: added accountability you can confirm yourself.">
   <meta property="og:image" content="https://morscan.io/og/verify.png">
   <meta property="og:url" content="https://morscan.io/verify">
   <meta property="og:type" content="website">
@@ -328,10 +328,12 @@
     </div>
 
     <p class="sowhat" id="sowhat">
-      Notice what you did not have to do: trust MorScan. The response is public, the
-      signature came with it, the public key is published for anyone to fetch, and your
-      own browser did the checking. If MorScan ever altered a served number after signing
-      it, this exact check is what would catch it.
+      What this adds is accountability, not a reason to skip trust. MorScan put its name (a
+      published key) on this response, and your own browser just confirmed that signature is
+      genuinely MorScan's and unchanged since it was signed. It proves who stands behind
+      these numbers and that they are unaltered, not that they are correct: a signature can
+      be placed on a wrong value too. If the signed attestation had been altered after
+      signing, this check would fail.
     </p>
 
     <details class="raw" id="raw-panel" style="display:none;">
@@ -344,10 +346,13 @@
     <section id="what-verified" style="display:none">
     <h2>What was verified</h2>
     <div class="block">
-      The exact response above was signed by the key <code id="who-path-inline">the signing key</code>
-      at the moment it was served. The signature covers a canonical form of the receipt:
-      its id, action, timestamp, and the SHA-256 hashes of the request and the response
-      body. One changed byte anywhere under those hashes and the signature stops verifying.
+      This response carries a receipt signed by the key <code id="who-path-inline">the signing key</code>
+      when it was served. The signature covers a canonical form of that receipt: its id,
+      action, timestamp, and the SHA-256 hashes of the query and of the values MorScan
+      attested for this response (its signed summary). Change any of those signed fields and
+      the signature stops verifying. The receipt attests MorScan's summary of the response,
+      not every field of the body, so read it as MorScan's signed, non-repudiable statement
+      about these values, not an independent re-derivation of the whole payload.
     </div>
     </section>
 
@@ -369,11 +374,13 @@
 
     <h2>What it means</h2>
     <div class="block">
-      You do not have to take MorScan's word for its numbers. Every response carries the
-      evidence with it, the keys are public, and the check is pure math that anyone can run:
-      this page in a browser, or the same ~50-line verifier from the command line:
-      <code>npm run verify:receipt</code> in the
+      This is MorScan putting its name on its numbers, permanently and checkably. Every
+      response carries the receipt with it, the keys are public, and the check is pure math
+      anyone can run: this page in a browser, or the same ~50-line verifier from the command
+      line: <code>npm run verify:receipt</code> in the
       <a href="https://github.com/DRM3Labs-OSS/morscan.io" target="_blank" rel="noopener">public repo</a>.
+      What it gives you is attribution you can confirm and tamper-evidence on what was signed:
+      added accountability, not a claim that you never need to trust us.
       Machine-readable build identity stays at <a href="/version">/version</a>, and the
       full receipt design is documented in the repo's provenance docs.
     </div>
@@ -721,7 +728,7 @@
         const ok = sigOk && !!published && !rejected;
         if (ok) {
           $("step-5-title").textContent = "Verdict: signature valid";
-          await showStep(5, "ok", "This exact response, byte for byte, was signed by " + published.path + " when it was served. If even one character had been altered, this check would fail.");
+          await showStep(5, "ok", "MorScan's signed attestation for this response was issued by " + published.path + ", and your browser confirmed it is genuinely MorScan's and unaltered. If the signed receipt had been changed, this check would fail.");
           verdict("verified", "VERIFIED", "Signed by " + published.path + " at " + receipt.timestamp + ". Checked by your browser against the published key.");
           var wv2 = $("what-verified"); if (wv2) wv2.style.display = "block";
         } else {
