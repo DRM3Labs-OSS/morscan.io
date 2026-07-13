@@ -2,7 +2,7 @@
   .calc-section { background: var(--bg-secondary); border: 1px solid var(--border); padding: 1.5rem; margin-bottom: 1.5rem; }
   .calc-section h3 { font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-muted); margin-bottom: 1rem; }
   .calc-row { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.75rem; flex-wrap: wrap; }
-  .calc-label { font-size: 0.65rem; color: var(--text-muted); min-width: 100px; text-transform: uppercase; letter-spacing: 0.05em; flex-shrink: 0; }
+  .calc-label { font-size: 0.75rem; color: var(--text-muted); min-width: 100px; text-transform: uppercase; letter-spacing: 0.05em; flex-shrink: 0; }
   .calc-input {
     background: var(--bg-primary); border: 1px solid var(--border); color: var(--text-primary);
     font-family: inherit; font-size: 1rem; padding: 0.5rem 0.75rem; width: 180px;
@@ -10,13 +10,13 @@
   }
   .calc-input:focus { border-color: var(--green); outline: none; }
   .calc-result { font-size: 1.1rem; font-weight: 700; color: var(--green); font-variant-numeric: tabular-nums; }
-  .calc-dim { font-size: 0.7rem; color: var(--text-muted); }
+  .calc-dim { font-size: 0.75rem; color: var(--text-muted); }
   .calc-divider { border-top: 1px solid var(--border); margin: 1rem 0; }
-  .calc-note { font-size: 0.65rem; color: var(--text-muted); line-height: 1.5; }
+  .calc-note { font-size: 0.75rem; color: var(--text-muted); line-height: 1.5; }
   .section-title { font-size: 0.75rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 0.75rem; }
   .explainer { background: var(--bg-secondary); border: 1px solid var(--border); padding: 1rem; margin-bottom: 1rem; }
   .explainer h3 { font-size: 0.75rem; font-weight: 600; margin-bottom: 0.5rem; }
-  .explainer p { font-size: 0.65rem; color: var(--text-muted); line-height: 1.6; margin-bottom: 0.3rem; }
+  .explainer p { font-size: 0.75rem; color: var(--text-muted); line-height: 1.6; margin-bottom: 0.3rem; }
   @media (max-width: 600px) { .calc-input { width: 140px; } .calc-result { font-size: 0.95rem; } }
 </style>
 
@@ -26,9 +26,10 @@
   <div class="calc-note" style="margin-bottom:1rem;">How much of the daily MOR emissions pool flows to a subnet based on total MOR staked toward it.</div>
   <div class="calc-row">
     <span class="calc-label">MOR Staked</span>
-    <input type="number" class="calc-input" id="calc-stake" placeholder="1000" value="1000" min="0">
+    <input type="number" class="calc-input" id="calc-stake" placeholder="1000" value="1000" min="0" aria-describedby="calc-error">
     <span class="calc-dim">on this subnet</span>
   </div>
+  <div id="calc-error" role="alert" aria-live="polite" style="color:var(--red);display:none;font-size:0.75rem;margin-top:0.3rem;"></div>
   <div class="calc-divider"></div>
   <div class="calc-row">
     <span class="calc-label">Subnet gets</span>
@@ -95,7 +96,25 @@
   } catch(_e) {}
 
   function updateCalc() {
-    var stake = parseFloat(document.getElementById('calc-stake').value) || 0;
+    var input = document.getElementById('calc-stake');
+    var err = document.getElementById('calc-error');
+    var raw = input.value;
+    var stake = parseFloat(raw);
+    var ok = Number.isFinite(stake) && stake > 0 && stake <= 1e12;
+    if (!ok) {
+      input.setAttribute('aria-invalid', 'true');
+      var blank = String(raw).trim() === '';
+      err.textContent = blank ? '' : 'Enter a positive MOR amount.';
+      err.style.display = blank ? 'none' : 'block';
+      document.getElementById('calc-daily').textContent = '-';
+      document.getElementById('calc-weekly').textContent = '-';
+      document.getElementById('calc-yearly').textContent = '-';
+      document.getElementById('calc-share').textContent = '-';
+      return;
+    }
+    input.removeAttribute('aria-invalid');
+    err.textContent = '';
+    err.style.display = 'none';
     var total = totalStaked + stake;
     var share = total > 0 ? stake / total : 0;
     var daily = share * dailyEmissions;

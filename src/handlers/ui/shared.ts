@@ -28,7 +28,7 @@ import walletBadge from "../../ui/partials/wallet-badge.html";
 //     self-hosted IBM Plex Mono at /fonts/ (no third-party font host)
 //   - frame-src:  the WalletConnect verify iframe (verify.walletconnect.org)
 export const CSP =
-	"default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; font-src 'self' https://fonts.reown.com data:; img-src 'self' data: blob: https: http:; connect-src 'self' wss://*.walletconnect.org wss://*.walletconnect.com wss://*.reown.com https://*.walletconnect.org https://*.walletconnect.com https://api.web3modal.org https://*.web3modal.org https://*.web3modal.com https://*.reown.com https://*.pinata.cloud; frame-src https://*.walletconnect.org https://*.walletconnect.com https://*.reown.com; frame-ancestors 'none';";
+	"default-src 'self'; script-src 'self' 'unsafe-inline' https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline'; font-src 'self' https://fonts.reown.com data:; img-src 'self' data: blob: https:; connect-src 'self' https://cloudflareinsights.com wss://*.walletconnect.org wss://*.walletconnect.com wss://*.reown.com https://*.walletconnect.org https://*.walletconnect.com https://api.web3modal.org https://*.web3modal.org https://*.web3modal.com https://*.reown.com https://*.pinata.cloud; frame-src https://*.walletconnect.org https://*.walletconnect.com https://*.reown.com; frame-ancestors 'none';";
 
 export const HTML_HEADERS = {
 	"Content-Type": "text/html;charset=UTF-8",
@@ -37,6 +37,8 @@ export const HTML_HEADERS = {
 	"X-Frame-Options": "DENY",
 	"X-Content-Type-Options": "nosniff",
 	"Referrer-Policy": "strict-origin-when-cross-origin",
+	"Strict-Transport-Security": "max-age=31536000; includeSubDomains; preload",
+	"Permissions-Policy": "geolocation=(), microphone=(), camera=(), payment=()",
 	"Content-Security-Policy": CSP,
 };
 

@@ -3,9 +3,9 @@
 <div class="key-bar">
   <label for="api-key" style="color:var(--text-muted);">API Key:</label>
   <input type="text" id="api-key" class="key-input" spellcheck="false" autocomplete="off" placeholder="mor_... (or connect your wallet)">
-  <span style="color:var(--text-muted);font-size:0.65rem;">sent as <code style="background:var(--bg-card);padding:0.1rem 0.3rem;">X-Morscan-Key</code></span>
-  <span id="key-hint" aria-live="polite" style="display:none;flex-basis:100%;color:var(--text-muted);font-size:0.65rem;line-height:1.5;"></span>
-  <a id="key-cta" href="/console" style="display:none;border:1px solid var(--green);color:var(--green);padding:0.35rem 0.7rem;font-size:0.65rem;font-weight:600;text-decoration:none;white-space:nowrap;">Connect wallet to get your free key &rarr;</a>
+  <span style="color:var(--text-muted);font-size:0.75rem;">sent as <code style="background:var(--bg-card);padding:0.1rem 0.3rem;">X-Morscan-Key</code></span>
+  <span id="key-hint" aria-live="polite" style="display:none;flex-basis:100%;color:var(--text-muted);font-size:0.75rem;line-height:1.5;"></span>
+  <a id="key-cta" href="/console" style="display:none;border:1px solid var(--green);color:var(--green);padding:0.35rem 0.7rem;font-size:0.75rem;font-weight:600;text-decoration:none;white-space:nowrap;">Connect wallet to get your free key &rarr;</a>
 </div>
 
 <!-- Live capacity: stake -> caps + remaining budget. Shown when a key is set. -->
@@ -39,10 +39,10 @@
 
   <div class="api-panel">
     <!-- Wallet config -->
-    <div class="wallet-config" style="display:flex;align-items:center;gap:0.5rem;padding:0.5rem 1rem;border:1px solid var(--border);margin-bottom:0.75rem;font-size:0.7rem;flex-wrap:wrap;">
-      <label for="cfg-wallet" style="color:var(--text-muted);white-space:nowrap;text-transform:uppercase;letter-spacing:0.05em;font-size:0.65rem;">Wallet</label>
-      <input type="text" id="cfg-wallet" spellcheck="false" placeholder="0x..." style="flex:1;min-width:200px;background:var(--bg-primary);border:1px solid var(--border);color:var(--cyan);font-family:monospace;font-size:0.7rem;padding:0.3rem 0.5rem;">
-      <span style="color:var(--dim);font-size:0.65rem;" class="wallet-hint">Used in endpoints with {wallet}</span>
+    <div class="wallet-config" style="display:flex;align-items:center;gap:0.5rem;padding:0.5rem 1rem;border:1px solid var(--border);margin-bottom:0.75rem;font-size:0.75rem;flex-wrap:wrap;">
+      <label for="cfg-wallet" style="color:var(--text-muted);white-space:nowrap;text-transform:uppercase;letter-spacing:0.05em;font-size:0.75rem;">Wallet</label>
+      <input type="text" id="cfg-wallet" spellcheck="false" placeholder="0x..." style="flex:1;min-width:200px;background:var(--bg-primary);border:1px solid var(--border);color:var(--cyan);font-family:monospace;font-size:0.75rem;padding:0.3rem 0.5rem;">
+      <span style="color:var(--dim);font-size:0.75rem;" class="wallet-hint">Used in endpoints with {wallet}</span>
     </div>
     <!-- Request -->
     <div class="pnl">
@@ -50,7 +50,7 @@
         <span class="pnl-title">Request</span>
         <span class="req-meter" id="req-meter"></span>
       </div>
-      <div id="ep-detail" style="padding:0.5rem 1rem;font-size:0.65rem;color:var(--text-muted);line-height:1.5;border-bottom:1px solid var(--border);display:none;"></div>
+      <div id="ep-detail" style="padding:0.5rem 1rem;font-size:0.75rem;color:var(--text-muted);line-height:1.5;border-bottom:1px solid var(--border);display:none;"></div>
       <div class="req-bar">
         <span id="req-badge" class="ep-method get">GET</span>
         <input type="text" id="req-url" class="req-url" spellcheck="false" aria-label="Request URL">
@@ -90,7 +90,7 @@
         <span class="pnl-title">cURL</span>
         <button type="button" class="btn" onclick="copyCurl(this)">Copy</button>
       </div>
-      <div class="code" id="curl-out" style="font-size:0.65rem;color:var(--text-secondary);">Select an endpoint to see the cURL command</div>
+      <div class="code" id="curl-out" style="font-size:0.75rem;color:var(--text-secondary);">Select an endpoint to see the cURL command</div>
     </div>
   </div>
 </div>
@@ -100,7 +100,7 @@
 <div id="sec-docs" style="display:none;">
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
     <span style="font-size:0.8rem;color:var(--text-muted);">OpenAPI 3.1 Specification</span>
-    <a href="/openapi.json" target="_blank" style="font-size:0.7rem;color:var(--cyan);text-decoration:none;">Download JSON &rarr;</a>
+    <a href="/openapi.json" target="_blank" style="font-size:0.75rem;color:var(--cyan);text-decoration:none;">Download JSON &rarr;</a>
   </div>
   <div id="openapi-docs" style="font-size:0.75rem;line-height:1.5;">
     <div class="skeleton skel-line w80" style="margin:2rem;"></div><div class="skeleton skel-line w60" style="margin:0 2rem;"></div><div class="skeleton skel-line w40" style="margin:0 2rem;"></div>

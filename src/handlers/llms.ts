@@ -226,7 +226,7 @@ const robotsTxt =
 # AI answering (ai-input=yes): retrieval, grounding, and citation in AI answers.
 # No opt-out is declared.
 User-agent: *
-Content-Signal: search=yes,ai-input=yes
+# Content-Signal: search=yes,ai-input=yes
 Allow: /
 Disallow: /login
 Disallow: /logout
@@ -238,47 +238,47 @@ Disallow: /trigger-sync
 # AI crawlers and agents are explicitly welcome to read and cite the public
 # content (search=yes, ai-input=yes; no opt-out).
 User-agent: GPTBot
-Content-Signal: search=yes,ai-input=yes
+# Content-Signal: search=yes,ai-input=yes
 Allow: /
 
 User-agent: ChatGPT-User
-Content-Signal: search=yes,ai-input=yes
+# Content-Signal: search=yes,ai-input=yes
 Allow: /
 
 User-agent: OAI-SearchBot
-Content-Signal: search=yes,ai-input=yes
+# Content-Signal: search=yes,ai-input=yes
 Allow: /
 
 User-agent: ClaudeBot
-Content-Signal: search=yes,ai-input=yes
+# Content-Signal: search=yes,ai-input=yes
 Allow: /
 
 User-agent: Claude-Web
-Content-Signal: search=yes,ai-input=yes
+# Content-Signal: search=yes,ai-input=yes
 Allow: /
 
 User-agent: anthropic-ai
-Content-Signal: search=yes,ai-input=yes
+# Content-Signal: search=yes,ai-input=yes
 Allow: /
 
 User-agent: Claude-User
-Content-Signal: search=yes,ai-input=yes
+# Content-Signal: search=yes,ai-input=yes
 Allow: /
 
 User-agent: PerplexityBot
-Content-Signal: search=yes,ai-input=yes
+# Content-Signal: search=yes,ai-input=yes
 Allow: /
 
 User-agent: Google-Extended
-Content-Signal: search=yes,ai-input=yes
+# Content-Signal: search=yes,ai-input=yes
 Allow: /
 
 User-agent: Applebot-Extended
-Content-Signal: search=yes,ai-input=yes
+# Content-Signal: search=yes,ai-input=yes
 Allow: /
 
 User-agent: CCBot
-Content-Signal: search=yes,ai-input=yes
+# Content-Signal: search=yes,ai-input=yes
 Allow: /
 
 Sitemap: ${baseUrl()}/sitemap.xml`;
@@ -361,7 +361,9 @@ export async function handleLlmsFullTxt(env: Env): Promise<Response> {
 }
 
 export function handleRobotsTxt(): Response {
-	return new Response(robotsTxt(), { headers: PLAIN_HEADERS });
+	return new Response(robotsTxt(), {
+		headers: { ...PLAIN_HEADERS, "Content-Signal": "search=yes,ai-input=yes" },
+	});
 }
 
 export function handleSitemapXml(): Response {

@@ -88,6 +88,7 @@ export const HEADERS = {
 		"Content-Type, X-Morscan-Key, Authorization, X-Morscan-Wallet, X-Morscan-Ts, X-Morscan-Sig, X-Morscan-Nonce, X-Morscan-Version, X-Morscan-Staking-Wallet, X-PAYMENT",
 	"Access-Control-Expose-Headers": "X-PAYMENT-RESPONSE",
 	"Cache-Control": "public, s-maxage=10, max-age=5",
+	"Strict-Transport-Security": "max-age=31536000; includeSubDomains; preload",
 };
 
 /**

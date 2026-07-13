@@ -120,7 +120,7 @@ describe("buildTickerItems", () => {
 		expect(by("session")).toMatchObject({ value: "qwen3-235b", sub: "2m ago" });
 		expect(by("provider")).toMatchObject({
 			value: "gpu.titan.io",
-			sub: "1,841 sessions",
+			sub: "1,841 all-time sessions",
 			href: "/compute/providers/0xAbCd000000000000000000000000000000001234",
 		});
 		expect(by("builder")).toMatchObject({ value: "2.45M MOR" });
@@ -182,13 +182,15 @@ describe("renderTicker", () => {
 		expect(html).not.toContain("mkt-lb");
 	});
 
-	it("loops seamlessly: two identical halves, clone aria-hidden", () => {
+	it("loops seamlessly: two identical halves, clone aria-hidden + inert", () => {
 		const html = renderTicker([one, { ...one, value: "x" }]);
 		const halves = html.split('<span class="mkt-half"');
 		expect(halves).toHaveLength(3);
-		expect(halves[2].startsWith(' aria-hidden="true"')).toBe(true);
+		// The clone is hidden from AT and removed from the tab order (inert), so its
+		// focusable links can't be tabbed into while duplicated for the scroll loop.
+		expect(halves[2].startsWith(' aria-hidden="true" inert')).toBe(true);
 		expect(
-			halves[2].replace(' aria-hidden="true"', "").replace("</div></div>", ""),
+			halves[2].replace(' aria-hidden="true" inert', "").replace("</div></div>", ""),
 		).toBe(halves[1]);
 	});
 

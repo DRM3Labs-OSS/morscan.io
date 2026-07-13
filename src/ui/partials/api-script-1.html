@@ -144,7 +144,7 @@ function buildSidebar() {
   var footerGroups = EPS.filter((g)=> g.footer);
   function renderGroups(groups) {
     groups.forEach((g) => {
-      var baseLabel = g.base ? ` <span style="color:var(--dim);font-weight:400;font-size:0.65rem;letter-spacing:0">${g.base}</span>` : '';
+      var baseLabel = g.base ? ` <span style="color:var(--dim);font-weight:400;font-size:0.75rem;letter-spacing:0">${g.base}</span>` : '';
       html += `<div class="ep-group-title">${g.group}${baseLabel}</div><div class="ep-list">`;
       g.items.forEach((e) => {
         var active = e.p === curPath ? ' active' : '';

@@ -145,7 +145,7 @@ export async function handleBuilderCalcPage(env: Env): Promise<Response> {
 		render({
 			title: "Morpheus Builder Calculator - MorScan",
 			description:
-				"Estimate Morpheus builder subnet emissions and MOR staking rewards on Base, from live daily emissions and pool stake.",
+				"Estimate Morpheus builder subnet emissions on Base, from live daily emissions and pool stake.",
 			ogUrl: `${baseUrl()}/builder/calculator`,
 			ogImage: `${baseUrl()}/og/builder.png`,
 			subtitle: "Morpheus Builder Net Explorer",
@@ -155,7 +155,7 @@ export async function handleBuilderCalcPage(env: Env): Promise<Response> {
 			pageStyles: styles,
 			content:
 				seoLede(
-					"Estimate Morpheus builder subnet emissions and MOR staking rewards from live daily emissions and total pool stake on Base.",
+					"Estimate Morpheus builder subnet emissions from live daily emissions and total pool stake on Base.",
 				) + content,
 			headScripts: [
 				`<script>window.MORSCAN_API_KEY = "${escJs(env.MORSCAN_DEMO_KEY || "")}";</script>`,

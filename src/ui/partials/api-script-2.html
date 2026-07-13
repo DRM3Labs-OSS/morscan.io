@@ -157,8 +157,8 @@ async function renderOpenApiDocs() {
 
     // Header
     h += '<div style="margin-bottom:1.5rem;">';
-    h += `<div style="color:var(--green);font-size:1.1rem;font-weight:700;">${esc(spec.info?.title || 'API')} <span style="color:var(--cyan);font-size:0.65rem;font-weight:400;">v${esc(spec.info?.version || '')}</span></div>`;
-    if (spec.info?.description) h += `<div style="color:var(--text-primary);font-size:0.7rem;margin-top:0.4rem;line-height:1.6;">${esc(spec.info.description)}</div>`;
+    h += `<div style="color:var(--green);font-size:1.1rem;font-weight:700;">${esc(spec.info?.title || 'API')} <span style="color:var(--cyan);font-size:0.75rem;font-weight:400;">v${esc(spec.info?.version || '')}</span></div>`;
+    if (spec.info?.description) h += `<div style="color:var(--text-primary);font-size:0.75rem;margin-top:0.4rem;line-height:1.6;">${esc(spec.info.description)}</div>`;
     h += '</div>';
 
     // Auth
@@ -166,8 +166,8 @@ async function renderOpenApiDocs() {
       h += '<div style="background:var(--bg-secondary);border:1px solid var(--border);padding:0.75rem 1rem;margin-bottom:1.5rem;">';
       h += '<div style="color:var(--text-primary);font-weight:600;margin-bottom:0.4rem;">Authentication</div>';
       for (var [name, scheme] of Object.entries(spec.components.securitySchemes)) {
-        h += `<div style="color:var(--cyan);font-size:0.7rem;">${esc(name)}</div>`;
-        h += `<div style="color:var(--text-muted);font-size:0.65rem;">${esc(scheme.type)}${scheme.in ? ` in ${scheme.in}` : ''}${scheme.name ? `: <span style="color:var(--text-primary);">${esc(scheme.name)}</span>` : ''}</div>`;
+        h += `<div style="color:var(--cyan);font-size:0.75rem;">${esc(name)}</div>`;
+        h += `<div style="color:var(--text-muted);font-size:0.75rem;">${esc(scheme.type)}${scheme.in ? ` in ${scheme.in}` : ''}${scheme.name ? `: <span style="color:var(--text-primary);">${esc(scheme.name)}</span>` : ''}</div>`;
       }
       h += '</div>';
     }
@@ -193,22 +193,22 @@ async function renderOpenApiDocs() {
       var gh = '';
       gh += '<div style="margin-bottom:1.25rem;">';
       gh += `<div style="color:var(--text-primary);font-size:0.85rem;font-weight:700;padding:0.5rem 0;border-bottom:1px solid var(--border);">${esc(name)}`;
-      if (desc) gh += ` <span style="color:var(--text-muted);font-weight:400;font-size:0.65rem;margin-left:0.5rem;">${esc(desc)}</span>`;
+      if (desc) gh += ` <span style="color:var(--text-muted);font-weight:400;font-size:0.75rem;margin-left:0.5rem;">${esc(desc)}</span>`;
       gh += '</div>';
       entries.forEach((e) => {
         var color = MC[e.method.toLowerCase()] || '#c7c2bc';
         gh += `<div style="background:var(--bg-secondary);border:1px solid var(--border);border-left:3px solid ${color};margin:0.35rem 0;padding:0.5rem 0.75rem;">`;
         gh += '<div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;">';
-        gh += `<span style="background:${color};color:${e.method === 'GET' || e.method === 'PUT' ? '#000' : '#fff'};font-size:0.65rem;font-weight:700;padding:0.15rem 0.4rem;min-width:40px;text-align:center;">${e.method}</span>`;
+        gh += `<span style="background:${color};color:${e.method === 'GET' || e.method === 'PUT' ? '#000' : '#fff'};font-size:0.75rem;font-weight:700;padding:0.15rem 0.4rem;min-width:40px;text-align:center;">${e.method}</span>`;
         gh += `<span style="color:var(--text-primary);font-size:0.75rem;font-weight:500;">${esc(e.path)}</span>`;
-        if (e.op.summary) gh += `<span style="color:var(--text-secondary);font-size:0.65rem;margin-left:auto;">${esc(e.op.summary)}</span>`;
+        if (e.op.summary) gh += `<span style="color:var(--text-secondary);font-size:0.75rem;margin-left:auto;">${esc(e.op.summary)}</span>`;
         gh += '</div>';
-        if (e.op.description) gh += `<div style="color:var(--text-muted);font-size:0.65rem;margin-top:0.3rem;line-height:1.5;">${esc(e.op.description)}</div>`;
+        if (e.op.description) gh += `<div style="color:var(--text-muted);font-size:0.75rem;margin-top:0.3rem;line-height:1.5;">${esc(e.op.description)}</div>`;
 
         // Parameters
         var params = e.op.parameters || [];
         if (params.length > 0) {
-          gh += '<div class="table-scroll" style="margin-top:0.5rem;"><table style="width:100%;border-collapse:collapse;font-size:0.65rem;min-width:400px;">';
+          gh += '<div class="table-scroll" style="margin-top:0.5rem;"><table style="width:100%;border-collapse:collapse;font-size:0.75rem;min-width:400px;">';
           gh += '<tr style="border-bottom:1px solid var(--border);"><td style="color:var(--text-muted);padding:0.2rem 0.4rem;">Name</td><td style="color:var(--text-muted);padding:0.2rem 0.4rem;">In</td><td style="color:var(--text-muted);padding:0.2rem 0.4rem;">Type</td><td style="color:var(--text-muted);padding:0.2rem 0.4rem;">Description</td></tr>';
           params.forEach((p) => {
             gh += '<tr style="border-bottom:1px solid rgba(68,64,60,0.3);">';
@@ -225,7 +225,7 @@ async function renderOpenApiDocs() {
         var resps = e.op.responses || {};
         var rkeys = Object.keys(resps);
         if (rkeys.length > 0) {
-          gh += '<div style="margin-top:0.4rem;font-size:0.65rem;color:var(--text-muted);">Responses: ';
+          gh += '<div style="margin-top:0.4rem;font-size:0.75rem;color:var(--text-muted);">Responses: ';
           gh += rkeys.map((code) => {
             var rc = parseInt(code, 10) < 300 ? 'var(--green)' : parseInt(code, 10) < 400 ? 'var(--cyan)' : '#ef4444';
             return `<span style="color:${rc};font-weight:600;">${code}</span>`;

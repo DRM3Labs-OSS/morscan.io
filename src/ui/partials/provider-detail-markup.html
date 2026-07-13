@@ -1,14 +1,14 @@
 <!-- Provider Detail - content fragment for layout.mustache -->
 <style>
-    .back-link { font-size: 0.7rem; color: var(--text-muted); margin-bottom: 1.5rem; display: inline-block; }
+    .back-link { font-size: 0.75rem; color: var(--text-muted); margin-bottom: 1.5rem; display: inline-block; }
     .back-link:hover { color: var(--cyan); }
 
     .detail-header { margin-bottom: 1.5rem; }
     .detail-domain { font-size: 1.4rem; font-weight: 700; color: var(--cyan); margin-bottom: 0.35rem; }
     .detail-address { font-size: 0.8rem; color: var(--text-secondary); display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
-    .detail-address a { color: var(--link); font-size: 0.7rem; }
+    .detail-address a { color: var(--link); font-size: 0.75rem; }
     .detail-address a:hover { color: #a5f3fc; text-decoration: underline; }
-    .detail-endpoint { font-size: 0.7rem; color: var(--cyan); margin-top: 0.35rem; word-break: break-all; }
+    .detail-endpoint { font-size: 0.75rem; color: var(--cyan); margin-top: 0.35rem; word-break: break-all; }
 
     .stats-row { display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 1.5rem; padding: 0.75rem 1rem; background: var(--bg-secondary); border: 1px solid var(--border); }
     .stat-item { display: flex; flex-direction: column; gap: 0.15rem; flex: 1; min-width: 100px; }
@@ -16,24 +16,24 @@
     .stat-val.green { color: var(--green); }
     .stat-val.cyan { color: var(--cyan); }
     .stat-val.mor { color: var(--mor); }
-    .stat-label { font-size: 0.65rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
+    .stat-label { font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
 
     .card { background: var(--bg-secondary); border: 1px solid var(--border); padding: 1rem 1.25rem; margin-bottom: 1.5rem; }
-    .card-title { font-size: 0.7rem; color: var(--green); text-transform: uppercase; letter-spacing: 0.1em; font-weight: 600; margin-bottom: 0.75rem; }
+    .card-title { font-size: 0.75rem; color: var(--green); text-transform: uppercase; letter-spacing: 0.1em; font-weight: 600; margin-bottom: 0.75rem; }
 
     .rep-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 0.75rem; }
     .rep-item { display: flex; flex-direction: column; gap: 0.1rem; }
     .rep-val { font-size: 1.1rem; font-weight: 700; color: var(--green); }
-    .rep-label { font-size: 0.65rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
+    .rep-label { font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
 
     /* Bids table */
     table { width: 100%; border-collapse: collapse; }
-    th { text-align: left; padding: 0.6rem 0.75rem; font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-muted); background: var(--bg-card); font-weight: 500; }
+    th { text-align: left; padding: 0.6rem 0.75rem; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-muted); background: var(--bg-card); font-weight: 500; }
     td { padding: 0.6rem 0.75rem; font-size: 0.75rem; border-top: 1px solid var(--border); color: var(--text-secondary); }
     tr:hover td { background: rgba(255,255,255,0.02); }
     .model-name { color: var(--text-primary); font-weight: 500; }
     .price { color: var(--mor); font-weight: 600; }
-    .badge { display: inline-block; padding: 0.15rem 0.4rem; font-size: 0.65rem; font-weight: 600; text-transform: uppercase; }
+    .badge { display: inline-block; padding: 0.15rem 0.4rem; font-size: 0.75rem; font-weight: 600; text-transform: uppercase; }
     .badge-production { background: var(--green-dim); color: var(--green); }
     .badge-testing { background: rgba(250, 204, 21, 0.15); color: var(--yellow); }
 
@@ -42,7 +42,7 @@
     .bid-card { background: var(--bg-card); border: 1px solid var(--border); padding: 0.75rem; margin-bottom: 0.5rem; }
     .bid-card:last-child { margin-bottom: 0; }
     .bid-card-model { font-size: 0.8rem; font-weight: 600; color: var(--text-primary); margin-bottom: 0.5rem; word-break: break-word; }
-    .bid-card-row { display: flex; justify-content: space-between; align-items: center; font-size: 0.7rem; color: var(--text-muted); }
+    .bid-card-row { display: flex; justify-content: space-between; align-items: center; font-size: 0.75rem; color: var(--text-muted); }
     .bid-card-row + .bid-card-row { margin-top: 0.35rem; }
     .bid-card-price { color: var(--mor); font-weight: 600; }
 
@@ -50,13 +50,13 @@
     .session-item { background: var(--bg-secondary); border: 1px solid var(--border); padding: 0.6rem 0.75rem; margin-bottom: 0.35rem; }
     .session-row { display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
     .session-model { font-size: 0.75rem; font-weight: 500; color: var(--text-primary); }
-    .session-meta { display: flex; gap: 0.75rem; font-size: 0.65rem; color: var(--text-muted); align-items: center; flex-wrap: wrap; }
+    .session-meta { display: flex; gap: 0.75rem; font-size: 0.75rem; color: var(--text-muted); align-items: center; flex-wrap: wrap; }
     .badge-active { background: var(--green-dim); color: var(--green); }
     .badge-closed { background: rgba(168,162,158,0.1); color: var(--text-muted); }
     .badge-dispute { background: rgba(250, 204, 21, 0.15); color: var(--yellow); }
 
-    .section-title { font-size: 0.7rem; color: var(--green); text-transform: uppercase; letter-spacing: 0.1em; font-weight: 600; margin-bottom: 0.75rem; margin-top: 1.5rem; }
-    .empty-msg { padding: 1rem; font-size: 0.7rem; color: var(--text-muted); }
+    .section-title { font-size: 0.75rem; color: var(--green); text-transform: uppercase; letter-spacing: 0.1em; font-weight: 600; margin-bottom: 0.75rem; margin-top: 1.5rem; }
+    .empty-msg { padding: 1rem; font-size: 0.75rem; color: var(--text-muted); }
     /* Per-model reputation table scrolls sideways on narrow views */
     .rep-table { min-width: 480px; }
 

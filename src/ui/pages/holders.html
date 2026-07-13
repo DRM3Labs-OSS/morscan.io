@@ -1,45 +1,45 @@
 <!-- Holders page - content fragment for layout.mustache -->
 <style>
-    .section-title { font-size:0.65rem; text-transform:uppercase; letter-spacing:0.12em; color:var(--dim); margin-bottom:0.75rem; }
+    .section-title { font-size:0.75rem; text-transform:uppercase; letter-spacing:0.12em; color:var(--dim); margin-bottom:0.75rem; }
     .hero { margin-bottom:2rem; }
     .hero h2 { font-size:1.5rem; font-weight:700; margin-bottom:0.5rem; }
     .hero p { font-size:0.8rem; color:var(--muted); line-height:1.6; max-width:600px; }
     .holders-table { width:100%; border-collapse:collapse; font-size:0.75rem; }
     .holders-table th {
-      text-align:left; padding:0.5rem 0.75rem; font-size:0.65rem; text-transform:uppercase;
+      text-align:left; padding:0.5rem 0.75rem; font-size:0.75rem; text-transform:uppercase;
       letter-spacing:0.1em; color:var(--dim); border-bottom:1px solid var(--border); cursor:pointer; user-select:none;
     }
     .holders-table th:hover { color:var(--text); }
-    .holders-table th .sort-arrow { font-size:0.65rem; margin-left:0.3rem; }
+    .holders-table th .sort-arrow { font-size:0.75rem; margin-left:0.3rem; }
     .holders-table td { padding:0.5rem 0.75rem; border-bottom:1px solid rgba(41,37,36,0.3); }
     .holders-table tr:hover { background:rgba(255,255,255,0.02); }
-    .wallet-link { color:var(--cyan); text-decoration:none; font-family:monospace; font-size:0.7rem; }
+    .wallet-link { color:var(--cyan); text-decoration:none; font-family:monospace; font-size:0.75rem; }
     .wallet-link:hover { text-decoration:underline; }
     .balance { font-weight:600; color:var(--green); text-align:right; }
     .eth-bal { color:var(--muted); text-align:right; }
     .rank { color:var(--dim); text-align:center; width:3rem; }
-    .badge { display:inline-block; font-size:0.65rem; padding:0.1rem 0.35rem; border:1px solid var(--border); text-align:center; text-transform:uppercase; letter-spacing:0.05em; }
+    .badge { display:inline-block; font-size:0.75rem; padding:0.1rem 0.35rem; border:1px solid var(--border); text-align:center; text-transform:uppercase; letter-spacing:0.05em; }
     .badge-provider { color:var(--cyan); border-color:rgba(34,211,238,0.3); }
     .badge-consumer { color:var(--green); border-color:var(--green); }
     .badge-staker { color:var(--amber); border-color:rgba(245,158,11,0.3); }
     .badge-holder { color:var(--dim); border-color:rgba(120,113,108,0.3); }
     .pagination { display:flex; justify-content:center; gap:0.5rem; margin-top:1.5rem; }
-    .pagination a { padding:0.3rem 0.75rem; font-size:0.7rem; border:1px solid var(--border); color:var(--text); text-decoration:none; }
+    .pagination a { padding:0.3rem 0.75rem; font-size:0.75rem; border:1px solid var(--border); color:var(--text); text-decoration:none; }
     .pagination a:hover { border-color:var(--green); }
     .pagination a.active { border-color:var(--green); color:var(--green); }
     .loading { text-align:center; padding:3rem; color:var(--muted); font-size:0.8rem; }
     .role-tabs { display:flex; flex-wrap:wrap; gap:0.25rem; margin-bottom:0.75rem; }
-    .role-f { font-family:inherit; font-size:0.65rem; padding:0.3rem 0.6rem; background:none; border:1px solid var(--border); color:var(--muted); cursor:pointer; min-height:32px; }
+    .role-f { font-family:inherit; font-size:0.75rem; padding:0.3rem 0.6rem; background:none; border:1px solid var(--border); color:var(--muted); cursor:pointer; min-height:32px; }
     .role-f:hover, .role-f:focus-visible { border-color:var(--green); color:var(--text); }
     .role-f.active { border-color:var(--green); color:var(--green); }
     @media(max-width:768px) {
-      .wallet-link { font-size:0.65rem; }
-      .holders-table { font-size:0.65rem; min-width:520px; }
+      .wallet-link { font-size:0.75rem; }
+      .holders-table { font-size:0.75rem; min-width:520px; }
       .holders-table td, .holders-table th { padding:0.35rem 0.4rem; }
-      .badge { font-size:0.65rem; padding:0.05rem 0.25rem; }
+      .badge { font-size:0.75rem; padding:0.05rem 0.25rem; }
     }
     @media(max-width:500px) {
-      .wallet-link { font-size:0.65rem; }
+      .wallet-link { font-size:0.75rem; }
       .eth-bal { display:none; }
     }
 </style>
@@ -211,7 +211,7 @@
           }
           pagHtml += '</div>';
           if (d.pagination.totalPages > MAX_PAGES) {
-            pagHtml += '<div role="note" aria-live="polite" style="border:1px solid var(--border);border-left:3px solid var(--green);background:var(--bg-secondary);padding:0.85rem 1rem;font-size:0.7rem;color:var(--muted);line-height:1.6;margin-top:0.9rem;">Showing the first 1,000 holders. That is the browse limit. Refine with a role filter or column sort to find a specific one, or pull the full set from the <a href="/api/playground" style="color:var(--green);text-decoration:none;">API</a> or the <a href="https://github.com/DRM3Labs-OSS/morpheus-ai-base-data" target="_blank" rel="noopener" style="color:var(--green);text-decoration:none;">open dataset</a>.</div>';
+            pagHtml += '<div role="note" aria-live="polite" style="border:1px solid var(--border);border-left:3px solid var(--green);background:var(--bg-secondary);padding:0.85rem 1rem;font-size:0.75rem;color:var(--muted);line-height:1.6;margin-top:0.9rem;">Showing the first 1,000 holders. That is the browse limit. Refine with a role filter or column sort to find a specific one, or pull the full set from the <a href="/api/playground" style="color:var(--green);text-decoration:none;">API</a> or the <a href="https://github.com/DRM3Labs-OSS/morpheus-ai-base-data" target="_blank" rel="noopener" style="color:var(--green);text-decoration:none;">open dataset</a>.</div>';
           }
         }
         renderTable();

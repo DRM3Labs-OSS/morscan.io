@@ -9,23 +9,23 @@
   .mw-badge { position: fixed; top: 0.8rem; right: 0.85rem; z-index: 200; font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace; }
   .mw-badge * { box-sizing: border-box; }
   .mw-menu { position: relative; }
-  .mw-trigger { display: inline-flex; align-items: center; gap: 0.45rem; background: rgba(12,10,9,0.94); border: 1px solid #44403c; color: #e7e5e4; padding: 0.42rem 0.62rem; min-height: 34px; cursor: pointer; font-size: 0.72rem; font-family: inherit; }
+  .mw-trigger { display: inline-flex; align-items: center; gap: 0.45rem; background: rgba(12,10,9,0.94); border: 1px solid #44403c; color: #e7e5e4; padding: 0.42rem 0.62rem; min-height: 34px; cursor: pointer; font-size: 0.75rem; font-family: inherit; }
   .mw-trigger:hover, .mw-trigger:focus-visible, .mw-trigger[aria-expanded="true"] { border-color: #22c55e; color: #fafaf9; }
   .mw-dot { width: 7px; height: 7px; background: #22c55e; box-shadow: 0 0 6px #22c55e; flex: 0 0 auto; }
   .mw-addr { font-variant-numeric: tabular-nums; }
   .mw-caret { transition: transform 0.15s; }
   .mw-trigger[aria-expanded="true"] .mw-caret { transform: rotate(180deg); }
-  .mw-connect { display: inline-flex; align-items: center; gap: 0.4rem; background: rgba(12,10,9,0.94); border: 1px solid #44403c; color: #e7e5e4; padding: 0.42rem 0.65rem; min-height: 34px; font-size: 0.66rem; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; text-decoration: none; }
+  .mw-connect { display: inline-flex; align-items: center; gap: 0.4rem; background: rgba(12,10,9,0.94); border: 1px solid #44403c; color: #e7e5e4; padding: 0.42rem 0.65rem; min-height: 34px; font-size: 0.75rem; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; text-decoration: none; }
   .mw-connect:hover, .mw-connect:focus-visible { border-color: #22c55e; color: #22c55e; }
   .mw-pop { position: absolute; right: 0; top: calc(100% + 6px); min-width: 13rem; background: #1c1917; border: 1px solid #22c55e; box-shadow: 0 10px 30px rgba(0,0,0,0.6); padding: 0.3rem; display: flex; flex-direction: column; }
   .mw-pop[hidden] { display: none; }
-  .mw-label { font-size: 0.58rem; text-transform: uppercase; letter-spacing: 0.1em; color: #b8b3ae; padding: 0.45rem 0.55rem 0.15rem; }
-  .mw-id { font-size: 0.7rem; color: #e7e5e4; padding: 0 0.55rem 0.5rem; margin-bottom: 0.25rem; border-bottom: 1px solid #44403c; word-break: break-all; font-variant-numeric: tabular-nums; }
-  .mw-item { font-family: inherit; text-align: left; background: transparent; border: none; color: #e7e5e4; font-size: 0.72rem; padding: 0 0.55rem; min-height: 40px; display: flex; align-items: center; cursor: pointer; text-decoration: none; }
+  .mw-label { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.1em; color: #b8b3ae; padding: 0.45rem 0.55rem 0.15rem; }
+  .mw-id { font-size: 0.75rem; color: #e7e5e4; padding: 0 0.55rem 0.5rem; margin-bottom: 0.25rem; border-bottom: 1px solid #44403c; word-break: break-all; font-variant-numeric: tabular-nums; }
+  .mw-item { font-family: inherit; text-align: left; background: transparent; border: none; color: #e7e5e4; font-size: 0.75rem; padding: 0 0.55rem; min-height: 40px; display: flex; align-items: center; cursor: pointer; text-decoration: none; }
   .mw-item:hover, .mw-item:focus-visible { background: #14352a; color: #22c55e; outline: none; }
   .mw-disc:hover, .mw-disc:focus-visible { color: #f87171; background: rgba(248,113,113,0.12); }
   .mw-trigger:focus-visible, .mw-connect:focus-visible, .mw-item:focus-visible { outline: 2px solid #22c55e; outline-offset: 2px; }
-  @media (max-width: 768px) { .mw-badge { top: 0.6rem; right: 0.6rem; } .mw-trigger, .mw-connect { font-size: 0.66rem; padding: 0.4rem 0.5rem; } }
+  @media (max-width: 768px) { .mw-badge { top: 0.6rem; right: 0.6rem; } .mw-trigger, .mw-connect { font-size: 0.75rem; padding: 0.4rem 0.5rem; } }
 </style>
 <div class="mw-badge" id="mw-badge" role="status" aria-live="polite"></div>
 <script>

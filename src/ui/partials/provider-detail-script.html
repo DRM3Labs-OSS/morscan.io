@@ -81,8 +81,17 @@
         var p = data.provider;
         var s = data.summary || {};
         var domain = parseDomain(p.endpoint);
-        var successRate = s.totalSessions > 0 ? (((s.totalSessions - (s.disputedSessions || 0)) / s.totalSessions) * 100).toFixed(1) : '-';
-        var disputeFreeRate = s.totalSessions > 0 ? (((s.totalSessions - (s.disputedSessions || 0)) / s.totalSessions) * 100).toFixed(1) : '-';
+        // Aggregate tiles roll up the same per-model rows rendered in the table
+        // below (provider_stats), so the headline can never contradict the rows.
+        var repRows = data.reputation || [];
+        var aggTotal = 0, aggSuccess = 0, aggDispute = 0;
+        repRows.forEach((r) => {
+            aggTotal += Number(r.totalSessions) || 0;
+            aggSuccess += Number(r.successCount) || 0;
+            aggDispute += Number(r.disputeCount) || 0;
+        });
+        var successRate = aggTotal > 0 ? ((aggSuccess / aggTotal) * 100).toFixed(1) : '-';
+        var disputeFreeRate = aggTotal > 0 ? ((1 - aggDispute / aggTotal) * 100).toFixed(1) : '-';
 
         var html = '';
 
@@ -98,7 +107,7 @@
 
         // Stats row
         html += '<div class="stats-row">';
-        html += `<div class="stat-item"><span class="stat-val green">${formatNum(s.totalSessions || 0)}</span><span class="stat-label">Total Sessions</span></div>`;
+        html += `<div class="stat-item"><span class="stat-val green">${formatNum(s.totalSessions || 0)}</span><span class="stat-label">Sessions (indexed)</span></div>`;
         html += `<div class="stat-item"><span class="stat-val green">${formatNum(s.activeSessions || 0)}</span><span class="stat-label">Active Sessions</span></div>`;
         html += `<div class="stat-item"><span class="stat-val">${escHtml(successRate)}%</span><span class="stat-label">Success Rate</span></div>`;
         html += `<div class="stat-item"><span class="stat-val mor">${escHtml(parseFloat(s.totalStakeMor || 0).toFixed(2))}</span><span class="stat-label">Total MOR Staked</span></div>`;

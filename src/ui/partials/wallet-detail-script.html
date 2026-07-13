@@ -175,7 +175,7 @@
         html += '<div class="card-title">Stake Breakdown</div>';
         html += '<div class="bal-grid">';
         html += `<div class="bal-item"><span class="bal-val" style="color:var(--green)">${formatMor(stake.active)}</span><span class="bal-label">Active Stake</span></div>`;
-        html += `<div class="bal-item"><span class="bal-val" style="color:var(--orange)">${formatMor(stake.claimable)}</span><span class="bal-label">Claimable Stake</span><span style="font-size:0.65rem;color:var(--text-muted);margin-top:0.15rem;">Session expired, MOR in escrow. Call withdrawUserStakes to reclaim</span></div>`;
+        html += `<div class="bal-item"><span class="bal-val" style="color:var(--orange)">${formatMor(stake.claimable)}</span><span class="bal-label">Claimable Stake</span><span style="font-size:0.75rem;color:var(--text-muted);margin-top:0.15rem;">Session expired, MOR in escrow. Call withdrawUserStakes to reclaim</span></div>`;
         html += `<div class="bal-item"><span class="bal-val" style="color:var(--text-muted)">${formatMor(stake.totalHistorical)}</span><span class="bal-label">Total Historical</span></div>`;
         html += '</div></div>';
 

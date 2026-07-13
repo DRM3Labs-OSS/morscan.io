@@ -209,9 +209,9 @@ function renderPrice(price: PriceData | null | undefined): string {
 	const valText = p ? `$${p.usd.toFixed(2)}` : "";
 	const chText = p ? `${sign}${ch.toFixed(2)}% (24h)` : "";
 	return `<div id="header-price" class="header-price" aria-live="polite">
-    <span style="display:block;"><span id="header-price-val" style="font-size:0.9rem;font-weight:700;color:var(--mor);font-variant-numeric:tabular-nums;">${valText}</span><span id="header-price-stale" title="Price feed delayed" style="display:none;color:var(--text-muted);font-size:0.65rem;margin-left:5px;">&middot; delayed</span></span>
-    <span id="header-price-change" style="font-size:0.7rem;font-weight:600;display:block;margin-top:2px;color:${color}">${chText}</span>
-    <span id="header-price-mcap" class="header-price-mcap" style="font-size:0.7rem;color:var(--text-muted);display:${mcapText ? "block" : "none"};margin-top:4px;">${mcapText}</span>
+    <span style="display:block;"><span id="header-price-val" style="font-size:0.9rem;font-weight:700;color:var(--mor);font-variant-numeric:tabular-nums;">${valText}</span><span id="header-price-stale" title="Price feed delayed" style="display:none;color:var(--text-muted);font-size:0.75rem;margin-left:5px;">&middot; delayed</span></span>
+    <span id="header-price-change" style="font-size:0.75rem;font-weight:600;display:block;margin-top:2px;color:${color}">${chText}</span>
+    <span id="header-price-mcap" class="header-price-mcap" style="font-size:0.75rem;color:var(--text-muted);display:${mcapText ? "block" : "none"};margin-top:4px;">${mcapText}</span>
   </div>`;
 }
 
@@ -231,7 +231,7 @@ function renderContract(c: ContractInfo): string {
 	const basescanUrl = `https://basescan.org/${c.basescanPath || "address"}/${c.address}`;
 	const shortAddr = `${c.address.slice(0, 6)}...${c.address.slice(-4)}`;
 	const upgradeLine = c.upgradeStatus
-		? `<div id="diamond-upgrade-status" style="font-size:0.62rem;flex-basis:100%;">${c.upgradeStatus}</div>`
+		? `<div id="diamond-upgrade-status" style="font-size:0.75rem;flex-basis:100%;">${c.upgradeStatus}</div>`
 		: "";
 	// ONE compact strip: contract identity + Read/Write left, block + live
 	// badge + chain note right. The old layout stacked two full banners (plus

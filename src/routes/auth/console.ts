@@ -86,6 +86,11 @@ export async function handleConsoleRoutes(
 		const htmlHeaders = {
 			"Content-Type": "text/html; charset=utf-8",
 			"Cache-Control": "no-store",
+			"X-Frame-Options": "DENY",
+			"X-Content-Type-Options": "nosniff",
+			"Referrer-Policy": "strict-origin-when-cross-origin",
+			"Strict-Transport-Security": "max-age=31536000; includeSubDomains; preload",
+			"Permissions-Policy": "geolocation=(), microphone=(), camera=(), payment=()",
 			"Content-Security-Policy": CSP,
 		};
 		const wcProjectId = env.MORSCAN_WALLETCONNECT_PROJECT_ID || WC_PROJECT_ID_DEFAULT;

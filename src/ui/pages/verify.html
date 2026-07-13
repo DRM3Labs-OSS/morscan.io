@@ -61,7 +61,7 @@
     }
     .verify-back {
       display: inline-block;
-      font-size: 0.7rem;
+      font-size: 0.75rem;
       color: var(--text-muted);
       text-decoration: none;
       margin-bottom: 2rem;
@@ -70,14 +70,14 @@
     .verify-back:hover { color: var(--green); }
     .verify h1 { font-size: 1.5rem; color: var(--green); margin: 0 0 0.25rem; }
     .verify .kicker {
-      font-size: 0.65rem;
+      font-size: 0.75rem;
       text-transform: uppercase;
       letter-spacing: 0.2em;
       color: var(--text-muted);
       margin-bottom: 1.75rem;
     }
     .verify h2 {
-      font-size: 0.7rem;
+      font-size: 0.75rem;
       text-transform: uppercase;
       letter-spacing: 0.18em;
       color: var(--text-muted);
@@ -85,7 +85,7 @@
     }
     .verify p { font-size: 0.85rem; color: var(--text-secondary); margin: 0 0 0.9rem; }
     .verify code { font-family: inherit; color: var(--cyan); font-size: 0.85em; }
-    .verify a { color: var(--green); text-decoration: none; }
+    .verify a { color: var(--green); text-decoration: underline; text-underline-offset: 2px; }
     .verify a:hover { text-decoration: underline; }
 
     /* Controls */
@@ -120,14 +120,14 @@
       background: var(--bg-secondary);
       border: 1px solid var(--border);
       color: var(--text-primary);
-      font-size: 0.72rem;
+      font-size: 0.75rem;
       line-height: 1.5;
       padding: 0.6rem 0.7rem;
       resize: vertical;
       margin-bottom: 0.6rem;
     }
     .paste-box:focus { border-color: var(--green); outline: none; }
-    .run-note { font-size: 0.7rem; color: var(--text-muted); margin: 0.3rem 0 0; }
+    .run-note { font-size: 0.75rem; color: var(--text-muted); margin: 0.3rem 0 0; }
 
     /* The walkthrough */
     .steps { list-style: none; margin: 1.4rem 0 0; padding: 0; }
@@ -206,7 +206,7 @@
       margin: 0;
       padding: 0.8rem 1rem;
       border-top: 1px solid var(--border);
-      font-size: 0.7rem;
+      font-size: 0.75rem;
       line-height: 1.5;
       color: var(--text-secondary);
       overflow-x: auto;
@@ -214,7 +214,7 @@
       overflow-y: auto;
       white-space: pre;
     }
-    details.raw .raw-label { padding: 0.55rem 1rem 0; border-top: 1px solid var(--border); font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.14em; color: var(--text-muted); }
+    details.raw .raw-label { padding: 0.55rem 1rem 0; border-top: 1px solid var(--border); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.14em; color: var(--text-muted); }
     details.raw .raw-label + pre { border-top: none; }
 
     /* House law: rendered JSON is ALWAYS syntax-highlighted. */
@@ -238,10 +238,10 @@
     .footer-drm3 { display: inline-flex; align-items: center; justify-content: center; min-height: 40px; padding: 0.4rem 0.6rem; margin-top: 0.9rem; opacity: 0.85; transition: opacity 0.15s; }
     .footer-drm3:hover, .footer-drm3:focus-visible { opacity: 1; }
     .footer-drm3 img { display: block; height: 26px; width: auto; }
-    .footer-nav a { display: inline-flex; align-items: center; min-height: 40px; padding: 0.5rem 0.5rem; color: #c7c2bc; font-size: 0.72rem; text-decoration: none; }
+    .footer-nav a { display: inline-flex; align-items: center; min-height: 40px; padding: 0.5rem 0.5rem; color: #c7c2bc; font-size: 0.75rem; text-decoration: none; }
     .footer-nav a:hover, .footer-nav a:focus-visible { color: var(--green); }
-    .footer-sep { color: #6b6660; font-size: 0.72rem; user-select: none; }
-    .footer-credit { margin: 0.75rem auto 0.45rem; max-width: 44rem; font-size: 0.66rem; line-height: 1.55; color: #c7c2bc; }
+    .footer-sep { color: #8f8a84; font-size: 0.75rem; user-select: none; }
+    .footer-credit { margin: 0.75rem auto 0.45rem; max-width: 44rem; font-size: 0.75rem; line-height: 1.55; color: #c7c2bc; }
     .footer-credit a { color: #c7c2bc; text-decoration: underline; }
     .footer-credit a:hover, .footer-credit a:focus-visible { color: var(--green); }
   </style>
@@ -341,13 +341,15 @@
       <pre id="raw-canonical"></pre>
     </details>
 
+    <section id="what-verified" style="display:none">
     <h2>What was verified</h2>
     <div class="block">
-      The exact response above was signed by the key <code id="who-path-inline">morscan/cache</code>
+      The exact response above was signed by the key <code id="who-path-inline">the signing key</code>
       at the moment it was served. The signature covers a canonical form of the receipt:
       its id, action, timestamp, and the SHA-256 hashes of the request and the response
       body. One changed byte anywhere under those hashes and the signature stops verifying.
     </div>
+    </section>
 
     <h2>Who signed it</h2>
     <div class="block">
@@ -396,7 +398,7 @@
       </nav>
       <p class="footer-credit">Developed, maintained, and operated by <a href="https://drm3.network" target="_blank" rel="noopener">DRM3 Labs</a> &middot; Fair Source (FSL-1.1-MIT), pull requests welcome.</p>
       <a href="https://drm3.network" class="footer-drm3" target="_blank" rel="noopener" aria-label="DRM3 Labs"><img src="/drm3-icon-transparent-white-consumer-128.png" alt="DRM3 Labs" width="40" height="40"></a>
-      <p style="margin:0;font-size:0.6rem;color:#8a8580;">MorScan &middot; &copy; 2026</p>
+      <p style="margin:0;font-size:0.75rem;color:#8a8580;">MorScan &middot; &copy; 2026</p>
     </footer>
   </div>
 
@@ -541,6 +543,7 @@
       $("sowhat").classList.remove("shown");
       $("raw-panel").style.display = "none";
       $("who-kv").style.display = "none";
+      var wv = $("what-verified"); if (wv) wv.style.display = "none";
     }
 
     async function showStep(n, state, detail) {
@@ -621,24 +624,29 @@
             resp = await fetch(source.path, { headers: { Accept: "application/json" } });
           } catch (e) {
             await showStep(1, "bad", "The fetch itself failed (" + e + "). Check the path and try again.");
+            verdict("failed", "NOT VERIFIED", "The fetch itself failed (" + e + "). Check the path and try again.");
             return;
           }
           if (resp.status === 402) {
             await showStep(1, "bad", "GET " + source.path + " answered 402 Payment Required: that endpoint is metered and this page carries no key. Honest answer: verify a free endpoint like /mor/v1/price or /version, or call the metered one with your own key and paste the body below.");
+            verdict("failed", "NOT VERIFIED", "GET " + source.path + " answered 402 Payment Required: that endpoint is metered and this page carries no key. Verify a free endpoint like /mor/v1/price, or paste a keyed response body below.");
             return;
           }
           if (resp.status === 401) {
             await showStep(1, "bad", "GET " + source.path + " answered 401: it needs an API key. Verify a free endpoint like /mor/v1/price, or paste a keyed response body below.");
+            verdict("failed", "NOT VERIFIED", "GET " + source.path + " answered 401: it needs an API key. Verify a free endpoint like /mor/v1/price, or paste a keyed response body below.");
             return;
           }
           if (!resp.ok) {
             await showStep(1, "bad", "GET " + source.path + " answered " + resp.status + ". Nothing to verify.");
+            verdict("failed", "NOT VERIFIED", "GET " + source.path + " answered " + resp.status + ". Nothing to verify.");
             return;
           }
           try {
             body = await resp.json();
           } catch (_e) {
             await showStep(1, "bad", "GET " + source.path + " did not return JSON, so there is no receipt to check.");
+            verdict("failed", "NOT VERIFIED", "GET " + source.path + " did not return JSON, so there is no receipt to check.");
             return;
           }
           await showStep(1, "ok", "GET " + source.path + " answered 200; " + peek(body) + ".");
@@ -715,6 +723,7 @@
           $("step-5-title").textContent = "Verdict: signature valid";
           await showStep(5, "ok", "This exact response, byte for byte, was signed by " + published.path + " when it was served. If even one character had been altered, this check would fail.");
           verdict("verified", "VERIFIED", "Signed by " + published.path + " at " + receipt.timestamp + ". Checked by your browser against the published key.");
+          var wv2 = $("what-verified"); if (wv2) wv2.style.display = "block";
         } else {
           $("step-5-title").textContent = "Verdict: verification failed";
           const why = !sigOk
@@ -744,6 +753,7 @@
             resetSteps();
             $("step-1-title").textContent = "We fetched this API response from " + location.host;
             showStep(1, "bad", "This page can only fetch endpoints on " + location.host + " (its security policy blocks other hosts). For another MorScan instance, use the CLI verifier: node scripts/verify-receipt.mjs <url>.");
+            verdict("failed", "NOT VERIFIED", "This page can only fetch endpoints on " + location.host + " (its security policy blocks other hosts). For another MorScan instance, use the CLI verifier.");
             return;
           }
           raw = u.pathname + u.search;

@@ -49,7 +49,7 @@ function renderProviders() {
   (F.providers||[]).forEach((p)=> { provInfo[p.address] = { endpoint: p.endpoint, bidCount: p.bidCount||0, activeSessions: p.activeSessions||0 }; });
 
   // Leaderboard - honest about what "active" means
-  var html = '<div class="lb-head"><span class="lb-title">Top Providers <span style="color:var(--text-muted);font-size:0.65rem;text-transform:none;letter-spacing:0.02em">ranked by live bids, then active sessions</span></span></div><div class="lb-scroll"><table class="lb-table"><thead><tr><th>#</th><th>Provider</th><th class="num">Models</th><th class="num">Sessions</th><th class="num">Offline</th><th class="num">All Time</th></tr></thead><tbody>';
+  var html = '<div class="lb-head"><span class="lb-title">Top Providers <span style="color:var(--text-muted);font-size:0.75rem;text-transform:none;letter-spacing:0.02em">ranked by live bids, then active sessions</span></span></div><div class="lb-scroll"><table class="lb-table"><thead><tr><th>#</th><th>Provider</th><th class="num">Models</th><th class="num">Sessions</th><th class="num">Offline</th><th class="num">All Time</th></tr></thead><tbody>';
   var sorted = (F.leaderboard?.providers?.allTime||[]).slice().sort((a,b)=> {
     var aInfo = provInfo[a.provider]||{};
     var bInfo = provInfo[b.provider]||{};
@@ -67,7 +67,7 @@ function renderProviders() {
     var servingCol = hasBids ? active : 0;
     var notServingCol = hasBids ? 0 : active;
     html+=`<tr data-href="/compute/providers/${p.provider}"><td class="rank${i<3?' top':''}">${i+1}</td>`;
-    html+=`<td><a href="/compute/providers/${p.provider}"><span class="addr-full">${esc(p.provider)}</span><span class="addr-short">${short(p.provider)}</span></a> <a href="${BASESCAN}${p.provider}" target="_blank" onclick="event.stopPropagation()" style="color:var(--text-muted);font-size:0.65rem;">↗</a>${ep?`<br><span style="font-size:0.65rem;color:var(--cyan);">${esc(ep)}</span>`:''}</td>`;
+    html+=`<td><a href="/compute/providers/${p.provider}"><span class="addr-full">${esc(p.provider)}</span><span class="addr-short">${short(p.provider)}</span></a> <a href="${BASESCAN}${p.provider}" target="_blank" onclick="event.stopPropagation()" style="color:var(--text-muted);font-size:0.75rem;">↗</a>${ep?`<br><span style="font-size:0.75rem;color:var(--cyan);">${esc(ep)}</span>`:''}</td>`;
     html+=`<td class="num${hasBids?' green':''}">${info.bidCount||0}</td>`;
     html+=`<td class="num${servingCol>0?' green':''}">${servingCol}</td>`;
     html+=`<td class="num">${notServingCol>0?`<span style="color:var(--yellow)">${notServingCol}</span>`:'0'}</td>`;
@@ -92,8 +92,8 @@ function renderProviders() {
     var card=document.createElement('div');card.className='provider-card';
     if (!hasBids) card.style.opacity = '0.7';
 
-    var bidsHtml='<div style="display:grid;grid-template-columns:1fr auto auto;gap:0.5rem 1rem;font-size:0.65rem;align-items:center;">';
-    bidsHtml+='<div style="color:var(--text-muted);font-size:0.65rem;text-transform:uppercase;">Model</div><div style="color:var(--text-muted);font-size:0.65rem;text-transform:uppercase;text-align:right;">Live Sessions</div><div style="color:var(--text-muted);font-size:0.65rem;text-transform:uppercase;text-align:right;">Lock 1 Hour</div>';
+    var bidsHtml='<div style="display:grid;grid-template-columns:1fr auto auto;gap:0.5rem 1rem;font-size:0.75rem;align-items:center;">';
+    bidsHtml+='<div style="color:var(--text-muted);font-size:0.75rem;text-transform:uppercase;">Model</div><div style="color:var(--text-muted);font-size:0.75rem;text-transform:uppercase;text-align:right;">Live Sessions</div><div style="color:var(--text-muted);font-size:0.75rem;text-transform:uppercase;text-align:right;">Lock 1 Hour</div>';
     bids.forEach((b)=> {
       var bActive=b.active_sessions||0;
       bidsHtml+=`<div style="color:var(--text-primary);font-weight:500;">${esc(modelName(b.model_id))}</div>`;
@@ -105,13 +105,13 @@ function renderProviders() {
     // Honest status with same data as leaderboard columns
     var statusHtml = '';
     if (hasBids && totalActive > 0) {
-      statusHtml = `<div style="color:var(--green);font-weight:600;font-size:0.7rem;">${totalActive} sessions</div>`;
+      statusHtml = `<div style="color:var(--green);font-weight:600;font-size:0.75rem;">${totalActive} sessions</div>`;
     } else if (!hasBids && totalActive > 0) {
-      statusHtml = `<div style="color:var(--yellow);font-size:0.65rem;">${totalActive} zombie · MOR in escrow</div>`;
+      statusHtml = `<div style="color:var(--yellow);font-size:0.75rem;">${totalActive} zombie · MOR in escrow</div>`;
     }
-    var bidLabel = hasBids ? `<div class="bid-count">${bids.length} model${bids.length!==1?'s':''}</div>` : '<div style="background:rgba(250,204,21,0.15);color:var(--yellow);padding:0.2rem 0.5rem;font-size:0.65rem;font-weight:600;">OFFLINE</div>';
+    var bidLabel = hasBids ? `<div class="bid-count">${bids.length} model${bids.length!==1?'s':''}</div>` : '<div style="background:rgba(250,204,21,0.15);color:var(--yellow);padding:0.2rem 0.5rem;font-size:0.75rem;font-weight:600;">OFFLINE</div>';
 
-    card.innerHTML=`<div class="provider-header"${hasBids?' data-expandable':''}>${pav(p.address,domain||'')}${domain?`<div class="provider-info"><div class="provider-domain">${esc(domain)}</div><div class="provider-address"><a href="/compute/providers/${p.address}"><span class="addr-full">${esc(p.address)}</span><span class="addr-short">${short(p.address)}</span></a> <a href="${BASESCAN}${p.address}" target="_blank" style="color:var(--text-muted);font-size:0.65rem;">↗</a></div><div class="provider-endpoint">${esc(p.endpoint||'')}</div></div>`:`<div class="provider-info"><div class="provider-address"><a href="/compute/providers/${p.address}"><span class="addr-full">${esc(p.address)}</span><span class="addr-short">${short(p.address)}</span></a></div></div>`}<div class="provider-meta">${statusHtml}${bidLabel}${hasBids?'<div class="expand-icon">▼</div>':''}</div></div>${hasBids?`<div class="bids-panel">${bidsHtml}</div>`:''}`;
+    card.innerHTML=`<div class="provider-header"${hasBids?' data-expandable':''}>${pav(p.address,domain||'')}${domain?`<div class="provider-info"><div class="provider-domain">${esc(domain)}</div><div class="provider-address"><a href="/compute/providers/${p.address}"><span class="addr-full">${esc(p.address)}</span><span class="addr-short">${short(p.address)}</span></a> <a href="${BASESCAN}${p.address}" target="_blank" style="color:var(--text-muted);font-size:0.75rem;">↗</a></div><div class="provider-endpoint">${esc(p.endpoint||'')}</div></div>`:`<div class="provider-info"><div class="provider-address"><a href="/compute/providers/${p.address}"><span class="addr-full">${esc(p.address)}</span><span class="addr-short">${short(p.address)}</span></a></div></div>`}<div class="provider-meta">${statusHtml}${bidLabel}${hasBids?'<div class="expand-icon">▼</div>':''}</div></div>${hasBids?`<div class="bids-panel">${bidsHtml}</div>`:''}`;
     list.appendChild(card);
   });
 }
@@ -127,13 +127,13 @@ function renderConsumerTable() {
   });
   var cols=[{key:'total_sessions',label:'All Time'},{key:'serving',label:'By Model'},{key:'zombie',label:'Zombie'},{key:'active_stake',label:'MOR Locked'}];
   var _rlbl=(cols.find(function(c){return c.key===consSort;})||{}).label||'';
-  var html='<div class="lb-head"><span class="lb-title">Top Consumer Wallets <span style="color:var(--text-muted);font-size:0.65rem;text-transform:none;letter-spacing:0.02em">ranked by '+_rlbl+(consSortDir>0?' (high to low)':' (low to high)')+' - click columns to re-rank</span></span><div class="lb-tabs"><button type="button" class="lb-tab'+(consTab==='allTime'?' active':'')+'" onclick="consTab=\'allTime\';renderConsumerTable()">All Time</button><button type="button" class="lb-tab'+(consTab==='weekly'?' active':'')+'" onclick="consTab=\'weekly\';renderConsumerTable()">Weekly</button></div></div>';
+  var html='<div class="lb-head"><span class="lb-title">Top Consumer Wallets <span style="color:var(--text-muted);font-size:0.75rem;text-transform:none;letter-spacing:0.02em">ranked by '+_rlbl+(consSortDir>0?' (high to low)':' (low to high)')+' - click columns to re-rank</span></span><div class="lb-tabs"><button type="button" class="lb-tab'+(consTab==='allTime'?' active':'')+'" onclick="consTab=\'allTime\';renderConsumerTable()">All Time</button><button type="button" class="lb-tab'+(consTab==='weekly'?' active':'')+'" onclick="consTab=\'weekly\';renderConsumerTable()">Weekly</button></div></div>';
   html+='<div class="lb-scroll"><table class="lb-table"><thead><tr><th>#</th><th>Wallet</th>';
   cols.forEach((c)=> { var arrow=consSort===c.key?(consSortDir>0?' ↓':' ↑'):''; var as=consSort===c.key?` aria-sort="${consSortDir>0?'descending':'ascending'}"`:''; html+=`<th class="num" onclick="sortCons('${c.key}')"${as}>${c.label}<span class="sort-arrow">${arrow}</span></th>`; });
   html+='</tr></thead><tbody>';
   rows.slice(0,20).forEach((w,i)=> {
     var serving=w.serving||0, zombie=w.zombie||0, stake=Math.floor(w.active_stake||0);
-    html+=`<tr data-href="/compute/consumers/wallet/${w.wallet}"><td class="rank${i<3?' top':''}">${i+1}</td><td><a href="/compute/consumers/wallet/${w.wallet}"><span class="addr-full">${esc(w.wallet)}</span><span class="addr-short">${short(w.wallet)}</span></a> <a href="/compute/consumers/wallet/${w.wallet}" onclick="event.stopPropagation()" style="color:var(--cyan);font-size:0.65rem;margin-left:0.3rem;">detail</a> <a href="${BASESCAN}${w.wallet}" target="_blank" onclick="event.stopPropagation()" style="color:var(--text-muted);font-size:0.65rem;">↗</a></td><td class="num">${fmt(w.total_sessions||0)}</td><td class="num${serving>0?' green':''}">${serving}</td><td class="num">${zombie>0?`<span style="color:var(--yellow)">${zombie}</span>`:'0'}</td><td class="num mor">${fmt(stake)}</td></tr>`;
+    html+=`<tr data-href="/compute/consumers/wallet/${w.wallet}"><td class="rank${i<3?' top':''}">${i+1}</td><td><a href="/compute/consumers/wallet/${w.wallet}"><span class="addr-full">${esc(w.wallet)}</span><span class="addr-short">${short(w.wallet)}</span></a> <a href="/compute/consumers/wallet/${w.wallet}" onclick="event.stopPropagation()" style="color:var(--cyan);font-size:0.75rem;margin-left:0.3rem;">detail</a> <a href="${BASESCAN}${w.wallet}" target="_blank" onclick="event.stopPropagation()" style="color:var(--text-muted);font-size:0.75rem;">↗</a></td><td class="num">${fmt(w.total_sessions||0)}</td><td class="num${serving>0?' green':''}">${serving}</td><td class="num">${zombie>0?`<span style="color:var(--yellow)">${zombie}</span>`:'0'}</td><td class="num mor">${fmt(stake)}</td></tr>`;
   });
   html+='</tbody></table></div>';
   document.getElementById('cons-lb').innerHTML=html;
@@ -166,7 +166,7 @@ function filterSessions(){
     var mor=(s.stake&&s.stake!=='0')?(Number(BigInt(s.stake))/1e18).toFixed(2):'0';
     var badge=s.is_active?'<span class="badge badge-active">Active</span>':'<span class="badge badge-closed">Closed</span>';
     var c=document.createElement('div');c.className='session-card'+(s.is_active?' live':'');
-    c.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center;"><span style="font-size:0.7rem;font-weight:500;">${esc(modelName(s.model_id))}</span>${badge}</div><div style="display:flex;gap:0.75rem;margin-top:0.2rem;font-size:0.65rem;"><a href="/compute/consumers/wallet/${s.user_address}" style="color:var(--cyan);">${esc(short(s.user_address))}</a><span style="color:var(--mor);">${mor} MOR</span><span style="color:var(--text-muted);margin-left:auto;">${fmtTime(s.opened_at)}</span></div>`;
+    c.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center;"><span style="font-size:0.75rem;font-weight:500;">${esc(modelName(s.model_id))}</span>${badge}</div><div style="display:flex;gap:0.75rem;margin-top:0.2rem;font-size:0.75rem;"><a href="/compute/consumers/wallet/${s.user_address}" style="color:var(--cyan);">${esc(short(s.user_address))}</a><span style="color:var(--mor);">${mor} MOR</span><span style="color:var(--text-muted);margin-left:auto;">${fmtTime(s.opened_at)}</span></div>`;
     list.appendChild(c);
   });
 }

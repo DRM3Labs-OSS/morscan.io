@@ -2,7 +2,7 @@
 <style>
   .view { display: none; }
   .view.active { display: block; }
-  .section-title { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.15em; color: var(--text-muted); margin-bottom: 0.75rem; }
+  .section-title { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.15em; color: var(--text-muted); margin-bottom: 0.75rem; }
   /* Provider cards */
   .provider-list { display: flex; flex-direction: column; gap: 0.65rem; }
   .provider-card { background: var(--bg-secondary); border: 1px solid var(--border); overflow: hidden; transition: border-color 0.15s ease; }
@@ -11,24 +11,24 @@
   .provider-header:hover { background: var(--bg-card); }
   /* Deterministic provider avatar - hue from the address, initials from the
      domain. Same monogram language as the builder subnets and the tape. */
-  .pav { display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 34px; min-width: 34px; font-size: 0.7rem; font-weight: 800; letter-spacing: 0.03em; border: 1px solid var(--border); align-self: flex-start; }
+  .pav { display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 34px; min-width: 34px; font-size: 0.75rem; font-weight: 800; letter-spacing: 0.03em; border: 1px solid var(--border); align-self: flex-start; }
   .provider-info { display: flex; flex-direction: column; gap: 0.25rem; min-width: 0; }
   .provider-domain { font-size: 1.05rem; font-weight: 700; color: var(--cyan); margin-bottom: 0.15rem; }
   .provider-address { font-size: 0.8rem; color: var(--text-primary); display: flex; align-items: center; gap: 0.5rem; }
-  .provider-address a { color: var(--link); text-decoration: none; font-size: 0.7rem; }
-  .provider-endpoint { font-size: 0.7rem; color: var(--cyan); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .provider-address a { color: var(--link); text-decoration: none; font-size: 0.75rem; }
+  .provider-endpoint { font-size: 0.75rem; color: var(--cyan); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .provider-info { flex: 1; }
   .provider-meta { display: flex; align-items: center; gap: 0.75rem; margin-left: auto; }
-  .bid-count { background: var(--green-dim); color: var(--green); padding: 0.2rem 0.5rem; font-size: 0.65rem; font-weight: 600; }
+  .bid-count { background: var(--green-dim); color: var(--green); padding: 0.2rem 0.5rem; font-size: 0.75rem; font-weight: 600; }
   .expand-icon { color: var(--text-muted); transition: transform 0.2s; }
   .provider-card.expanded .expand-icon { transform: rotate(180deg); }
-  .bids-panel { display: none; border-top: 1px solid var(--border); padding: 0.75rem 1.25rem; font-size: 0.7rem; }
+  .bids-panel { display: none; border-top: 1px solid var(--border); padding: 0.75rem 1.25rem; font-size: 0.75rem; }
   .provider-card.expanded .bids-panel { display: block; }
   .bid-row { display: flex; justify-content: space-between; padding: 0.35rem 0; border-bottom: 1px solid rgba(68,64,60,0.3); flex-wrap: wrap; gap: 0.25rem; }
   .bid-row:last-child { border-bottom: none; }
   .bid-model { color: var(--text-primary); font-weight: 500; }
   .bid-price { color: var(--mor); font-weight: 600; }
-  .badge { display: inline-block; padding: 0.1rem 0.35rem; font-size: 0.65rem; font-weight: 600; text-transform: uppercase; }
+  .badge { display: inline-block; padding: 0.1rem 0.35rem; font-size: 0.75rem; font-weight: 600; text-transform: uppercase; }
   .badge-prod { background: var(--green-dim); color: var(--green); }
   .badge-test { background: rgba(250,204,21,0.15); color: var(--yellow); }
   .badge-active { background: var(--green-dim); color: var(--green); }
@@ -36,16 +36,16 @@
   /* Leaderboard */
   .lb { margin-bottom: 2rem; }
   .lb-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; }
-  .lb-title { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.15em; color: var(--text-muted); }
+  .lb-title { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.15em; color: var(--text-muted); }
   .lb-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; max-width: 100%; }
-  .lb-table { width: 100%; border-collapse: collapse; font-size: 0.7rem; min-width: 500px; }
-  .lb-table th { text-align: left; padding: 0.4rem 0.6rem; font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-muted); border-bottom: 1px solid var(--border); cursor: pointer; user-select: none; }
+  .lb-table { width: 100%; border-collapse: collapse; font-size: 0.75rem; min-width: 500px; }
+  .lb-table th { text-align: left; padding: 0.4rem 0.6rem; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-muted); border-bottom: 1px solid var(--border); cursor: pointer; user-select: none; }
   .lb-table th:hover { color: var(--text-primary); }
-  .lb-table th .sort-arrow { font-size: 0.65rem; margin-left: 0.2rem; }
+  .lb-table th .sort-arrow { font-size: 0.75rem; margin-left: 0.2rem; }
   .lb-table td { padding: 0.4rem 0.6rem; border-bottom: 1px solid rgba(68,64,60,0.3); }
   .lb-table .num { text-align: right; font-variant-numeric: tabular-nums; }
   .lb-tabs { display: flex; gap: 0.4rem; }
-  .lb-tab { font-family: inherit; font-size: 0.65rem; padding: 0.2rem 0.5rem; background: none; border: 1px solid var(--border); color: var(--text-muted); cursor: pointer; }
+  .lb-tab { font-family: inherit; font-size: 0.75rem; padding: 0.2rem 0.5rem; background: none; border: 1px solid var(--border); color: var(--text-muted); cursor: pointer; }
   .lb-tab:hover { border-color: var(--text-muted); color: var(--text-primary); }
   .lb-tab.active { border-color: var(--green); color: var(--green); }
   .lb-table .green { color: var(--green); }
@@ -58,36 +58,36 @@
   .wallet-card { background: var(--bg-secondary); border: 1px solid var(--border); padding: 0.75rem 1rem; cursor: pointer; transition: border-color 0.15s; }
   .wallet-card:hover { border-color: var(--green); }
   .wallet-addr { font-size: 0.8rem; color: var(--cyan); font-weight: 500; margin-bottom: 0.3rem; }
-  .wallet-stats { display: flex; gap: 0.75rem; font-size: 0.65rem; color: var(--text-muted); }
+  .wallet-stats { display: flex; gap: 0.75rem; font-size: 0.75rem; color: var(--text-muted); }
   .wallet-stat-val { color: var(--text-primary); font-weight: 600; }
   /* Session list - live sessions carry a green status edge */
   .session-card { background: var(--bg-secondary); border: 1px solid var(--border); border-left: 2px solid var(--border); padding: 0.6rem 1rem; margin-bottom: 0.4rem; transition: border-color 0.15s ease; }
   .session-card.live { border-left-color: var(--green); }
   .session-card:hover { border-color: var(--green); border-left-color: var(--green); }
   .filter-bar { display: flex; gap: 0.75rem; align-items: center; margin-bottom: 0.75rem; flex-wrap: wrap; }
-  .filter-label { font-size: 0.65rem; color: var(--text-muted); text-transform: uppercase; }
+  .filter-label { font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; }
   /* Calculator */
   .calc-section { background: var(--bg-secondary); border: 1px solid var(--border); border-left: 2px solid var(--green); padding: 1rem; margin-bottom: 2rem; }
-  .calc-section h3 { font-size: 0.7rem; color: var(--green); text-transform: uppercase; letter-spacing: 0.1em; font-weight: 600; margin-bottom: 0.5rem; }
+  .calc-section h3 { font-size: 0.75rem; color: var(--green); text-transform: uppercase; letter-spacing: 0.1em; font-weight: 600; margin-bottom: 0.5rem; }
   .calc-presets { display: flex; gap: 0.4rem; margin-bottom: 0.75rem; }
-  .dur-preset { background: var(--bg-card); border: 1px solid var(--border); color: var(--text-muted); padding: 0.25rem 0.5rem; font-size: 0.65rem; cursor: pointer; font-family: inherit; }
+  .dur-preset { background: var(--bg-card); border: 1px solid var(--border); color: var(--text-muted); padding: 0.25rem 0.5rem; font-size: 0.75rem; cursor: pointer; font-family: inherit; }
   .dur-preset.active { border-color: var(--green); color: var(--green); background: var(--green-dim); }
   /* Gas */
   .gas-row { background: var(--bg-secondary); border: 1px solid var(--border); border-left: 2px solid var(--green); padding: 0.75rem 1rem; margin-bottom: 2rem; display: flex; gap: 1.5rem; flex-wrap: wrap; }
   .gas-item { display: flex; flex-direction: column; gap: 0.1rem; flex: 1; min-width: 100px; }
   .gas-val { font-size: 0.9rem; font-weight: 700; color: var(--green); }
-  .gas-label { font-size: 0.65rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
+  .gas-label { font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
   /* Network - fluid stat grid: no cramped fixed 3-col at tablet width */
   .econ-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 0.75rem; margin-bottom: 1.5rem; }
   .econ-card { background: var(--bg-secondary); border: 1px solid var(--border); border-left: 2px solid var(--green); padding: 1rem; }
   .econ-val { font-size: 1.1rem; font-weight: 700; }
-  .econ-unit { font-size: 0.65rem; color: var(--text-muted); }
-  .econ-label { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-muted); margin-top: 0.3rem; }
-  .econ-desc { font-size: 0.65rem; color: var(--text-muted); margin-top: 0.4rem; line-height: 1.5; }
+  .econ-unit { font-size: 0.75rem; color: var(--text-muted); }
+  .econ-label { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-muted); margin-top: 0.3rem; }
+  .econ-desc { font-size: 0.75rem; color: var(--text-muted); margin-top: 0.4rem; line-height: 1.5; }
   /* contract-banner, sync-bar, sync-badge - ALL in layout.mustache. No overrides here. */
   .explainer { background: var(--bg-secondary); border: 1px solid var(--border); border-left: 2px solid var(--green); padding: 1rem; margin-bottom: 1rem; }
   .explainer h3 { font-size: 0.75rem; font-weight: 600; margin-bottom: 0.5rem; }
-  .explainer p { font-size: 0.65rem; color: var(--text-muted); line-height: 1.6; margin-bottom: 0.3rem; }
+  .explainer p { font-size: 0.75rem; color: var(--text-muted); line-height: 1.6; margin-bottom: 0.3rem; }
   .addr-full { display: inline; } .addr-short { display: none; }
   @media (max-width: 768px) { .addr-full { display: none; } .addr-short { display: inline; } }
   @media (max-width: 600px) { .econ-grid { grid-template-columns: 1fr; } .wallets-grid { grid-template-columns: 1fr; } .provider-meta { flex-direction: column; align-items: flex-end; } }
@@ -105,7 +105,7 @@
   <div class="explainer"><h3>Session Lifecycle</h3><p><strong>Open</strong> → Lock MOR. <strong>Active</strong> → Provider serves inference. <strong>Close</strong> → Provider signs receipt. <strong>Reclaim</strong> → MOR returned.</p></div>
   <div id="upgrade-history" style="display:none;" class="explainer">
     <h3>Diamond Contract Upgrades</h3>
-    <div id="upgrade-list" style="font-size:0.65rem;"></div>
+    <div id="upgrade-list" style="font-size:0.75rem;"></div>
   </div>
 </div>
 
@@ -125,13 +125,13 @@
   <div id="wallets-grid" class="wallets-grid"><div class="skeleton skel-card"></div><div class="skeleton skel-card"></div><div class="skeleton skel-card"></div></div>
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem;flex-wrap:wrap;gap:0.4rem;"><div class="section-title" style="margin-bottom:0;">Sessions</div><div class="filter-bar" style="margin-bottom:0;"><span class="filter-label">Status</span><div class="lb-tabs" role="group" aria-label="Filter sessions by status"><button type="button" class="lb-tab sess-f active" data-f="active" onclick="setSessFilter('active')" aria-pressed="true">Active</button><button type="button" class="lb-tab sess-f" data-f="all" onclick="setSessFilter('all')" aria-pressed="false">All</button><button type="button" class="lb-tab sess-f" data-f="closed" onclick="setSessFilter('closed')" aria-pressed="false">Closed</button></div></div></div>
   <div id="sessions-list"><div class="skeleton skel-table-row"></div><div class="skeleton skel-table-row"></div><div class="skeleton skel-table-row"></div></div>
-  <div class="more" style="text-align:center;margin-top:0.8rem;"><a href="/compute/sessions" style="color:var(--green);font-size:0.66rem;text-decoration:none;">All sessions &rarr;</a></div>
+  <div class="more" style="text-align:center;margin-top:0.8rem;"><a href="/compute/sessions" style="color:var(--green);font-size:0.75rem;text-decoration:none;">All sessions &rarr;</a></div>
 </div>
 
 <!-- ═══ Sessions View (dedicated /compute/sessions page) ═══ -->
 <div id="view-sessions" class="view">
   <div class="lb-head" style="flex-wrap:wrap;gap:0.5rem;">
-    <span class="section-title" style="margin-bottom:0;">Inference Sessions <span style="color:var(--text-muted);font-size:0.65rem;text-transform:none;letter-spacing:0.02em;" id="sx-count"></span></span>
+    <span class="section-title" style="margin-bottom:0;">Inference Sessions <span style="color:var(--text-muted);font-size:0.75rem;text-transform:none;letter-spacing:0.02em;" id="sx-count"></span></span>
     <div class="lb-tabs" role="group" aria-label="Filter sessions by status">
       <button type="button" class="lb-tab sx-f active" data-f="all" onclick="setSxFilter('all')" aria-pressed="true">All</button>
       <button type="button" class="lb-tab sx-f" data-f="active" onclick="setSxFilter('active')" aria-pressed="false">Active</button>
@@ -146,7 +146,7 @@
     </table>
   </div>
   <div style="display:flex;justify-content:center;margin-top:0.9rem;"><button type="button" class="lb-tab" id="sx-more" style="display:none;padding:0.55rem 1.2rem;min-height:40px;" onclick="loadMoreSx()">Load more</button></div>
-  <div id="sx-cap" role="note" aria-live="polite" style="display:none;border:1px solid var(--border);border-left:3px solid var(--green);background:var(--bg-secondary);padding:0.85rem 1rem;font-size:0.7rem;color:var(--text-muted);line-height:1.6;margin-top:0.9rem;">Showing the first 1,000 sessions. That is the browse limit. Refine with a status or model filter above to find a specific one, or pull the full set from the <a href="/api/playground" style="color:var(--green);text-decoration:none;">API</a> or the <a href="https://github.com/DRM3Labs-OSS/morpheus-ai-base-data" target="_blank" rel="noopener" style="color:var(--green);text-decoration:none;">open dataset</a>.</div>
-  <div style="font-size:0.62rem;color:var(--text-muted);margin-top:0.8rem;line-height:1.55;">Consumers stake MOR to open inference sessions with a provider; the stake is locked, not spent, and returns when the session closes. Duration for active sessions is time running so far.</div>
+  <div id="sx-cap" role="note" aria-live="polite" style="display:none;border:1px solid var(--border);border-left:3px solid var(--green);background:var(--bg-secondary);padding:0.85rem 1rem;font-size:0.75rem;color:var(--text-muted);line-height:1.6;margin-top:0.9rem;">Showing the first 1,000 sessions. That is the browse limit. Refine with a status or model filter above to find a specific one, or pull the full set from the <a href="/api/playground" style="color:var(--green);text-decoration:none;">API</a> or the <a href="https://github.com/DRM3Labs-OSS/morpheus-ai-base-data" target="_blank" rel="noopener" style="color:var(--green);text-decoration:none;">open dataset</a>.</div>
+  <div style="font-size:0.75rem;color:var(--text-muted);margin-top:0.8rem;line-height:1.55;">Consumers stake MOR to open inference sessions with a provider; the stake is locked, not spent, and returns when the session closes. Duration for active sessions is time running so far.</div>
 </div>
 

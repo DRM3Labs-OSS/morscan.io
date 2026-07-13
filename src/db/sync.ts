@@ -383,8 +383,13 @@ export async function upsertProviderStats(
 ): Promise<D1Result> {
 	return db
 		.prepare(`
-        INSERT OR REPLACE INTO provider_stats (provider, model_id, sessions_total, sessions_active, sessions_disputed, total_stake, updated_at)
-        SELECT provider, model_id, COUNT(*), SUM(CASE WHEN is_active = 1 THEN 1 ELSE 0 END), SUM(CASE WHEN closed_at > 0 AND close_tx_hash IS NULL THEN 1 ELSE 0 END), SUM(CAST(stake AS REAL)), ?
+        INSERT OR REPLACE INTO provider_stats (provider, model_id, success_count, dispute_count, early_termination_count, total_sessions, tps_scaled, ttft_ms, updated_at, avg_duration_secs)
+        SELECT provider, model_id,
+               SUM(CASE WHEN closeout_type = 0 AND closed_at > 0 THEN 1 ELSE 0 END),
+               SUM(CASE WHEN closeout_type = 1 THEN 1 ELSE 0 END),
+               SUM(CASE WHEN is_active = 0 AND ends_at > 0 AND closed_at > 0 AND closed_at < ends_at THEN 1 ELSE 0 END),
+               COUNT(*), 0, 0, ?,
+               AVG(CASE WHEN closed_at > 0 AND opened_at > 0 THEN (CASE WHEN ends_at > 0 AND ends_at < closed_at THEN ends_at ELSE closed_at END) - opened_at END)
         FROM sessions WHERE provider = ? AND model_id = ? GROUP BY provider, model_id
       `)
 		.bind(updatedAt, provider, modelId)

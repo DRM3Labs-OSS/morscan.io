@@ -211,7 +211,7 @@ export function buildTickerItems(d: TickerData): TickerItem[] {
 			icon: "provider",
 			label: "top provider",
 			value: providerDomain(d.topProvider.endpoint, d.topProvider.address),
-			sub: `${d.topProvider.sessions.toLocaleString("en-US")} sessions`,
+			sub: `${d.topProvider.sessions.toLocaleString("en-US")} all-time sessions`,
 			href: `/compute/providers/${d.topProvider.address}`,
 		});
 	}
@@ -282,7 +282,7 @@ export function renderTicker(items: TickerItem[]): string {
 	// the -50% translate loops seamlessly. The clone is aria-hidden.
 	const reps = Math.max(1, Math.ceil(12 / items.length));
 	const half = `<span class="mkt-half">${ticks.repeat(reps)}</span>`;
-	return `<div class="mkt-ticker" role="marquee" aria-label="Morpheus network pulse"><div class="mkt-track">${half}${half.replace('class="mkt-half"', 'class="mkt-half" aria-hidden="true"')}</div></div>`;
+	return `<div class="mkt-ticker" role="marquee" aria-label="Morpheus network pulse"><div class="mkt-track">${half}${half.replace('class="mkt-half"', 'class="mkt-half" aria-hidden="true" inert')}</div></div>`;
 }
 
 interface PriceCacheShape {

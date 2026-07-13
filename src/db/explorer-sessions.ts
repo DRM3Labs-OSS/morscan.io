@@ -190,7 +190,7 @@ export async function getProviderSessionSummary(
         SUM(CASE WHEN closeout_type = 1 THEN 1 ELSE 0 END) as disputed_sessions,
         SUM(CASE WHEN is_active = 0 AND ends_at > 0 AND closed_at > 0 AND closed_at < ends_at THEN 1 ELSE 0 END) as early_terminated,
         SUM(CAST(stake AS REAL)) as total_stake_wei,
-        AVG(CASE WHEN closed_at > 0 AND opened_at > 0 THEN closed_at - opened_at END) as avg_duration_secs,
+        AVG(CASE WHEN closed_at > 0 AND opened_at > 0 THEN (CASE WHEN ends_at > 0 AND ends_at < closed_at THEN ends_at ELSE closed_at END) - opened_at END) as avg_duration_secs,
         MIN(opened_at) as first_session,
         MAX(opened_at) as last_session
       FROM sessions WHERE provider = ?
