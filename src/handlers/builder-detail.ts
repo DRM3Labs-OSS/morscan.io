@@ -10,6 +10,7 @@ import {
 	selectLastSubnetClaimBlock,
 	selectLatestDepositBlocksBySubnet,
 	selectLatestDepositBlocksByWallet,
+	selectPreviousSubnetStakers,
 	selectRecentSubnetEvents,
 	selectSubnetById,
 	selectTopSubnetStakers,
@@ -47,6 +48,7 @@ export async function handleBuilderSubnetDetail(
 		uniqueStakerRow,
 		currentBlockRow,
 		depositBlocks,
+		previousStakerRows,
 	] = await Promise.all([
 		selectSubnetById(env.DB, subnetId),
 		selectTopSubnetStakers(env.DB, subnetId),
@@ -56,6 +58,7 @@ export async function handleBuilderSubnetDetail(
 		countSubnetDepositors(env.DB, subnetId),
 		selectCurrentBlockValue(env.DB),
 		selectLatestDepositBlocksBySubnet(env.DB, subnetId),
+		selectPreviousSubnetStakers(env.DB, subnetId),
 	]);
 	const currentBlock = parseInt(currentBlockRow?.value || "0", 10);
 
@@ -128,6 +131,18 @@ export async function handleBuilderSubnetDetail(
 				parseFloat(a.deposited.replace(/,/g, "")),
 		);
 
+	// Previous stakers: fully-exited positions (deposited netted to 0). We keep
+	// them here with credit for what they staked, instead of silently dropping
+	// them from the subnet the moment they withdraw.
+	const previousStakers = previousStakerRows.map((p) => {
+		const blk = p.last_block as number;
+		return {
+			wallet: p.wallet as string,
+			totalStakedEver: ((Number(p.total_deposited_ever) || 0) / 1e18).toFixed(2),
+			exitedAt: blk && currentBlock > 0 ? nowEpoch - (currentBlock - blk) * 2 : null,
+		};
+	});
+
 	return new Response(
 		JSON.stringify({
 			subnet: {
@@ -145,11 +160,13 @@ export async function handleBuilderSubnetDetail(
 				metadataDescription: subnet.metadata_description || "",
 				metadataUrl: subnet.metadata_url || "",
 				metadataLogo: subnet.metadata_logo || "",
+				// Active stakers only (deposited > 0). A withdrawal drops the count;
+				// fully-exited wallets move to previousStakers, not the active tally.
 				stakerCount: Math.max(
 					enrichedStakers.length,
 					(subnet.staker_count as number) || 0,
-					(uniqueStakerRow?.cnt as number) || 0,
 				),
+				totalDepositorsEver: (uniqueStakerRow?.cnt as number) || 0,
 				poolShare: `${(subnetShare * 100).toFixed(2)}%`,
 				estimatedDailyEmissions: estimatedDaily.toFixed(2),
 				estimatedWeeklyEmissions: (estimatedDaily * 7).toFixed(2),
@@ -157,6 +174,7 @@ export async function handleBuilderSubnetDetail(
 				globalDailyEmissions: builderDailyEmissions(),
 			},
 			topStakers: enrichedStakers,
+			previousStakers,
 			recentEvents: recentEvents.map((e) => {
 				const blockNum = e.block_number as number;
 				const approxTs = currentBlock > 0 ? nowEpoch - (currentBlock - blockNum) * 2 : 0;

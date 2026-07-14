@@ -259,6 +259,25 @@
     section.innerHTML = html;
   }
 
+  // Previous stakers - positions that withdrew in full. Kept with credit for
+  // what they staked, in a separate section, instead of vanishing (they are not
+  // counted as active).
+  var previous = (D.previousStakers || []).slice(0, 15);
+  if (previous.length > 0) {
+    var phtml = '<div class="section-title" style="margin-top:2rem;">Previous Stakers</div>' +
+      '<div style="font-size:0.75rem;color:var(--text-muted);margin:-0.4rem 0 0.6rem;">Withdrawn in full. Shown for credit; not counted among active stakers.</div>' +
+      '<div class="table-scroll"><table class="staker-table"><thead><tr><th>Wallet</th><th style="text-align:right">Total Staked</th><th style="text-align:right">Exited</th></tr></thead><tbody>';
+    phtml += previous.map(function (p) {
+      var isSelf = p.wallet && s.admin && p.wallet.toLowerCase() === s.admin.toLowerCase();
+      return '<tr>' +
+        '<td data-label="Wallet" class="addr"><a href="' + basescan + p.wallet + '" target="_blank">' + p.wallet.slice(0,6) + '...' + p.wallet.slice(-4) + '</a>' + (isSelf ? '<span class="self-stake">admin</span>' : '') + '</td>' +
+        '<td data-label="Total Staked" class="mono" style="color:var(--text-muted);text-align:right">' + fmtMor(p.totalStakedEver) + ' MOR</td>' +
+        '<td data-label="Exited" style="color:var(--text-muted);text-align:right">' + fmtDate(p.exitedAt) + '</td></tr>';
+    }).join('');
+    phtml += '</tbody></table></div>';
+    section.insertAdjacentHTML('beforeend', phtml);
+  }
+
   // Events - proper table with aligned columns, show 15
   var events = (D.recentEvents || []).slice(0, 15);
   var evSection = document.getElementById('events-section');
