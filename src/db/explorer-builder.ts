@@ -126,12 +126,15 @@ export async function selectTopSubnetStakers(
 	return r.results ?? [];
 }
 
-/** Previous stakers of one subnet: wallets that deposited but are now net-0
- * (fully exited). Credit = total MOR ever deposited; last_block = their most
- * recent activity so we can date the exit. Disjoint from selectTopSubnetStakers
- * (which returns deposited > 0), so a wallet is either active or previous, never
- * both. total_deposited_ever is CAST to REAL for display only (approximate at
- * wei scale, exact enough for a credited MOR figure). */
+/** Previous stakers of one subnet: wallets that once staked but are now net-0
+ * (fully exited). Qualifies on ANY event (deposit OR withdraw): early stakes
+ * predate the builder-event index range, so an exited wallet may have only a
+ * withdraw on record - still evidence it staked. Credit = the larger of total
+ * ever deposited vs total ever withdrawn (a wallet that withdrew 522 clearly
+ * staked ~522, even if the matching deposits are pre-index). Disjoint from
+ * selectTopSubnetStakers (deposited > 0), so a wallet is active or previous,
+ * never both. Amounts CAST to REAL for display only (approximate at wei scale,
+ * exact enough for a credited MOR figure). */
 export async function selectPreviousSubnetStakers(
 	db: D1Database,
 	subnetId: string,
@@ -139,14 +142,18 @@ export async function selectPreviousSubnetStakers(
 	const r = await db
 		.prepare(
 			`SELECT bs.wallet,
-        (SELECT COALESCE(SUM(CAST(be.amount AS REAL)), 0) FROM builder_events be
-          WHERE be.subnet_id = bs.subnet_id AND be.wallet = bs.wallet AND be.event_type = 'deposit') AS total_deposited_ever,
+        MAX(
+          (SELECT COALESCE(SUM(CAST(be.amount AS REAL)), 0) FROM builder_events be
+            WHERE be.subnet_id = bs.subnet_id AND be.wallet = bs.wallet AND be.event_type = 'deposit'),
+          (SELECT COALESCE(SUM(CAST(be.amount AS REAL)), 0) FROM builder_events be
+            WHERE be.subnet_id = bs.subnet_id AND be.wallet = bs.wallet AND be.event_type = 'withdraw')
+        ) AS total_deposited_ever,
         (SELECT MAX(be2.block_number) FROM builder_events be2
           WHERE be2.subnet_id = bs.subnet_id AND be2.wallet = bs.wallet) AS last_block
        FROM builder_stakes bs
        WHERE bs.subnet_id = ? AND CAST(bs.deposited AS REAL) = 0
          AND EXISTS(SELECT 1 FROM builder_events be3
-           WHERE be3.subnet_id = bs.subnet_id AND be3.wallet = bs.wallet AND be3.event_type = 'deposit')
+           WHERE be3.subnet_id = bs.subnet_id AND be3.wallet = bs.wallet)
        ORDER BY total_deposited_ever DESC LIMIT 25`,
 		)
 		.bind(subnetId)
