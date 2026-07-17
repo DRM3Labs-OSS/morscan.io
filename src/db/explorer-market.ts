@@ -336,7 +336,10 @@ export async function getModelIdNames(
 	db: D1Database,
 ): Promise<Record<string, unknown>[]> {
 	const r = await db
-		.prepare("SELECT model_id, name FROM models")
+		// Newest first: the landing search index takes the FIRST N matches, and a
+		// just-registered model (Kimi K3, 2026-07-17) is exactly what people search
+		// for - unordered table order buried it behind years-old siblings.
+		.prepare("SELECT model_id, name FROM models ORDER BY created_at DESC")
 		.all<Record<string, unknown>>();
 	return r.results ?? [];
 }

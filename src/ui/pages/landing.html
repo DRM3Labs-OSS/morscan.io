@@ -393,7 +393,14 @@
       } else if (ql.length >= 2) {
         var hit = function(t){ return t && String(t).toLowerCase().indexOf(ql) !== -1; };
         var pr = IDX.providers.filter(function(x){ return hit(x.name) || hit(x.id); }).slice(0, 5);
-        var mo = IDX.models.filter(function(x){ return hit(x.name) || hit(x.id); }).slice(0, 5);
+        // Rank: name prefix matches first, then substring - so "kimi" surfaces
+        // "Kimi K3" ahead of an id-only hit, newest first within each band.
+        var mo = IDX.models.filter(function(x){ return hit(x.name) || hit(x.id); })
+          .sort(function(a,b){
+            var qa = (a.name||'').toLowerCase().indexOf(ql) === 0 ? 0 : 1;
+            var qb = (b.name||'').toLowerCase().indexOf(ql) === 0 ? 0 : 1;
+            return qa - qb;
+          }).slice(0, 5);
         var sn = IDX.subnets.filter(function(x){ return hit(x.name) || hit(x.id); }).slice(0, 5);
         if (pr.length) { out += '<div class="sr-group">Providers</div>' + pr.map(function(x){ return row('provider', x.name, x.id, '/compute/providers/' + x.id); }).join(''); }
         if (mo.length) { out += '<div class="sr-group">Models</div>' + mo.map(function(x){ return row('model', x.name, x.id, '/analytics/overview#models'); }).join(''); }
