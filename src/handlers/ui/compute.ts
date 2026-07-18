@@ -12,7 +12,7 @@ import type { Env } from "../../types";
 import { baseUrl } from "../../config";
 import { handleWalletDetail } from "../sessions";
 import { handleProviderDetail } from "../provider-detail";
-import { handleModelDetail } from "../model-detail";
+import { handleModelDetail, resolveModelSlug } from "../model-detail";
 import { buildFatboy } from "../fatboy";
 import { render, type StatBarData } from "../../ui/shell";
 import {
@@ -397,9 +397,23 @@ export async function handleProviderDetailPage(
 
 // ─── Model Detail ───
 
+/** The canonical-slug spelling: resolve "kimi-k3" to a member listing and
+ * render the same aggregated page (404 page when no group owns the slug). */
+export async function handleModelSlugPage(
+	env: Env,
+	slug: string,
+	requestPath: string,
+): Promise<Response> {
+	const memberId = await resolveModelSlug(env, slug);
+	// An unresolved slug renders the model-not-found page via an id no listing
+	// can have (ids are 32-byte hex; this one is out of alphabet by design).
+	return handleModelDetailPage(env, memberId || `0x${"f".repeat(64)}`, requestPath);
+}
+
 export async function handleModelDetailPage(
 	env: Env,
 	modelId: string,
+	requestPath?: string,
 ): Promise<Response> {
 	const [price, detailResp, statBar] = await Promise.all([
 		getCachedPrice(env),
@@ -417,15 +431,19 @@ export async function handleModelDetailPage(
 	const metaDescription = modelDesc
 		? `${name} on the Morpheus AI network: ${modelDesc}`.slice(0, 300)
 		: `${name} on the Morpheus AI network on Base: live provider bids, per-second pricing, inference sessions, and provider reputation.`;
-	// Every listing of the model renders this same canonical page; the busiest
-	// listing's URL is the SEO-canonical one so search engines index it once.
+	// Every listing of the model renders this same canonical page; the slug we
+	// own is the SEO-canonical URL (fallback: the busiest listing's id URL).
 	const leadId = ((model.leadModelId as string) || modelId).toLowerCase();
+	const canonicalPath = (model.slug as string)
+		? `/compute/models/${model.slug}`
+		: `/compute/models/${leadId}`;
+	const pagePath = requestPath || `/compute/models/${modelId}`;
 	const { styles, content } = extractPage(modelDetailHtml as string);
 	return new Response(
 		render({
 			title: data ? `${name} on Morpheus - MorScan` : "Model Not Found",
 			description: metaDescription,
-			ogUrl: `${baseUrl()}/compute/models/${modelId}`,
+			ogUrl: `${baseUrl()}${pagePath}`,
 			subtitle: "Morpheus Compute Explorer",
 			active: "network",
 			price,
@@ -441,13 +459,13 @@ export async function handleModelDetailPage(
 				`<script>window.MORSCAN_API_KEY = "${escJs(env.MORSCAN_DEMO_KEY || "")}";</script>`,
 				`<script>window.__MODEL_DATA__ = ${safeJson(data)};window.__MOR_USD__ = ${price && price.usd > 0 ? price.usd : 0};</script>`,
 				seoHead({
-					path: `/compute/models/${leadId}`,
+					path: canonicalPath,
 					keywords: COMPUTE_KEYWORDS,
 					jsonLd: [
 						breadcrumbLd([
 							{ name: "Compute", path: "/compute/network" },
 							{ name: "Models", path: "/analytics/overview" },
-							{ name, path: `/compute/models/${leadId}` },
+							{ name, path: canonicalPath },
 						]),
 					],
 				}),

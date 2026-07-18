@@ -11,6 +11,7 @@ import {
 	handleProviderDetailPage,
 	handleWalletDetailPage,
 	handleModelDetailPage,
+	handleModelSlugPage,
 	handleHoldersPage,
 	handleBuilderPage,
 	handleBuilderCalcPage,
@@ -154,10 +155,17 @@ export async function handleUiRoutes(
 		const address = path.split("/").pop() || "";
 		return await cachedPage(url, ctx, env, () => handleWalletDetailPage(env, address));
 	}
-	// Model detail - one model's bids, sessions, providers, and demand
+	// Model detail - one model's bids, sessions, providers, and demand.
+	// Two spellings: the on-chain listing id, and the canonical slug we own
+	// ("/compute/models/kimi-k3"). Both render the same aggregated page.
 	if (path.match(/^\/compute\/models\/0x[0-9a-fA-F]{64}$/)) {
 		const modelId = (path.split("/").pop() || "").toLowerCase();
 		return await cachedPage(url, ctx, env, () => handleModelDetailPage(env, modelId));
+	}
+	const slugMatch = path.match(/^\/compute\/models\/([a-z0-9][a-z0-9.\-]{0,80})$/);
+	if (slugMatch) {
+		const slug = slugMatch[1];
+		return await cachedPage(url, ctx, env, () => handleModelSlugPage(env, slug, path));
 	}
 	// About page - public, standalone, no auth, no shell header.
 	if (path === "/about") {

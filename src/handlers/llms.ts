@@ -9,6 +9,7 @@
  */
 
 import { baseUrl } from "../config";
+import { listModelSlugs } from "./model-detail";
 import { accessDoorsMarkdown } from "../providers/commerce/offers";
 import type { Env } from "../types";
 
@@ -307,7 +308,7 @@ const UI_PAGES: Array<{ path: string; priority: string; changefreq: string }> = 
 	{ path: "/privacy", priority: "0.3", changefreq: "yearly" },
 ];
 
-const sitemapXml = () => `<?xml version="1.0" encoding="UTF-8"?>
+const sitemapXml = (modelSlugs: string[]) => `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
     <loc>${baseUrl()}/</loc>
@@ -351,6 +352,15 @@ ${UI_PAGES.map(
     <changefreq>weekly</changefreq>
     <priority>0.5</priority>
   </url>
+${modelSlugs
+	.map(
+		(slug) => `  <url>
+    <loc>${baseUrl()}/compute/models/${slug}</loc>
+    <changefreq>daily</changefreq>
+    <priority>0.6</priority>
+  </url>`,
+	)
+	.join("\n")}
 </urlset>`;
 
 export async function handleLlmsTxt(env: Env): Promise<Response> {
@@ -367,8 +377,14 @@ export function handleRobotsTxt(): Response {
 	});
 }
 
-export function handleSitemapXml(): Response {
-	return new Response(sitemapXml(), {
+export async function handleSitemapXml(env: Env): Promise<Response> {
+	// Canonical model pages ride the sitemap so the pretty slug URLs are the
+	// ones crawlers discover; fail-soft to the static set if the read breaks.
+	let modelSlugs: string[] = [];
+	try {
+		modelSlugs = await listModelSlugs(env);
+	} catch {}
+	return new Response(sitemapXml(modelSlugs), {
 		headers: {
 			"Content-Type": "application/xml; charset=utf-8",
 			"Cache-Control": "public, max-age=86400",

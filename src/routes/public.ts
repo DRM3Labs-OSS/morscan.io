@@ -70,7 +70,7 @@ export async function handlePublicRoutes(
 		return handleRobotsTxt();
 	}
 	if (path === "/sitemap.xml") {
-		return handleSitemapXml();
+		return await withCfCache("sitemap:v2", 3600, () => handleSitemapXml(env));
 	}
 
 	// Health & Status (no key required)

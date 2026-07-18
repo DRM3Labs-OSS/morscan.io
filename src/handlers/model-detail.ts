@@ -147,13 +147,12 @@ const effectiveFamilyKey = (m: ModelRow): string | null =>
 	(m.family as string) || modelFamilyKey(m.canonical || m.name);
 
 /** Pick the display name for a canonical group: curated name first, then the
- * cleanest raw base name (no org slash, has spaces/capitals), busiest first. */
-function displayNameFor(
-	rows: ModelRow[],
-	sessionsById: Record<string, number>,
-): string | null {
+ * cleanest raw base name (no org slash, has spaces/capitals). Deterministic
+ * (ties: earliest listing, then shortest, then lexicographic) so the derived
+ * slug URL and the rendered page always agree. */
+function displayNameFor(rows: ModelRow[]): string | null {
 	for (const r of rows) if (r.canonical) return r.canonical;
-	let best: { name: string; score: number; sessions: number } | null = null;
+	let best: { name: string; score: number; created: number } | null = null;
 	for (const r of rows) {
 		if (!r.name) continue;
 		const { base } = stripListingFlags(r.name);
@@ -162,16 +161,78 @@ function displayNameFor(
 		if (!base.includes("/")) score += 4;
 		if (base.includes(" ")) score += 2;
 		if (/[A-Z]/.test(base)) score += 1;
-		const sessions = sessionsById[r.model_id] || 0;
-		if (
+		const created = Number(r.created_at) || 0;
+		const wins =
 			!best ||
 			score > best.score ||
-			(score === best.score && sessions > best.sessions)
-		) {
-			best = { name: base, score, sessions };
-		}
+			(score === best.score &&
+				(created < best.created ||
+					(created === best.created &&
+						(base.length < best.name.length ||
+							(base.length === best.name.length && base < best.name)))));
+		if (wins) best = { name: base, score, created };
 	}
 	return best ? best.name : null;
+}
+
+/** URL slug for a canonical model name: "Kimi K3" -> "kimi-k3". Dots stay
+ * ("GLM 4.7" -> "glm-4.7"); everything else non-alphanumeric collapses to
+ * a hyphen. */
+export function modelSlug(name: string | null | undefined): string | null {
+	if (!name) return null;
+	const slug = String(name)
+		.toLowerCase()
+		.replace(/[^a-z0-9.]+/g, "-")
+		.replace(/^[-.]+|[-.]+$/g, "")
+		.replace(/-{2,}/g, "-");
+	if (!slug || /^0x[0-9a-f]{64}$/.test(slug)) return null;
+	return slug.slice(0, 80);
+}
+
+/** Group every named model by canonical key -> {slug -> owning group}. On a
+ * slug collision the group listed first on chain owns the URL; the others
+ * stay reachable through their listing-id URLs. */
+function buildSlugMap(allModels: ModelRow[]): Map<string, ModelRow[]> {
+	const groups = new Map<string, ModelRow[]>();
+	for (const m of allModels) {
+		const k = effectiveCanonicalKey(m);
+		if (!k) continue;
+		const arr = groups.get(k);
+		if (arr) arr.push(m);
+		else groups.set(k, [m]);
+	}
+	const bySlug = new Map<string, ModelRow[]>();
+	for (const rows of groups.values()) {
+		const slug = modelSlug(displayNameFor(rows));
+		if (!slug) continue;
+		const existing = bySlug.get(slug);
+		if (!existing) {
+			bySlug.set(slug, rows);
+			continue;
+		}
+		const firstSeen = (rs: ModelRow[]) =>
+			Math.min(...rs.map((r) => Number(r.created_at) || Number.MAX_SAFE_INTEGER));
+		if (firstSeen(rows) < firstSeen(existing)) bySlug.set(slug, rows);
+	}
+	return bySlug;
+}
+
+/** Every canonical-model slug (sitemap + discovery), sorted. */
+export async function listModelSlugs(env: Env): Promise<string[]> {
+	const allModels = (await getModelsIdNameCreated(env.DB)) as unknown as ModelRow[];
+	return [...buildSlugMap(allModels).keys()].sort();
+}
+
+/** Resolve a canonical-model slug to one member listing id (the page then
+ * aggregates the whole group), or null when no group owns the slug. */
+export async function resolveModelSlug(env: Env, slug: string): Promise<string | null> {
+	const allModels = (await getModelsIdNameCreated(env.DB)) as unknown as ModelRow[];
+	const rows = buildSlugMap(allModels).get(slug.toLowerCase());
+	if (!rows || !rows.length) return null;
+	const lead = [...rows].sort(
+		(a, b) => (Number(b.created_at) || 0) - (Number(a.created_at) || 0),
+	)[0];
+	return lead.model_id;
 }
 
 export async function handleModelDetail(
@@ -253,8 +314,26 @@ export async function handleModelDetail(
 	for (const r of perListingAgg)
 		sessionsById[r.model_id as string] = num(r.total_sessions);
 
-	const canonicalName =
-		displayNameFor(members, sessionsById) || `${id.slice(0, 10)}...${id.slice(-4)}`;
+	const canonicalName = displayNameFor(members) || `${id.slice(0, 10)}...${id.slice(-4)}`;
+	// The pretty URL: this group's slug, when it owns it (collisions keep the
+	// first-listed group; losers stay on their listing-id URLs).
+	const slugMap = buildSlugMap(allModels);
+	const groupSlug = modelSlug(displayNameFor(members));
+	const slugOwner = groupSlug ? slugMap.get(groupSlug) : undefined;
+	const ownedSlug =
+		groupSlug && slugOwner && effectiveCanonicalKey(slugOwner[0]) === targetKey
+			? groupSlug
+			: null;
+	const slugFor = (rows: ModelRow[]): string | null => {
+		const sl = modelSlug(displayNameFor(rows));
+		if (!sl) return null;
+		const owner = slugMap.get(sl);
+		return owner &&
+			owner.length &&
+			effectiveCanonicalKey(owner[0]) === effectiveCanonicalKey(rows[0])
+			? sl
+			: null;
+	};
 	const groupWeb = members.some((m) => flagsById[m.model_id]?.web);
 	const groupTee = members.some((m) => flagsById[m.model_id]?.tee);
 	const firstListed = members.length
@@ -411,7 +490,8 @@ export async function handleModelDetail(
 			)[0];
 			return {
 				key,
-				name: displayNameFor(rows, famSessionsById) || key,
+				name: displayNameFor(rows) || key,
+				slug: slugFor(rows),
 				leadModelId: lead.model_id,
 				listings: rows.length,
 				firstSeen: first,
@@ -450,6 +530,7 @@ export async function handleModelDetail(
 			firstListed,
 			listingCount: members.length,
 			leadModelId: leadListing?.model_id || id,
+			slug: ownedSlug,
 			web: groupWeb,
 			tee: groupTee,
 		},

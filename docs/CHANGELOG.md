@@ -4,6 +4,22 @@ Releases are tagged vX.Y.Z on GitHub.
 
 ## Unreleased
 
+## v2.46.0 - 2026-07-18 - canonical model URLs
+
+The pretty spelling: `/compute/models/kimi-k3`. Canonical model names get
+canonical URLs.
+
+- Every canonical model resolves at the slug of its display name; the page
+  is the same aggregated view as the listing-id URLs, which keep working
+  forever. Arriving via a listing id swaps the address bar to the slug
+  (same document, no redirect), and `rel="canonical"` points every spelling
+  at the slug URL. Slug collisions keep the first-listed group; the others
+  stay on their id URLs.
+- The sitemap lists every canonical model URL (generated from the live
+  registry, cached an hour), so crawlers discover models by name.
+- The family table links canonical models by slug; the API exposes
+  `model.slug` and per-family-model slugs.
+
 ## v2.45.0 - 2026-07-18 - canonical model pages
 
 A model page is now about the MODEL, not one registration. "Kimi K3" can be

@@ -251,7 +251,8 @@
             html += '</tr></thead><tbody>';
             famModels.forEach(function (v) {
                 html += `<tr${v.isCurrent ? ' class="variant-current"' : ''}>`;
-                html += `<td class="variant-name"><a href="/compute/models/${encodeURIComponent(v.leadModelId)}">${escHtml(v.name)}</a>${v.isCurrent ? '<span class="you">(this page)</span>' : ''}</td>`;
+                var famHref = v.slug ? '/compute/models/' + encodeURIComponent(v.slug) : '/compute/models/' + encodeURIComponent(v.leadModelId);
+                html += `<td class="variant-name"><a href="${famHref}">${escHtml(v.name)}</a>${v.isCurrent ? '<span class="you">(this page)</span>' : ''}</td>`;
                 html += `<td class="num" style="color:var(--text-muted)">${formatDate(v.firstSeen)}</td>`;
                 html += `<td class="num" style="color:var(--text-muted)">${formatNum(v.listings || 1)}</td>`;
                 html += `<td class="num" style="color:${v.totalSessions > 0 ? 'var(--green)' : 'var(--text-muted)'}">${formatNum(v.totalSessions || 0)}</td>`;
@@ -287,6 +288,12 @@
         }
 
         root.innerHTML = html;
+
+        // Arrived via a listing-id URL? Show the canonical slug in the address
+        // bar (same document, no navigation) so shared links read as the model.
+        if (m.slug && /^\/compute\/models\/0x[0-9a-fA-F]{64}$/.test(location.pathname)) {
+            try { history.replaceState(null, '', '/compute/models/' + m.slug); } catch (_e) {}
+        }
     }
 
     (() => {
