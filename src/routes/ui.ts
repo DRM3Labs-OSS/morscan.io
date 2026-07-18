@@ -10,6 +10,7 @@ import {
 	handleVerifyPage,
 	handleProviderDetailPage,
 	handleWalletDetailPage,
+	handleModelDetailPage,
 	handleHoldersPage,
 	handleBuilderPage,
 	handleBuilderCalcPage,
@@ -152,6 +153,11 @@ export async function handleUiRoutes(
 	if (path.match(/^\/compute\/consumers\/wallet\/0x[0-9a-fA-F]{40}$/)) {
 		const address = path.split("/").pop() || "";
 		return await cachedPage(url, ctx, env, () => handleWalletDetailPage(env, address));
+	}
+	// Model detail - one model's bids, sessions, providers, and demand
+	if (path.match(/^\/compute\/models\/0x[0-9a-fA-F]{64}$/)) {
+		const modelId = (path.split("/").pop() || "").toLowerCase();
+		return await cachedPage(url, ctx, env, () => handleModelDetailPage(env, modelId));
 	}
 	// About page - public, standalone, no auth, no shell header.
 	if (path === "/about") {

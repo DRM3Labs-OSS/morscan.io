@@ -50,6 +50,12 @@
         return shortAddr(modelId);
     }
 
+    function modelLink(modelId, fallbackName) {
+        var label = escHtml(getModelName(modelId, fallbackName));
+        if (!modelId || !/^0x[0-9a-fA-F]{64}$/.test(modelId)) return label;
+        return `<a href="/compute/models/${encodeURIComponent(modelId)}" style="color:var(--cyan)">${label}</a>`;
+    }
+
     function _hourlyStake(durationStr) {
         if (!durationStr) return '\u2014';
         var m = durationStr.match(/(\d+)h\s*(\d+)?m?/);
@@ -134,12 +140,11 @@
             html += '</tr></thead><tbody>';
             bids.forEach((bid) => {
                 var testing = isTesting(bid.priceMorPerDay);
-                var modelDisplay = getModelName(bid.modelId, bid.model);
                 var active = bid.activeSessions || 0;
                 var total = bid.totalSessions || 0;
                 var dur = bid.durationFor10Mor || computeDur10(bid.priceMorPerDay);
                 html += '<tr>';
-                html += `<td class="model-name">${escHtml(modelDisplay)}</td>`;
+                html += `<td class="model-name">${modelLink(bid.modelId, bid.model)}</td>`;
                 html += `<td class="num" style="color:${active > 0 ? 'var(--green);font-weight:600' : 'var(--text-muted)'}">${active > 0 ? active + ' active' : formatNum(total)}</td>`;
                 html += `<td class="num"><span class="price">${bid.hourlyStake || '\u2014'} MOR</span></td>`;
                 html += `<td class="num" style="color:var(--text-muted)">${dur}</td>`;
@@ -150,10 +155,9 @@
             html += '<div class="bid-cards">';
             bids.forEach((bid) => {
                 var testing = isTesting(bid.priceMorPerDay);
-                var modelDisplay = getModelName(bid.modelId, bid.model);
                 var active = bid.activeSessions || 0;
                 html += '<div class="bid-card">';
-                html += `<div class="bid-card-model">${escHtml(modelDisplay)}</div>`;
+                html += `<div class="bid-card-model">${modelLink(bid.modelId, bid.model)}</div>`;
                 html += `<div class="bid-card-row"><span>Sessions:</span><span style="color:${active > 0 ? 'var(--green)' : 'var(--text-muted)'};font-weight:600">${active > 0 ? active + ' active' : formatNum(bid.totalSessions || 0)}</span></div>`;
                 html += `<div class="bid-card-row"><span>Lock 1hr:</span><span class="bid-card-price">${bid.hourlyStake || '\u2014'} MOR</span></div>`;
                 html += `<div class="bid-card-row"><span>10 MOR gets:</span><span style="color:var(--text-muted)">${bid.durationFor10Mor || computeDur10(bid.priceMorPerDay)}</span></div>`;
@@ -173,9 +177,8 @@
             html += '<div class="card" style="padding:0;overflow:hidden;">';
             html += '<div class="table-scroll"><table class="rep-table"><thead><tr><th>Model</th><th>Sessions</th><th>Success</th><th>Disputes</th><th>Success Rate</th></tr></thead><tbody>';
             rep.forEach((r) => {
-                var modelDisplay = getModelName(r.modelId, null);
                 html += '<tr>';
-                html += `<td class="model-name">${escHtml(modelDisplay)}</td>`;
+                html += `<td class="model-name">${modelLink(r.modelId, null)}</td>`;
                 html += `<td>${formatNum(r.totalSessions || 0)}</td>`;
                 html += `<td style="color:var(--green)">${formatNum(r.successCount || 0)}</td>`;
                 html += `<td style="color:${(r.disputeCount || 0) > 0 ? 'var(--yellow)' : 'var(--text-muted)'}">${r.disputeCount || 0}</td>`;
@@ -190,12 +193,11 @@
         html += `<div class="section-title">Recent Sessions (${Math.min(sessions.length, 20)})</div>`;
         if (sessions.length > 0) {
             sessions.slice(0, 20).forEach((sess) => {
-                var modelDisplay = getModelName(sess.modelId, sess.model);
                 var badgeClass = sess.isActive ? 'badge-active' : (sess.closeoutType === 1 ? 'badge-dispute' : 'badge-closed');
                 var badgeText = sess.isActive ? 'Active' : (sess.closeoutType === 1 ? 'Dispute' : 'Closed');
                 html += '<div class="session-item">';
                 html += '<div class="session-row">';
-                html += `<span class="session-model">${escHtml(modelDisplay)}</span>`;
+                html += `<span class="session-model">${modelLink(sess.modelId, sess.model)}</span>`;
                 html += `<span class="badge ${badgeClass}">${badgeText}</span>`;
                 html += '</div>';
                 html += '<div class="session-meta">';

@@ -97,6 +97,8 @@
     .sr-ic { flex: none; width: 15px; height: 15px; }
     .sr-name { color: var(--text-primary); font-size: 0.75rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .sr-id { color: var(--text-muted); font-size: 0.75rem; margin-left: auto; flex: none; }
+    .sr-meta { color: var(--green); font-size: 0.75rem; font-weight: 600; margin-left: auto; flex: none; }
+    .sr-id-plain { margin-left: 0; }
     .sr-none { padding: 0.7rem 0.9rem; font-size: 0.75rem; color: var(--text-muted); }
     .sr-row.kb-active { background: rgba(34,197,94,0.12); }
     .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
@@ -329,7 +331,8 @@
         var nm = names[x.modelId] || (x.modelId ? x.modelId.slice(0, 10) + '...' : '?');
         var mor = (parseFloat(x.stake || '0') / 1e18);
         var st = x.isActive ? '<span style="color:var(--green)">Active</span>' : '<span style="color:var(--text-muted)">Closed</span>';
-        return '<tr><td style="color:var(--cyan)">' + nm + '</td><td>' + mor.toFixed(2) + ' MOR</td><td>' + st + '</td><td style="color:var(--text-muted)">' + ago(x.openedAt) + '</td></tr>';
+        var nmCell = x.modelId ? '<a href="/compute/models/' + encodeURIComponent(x.modelId) + '" style="color:var(--cyan)">' + nm + '</a>' : nm;
+        return '<tr><td>' + nmCell + '</td><td>' + mor.toFixed(2) + ' MOR</td><td>' + st + '</td><td style="color:var(--text-muted)">' + ago(x.openedAt) + '</td></tr>';
       }).join('');
     }).catch(function(){});
 
@@ -367,7 +370,7 @@
         IDX = {
           providers: ((res[0] && res[0].providers) || []).map(function(p){ return { name: p.endpoint || p.address, id: p.address }; }),
           models: Object.keys(models).map(function(k){ return { name: String(models[k]), id: k }; }),
-          subnets: ((res[2] && res[2].subnets) || []).map(function(sn){ return { name: sn.name || sn.subnetId, id: sn.subnetId, logo: sn.metadataLogo || '' }; })
+          subnets: ((res[2] && res[2].subnets) || []).map(function(sn){ return { name: sn.name || sn.subnetId, id: sn.subnetId, logo: sn.metadataLogo || '', stakeWei: sn.totalDepositedWei || '0' }; })
         };
         return IDX;
       });
@@ -375,11 +378,23 @@
     }
     function shortId(id) { return id && id.length > 14 ? id.slice(0, 8) + '...' + id.slice(-4) : (id || ''); }
     function esc(t) { return String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
-    function row(icon, name, id, href, logo) {
+    // Compact MOR amount for dropdown chips. The magnitude suffix carries the
+    // meaning, so it stays the same size and color as the number.
+    function cMor(wei) {
+      var n = Number(wei || '0') / 1e18;
+      if (!isFinite(n) || n <= 0) return '';
+      if (n >= 1e6) return (n / 1e6).toFixed(1) + 'M MOR';
+      if (n >= 1e3) return (n / 1e3).toFixed(1) + 'K MOR';
+      return (n < 10 ? n.toFixed(2) : Math.round(n).toString()) + ' MOR';
+    }
+    function row(icon, name, id, href, logo, meta) {
       var mark = logo && /^https:\/\//.test(logo)
         ? '<img class="sr-ic" src="' + esc(logo) + '" alt="" style="object-fit:cover" onerror="this.outerHTML=' + JSON.stringify(IC[icon]).replace(/"/g, '&quot;') + '">'
         : IC[icon];
-      return '<a class="sr-row" role="option" href="' + href + '">' + mark + '<span class="sr-name">' + esc(name) + '</span><span class="sr-id">' + shortId(id) + '</span></a>';
+      var right = meta
+        ? '<span class="sr-meta">' + esc(meta) + '</span><span class="sr-id sr-id-plain">' + shortId(id) + '</span>'
+        : '<span class="sr-id">' + shortId(id) + '</span>';
+      return '<a class="sr-row" role="option" href="' + href + '">' + mark + '<span class="sr-name">' + esc(name) + '</span>' + right + '</a>';
     }
     function renderResults(q) {
       var sr = document.getElementById('sr');
@@ -403,8 +418,8 @@
           }).slice(0, 5);
         var sn = IDX.subnets.filter(function(x){ return hit(x.name) || hit(x.id); }).slice(0, 5);
         if (pr.length) { out += '<div class="sr-group">Providers</div>' + pr.map(function(x){ return row('provider', x.name, x.id, '/compute/providers/' + x.id); }).join(''); }
-        if (mo.length) { out += '<div class="sr-group">Models</div>' + mo.map(function(x){ return row('model', x.name, x.id, '/analytics/overview#models'); }).join(''); }
-        if (sn.length) { out += '<div class="sr-group">Builder Subnets</div>' + sn.map(function(x){ return row('subnet', x.name, x.id, '/builder/subnet/' + x.id, x.logo); }).join(''); }
+        if (mo.length) { out += '<div class="sr-group">Models</div>' + mo.map(function(x){ return row('model', x.name, x.id, '/compute/models/' + x.id); }).join(''); }
+        if (sn.length) { out += '<div class="sr-group">Builder Subnets</div>' + sn.map(function(x){ return row('subnet', x.name, x.id, '/builder/subnet/' + x.id, x.logo, cMor(x.stakeWei)); }).join(''); }
         if (!out) out = '<div class="sr-none">No providers, models, or subnets match. Paste a full 0x address to look up a wallet.</div>';
       }
       sr.innerHTML = out;

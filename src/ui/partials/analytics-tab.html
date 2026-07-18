@@ -284,7 +284,7 @@ async function go(){
     // 7d sessions, scaled so the top model fills the cell). One metric, one bar.
     var mx=Math.max.apply(null,sorted.map(function(m){return m.sessions7d||0}).concat([1]));
     document.getElementById('an-mtb').innerHTML=sorted.map(function(m){var sh=t7>0?((m.sessions7d||0)/t7*100).toFixed(1):'0';var p=((m.sessions7d||0)/mx*100).toFixed(0);var a=m.activeSessions||0;
-      return '<tr><td><span style="color:var(--cyan);font-weight:500">'+m.model+'</span><div class="an-bar" style="width:'+p+'%;background:var(--green)" title="'+sh+'% of 7d sessions"></div></td><td>'+fmt(m.sessions7d||0)+'</td><td style="color:'+(a>0?'#22c55e':'var(--dim)')+'">'+a+'</td><td>'+sh+'%</td><td>'+(m.supply?m.supply.providerCount:0)+'</td></tr>'}).join('');
+      return '<tr><td><a href="/compute/models/'+encodeURIComponent(m.modelId||'')+'" style="color:var(--cyan);font-weight:500">'+m.model+'</a><div class="an-bar" style="width:'+p+'%;background:var(--green)" title="'+sh+'% of 7d sessions"></div></td><td>'+fmt(m.sessions7d||0)+'</td><td style="color:'+(a>0?'#22c55e':'var(--dim)')+'">'+a+'</td><td>'+sh+'%</td><td>'+(m.supply?m.supply.providerCount:0)+'</td></tr>'}).join('');
   }
   renderModels();
   wireSort('an-mtb',mSort,renderModels);

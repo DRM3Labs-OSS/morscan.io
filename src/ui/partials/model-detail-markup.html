@@ -1,0 +1,103 @@
+<!-- Model Detail - content fragment for layout.mustache -->
+<style>
+    .back-link { font-size: 0.75rem; color: var(--text-muted); margin-bottom: 1.5rem; display: inline-block; }
+    .back-link:hover { color: var(--cyan); }
+
+    .detail-header { margin-bottom: 1.5rem; }
+    .detail-title { display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.4rem; }
+    .detail-title .model-ic { flex: none; width: 26px; height: 26px; }
+    .detail-name { font-size: 1.4rem; font-weight: 700; color: var(--cyan); line-height: 1.2; word-break: break-word; }
+    .detail-address { font-size: 0.75rem; color: var(--text-secondary); display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; word-break: break-all; }
+    .copy-id { font-family: inherit; background: transparent; border: 1px solid var(--border); color: var(--text-muted); font-size: 0.75rem; padding: 0.15rem 0.5rem; cursor: pointer; flex: none; }
+    .copy-id:hover { border-color: var(--cyan); color: var(--cyan); }
+    .detail-since { font-size: 0.75rem; color: var(--text-muted); margin-top: 0.35rem; }
+    .tag-chip { display: inline-block; background: rgba(34,211,238,0.1); color: var(--cyan); font-size: 0.75rem; padding: 0.12rem 0.5rem; margin-right: 0.35rem; }
+
+    .model-desc { font-size: 0.82rem; color: var(--text-secondary); line-height: 1.65; max-width: 640px; margin-top: 0.8rem; padding: 0.8rem 1rem; background: var(--bg-secondary); border-left: 2px solid var(--cyan); }
+
+    .stats-row { display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 1.5rem; padding: 0.75rem 1rem; background: var(--bg-secondary); border: 1px solid var(--border); }
+    .stat-item { display: flex; flex-direction: column; gap: 0.15rem; flex: 1; min-width: 100px; }
+    .stat-val { font-size: 1rem; font-weight: 700; }
+    .stat-val.green { color: var(--green); }
+    .stat-val.cyan { color: var(--cyan); }
+    .stat-val.mor { color: var(--mor); }
+    .stat-label { font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
+
+    .card { background: var(--bg-secondary); border: 1px solid var(--border); padding: 1rem 1.25rem; margin-bottom: 1.5rem; }
+    .card-title { font-size: 0.75rem; color: var(--green); text-transform: uppercase; letter-spacing: 0.1em; font-weight: 600; margin-bottom: 0.75rem; }
+
+    /* Ask spread (market card) */
+    .ask-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 0.75rem; }
+    .ask-item { display: flex; flex-direction: column; gap: 0.1rem; }
+    .ask-val { font-size: 1.1rem; font-weight: 700; color: var(--mor); }
+    .ask-label { font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
+
+    /* 30-day demand bars: single series, baseline-anchored, per-bar tooltip */
+    .spark { display: flex; align-items: flex-end; gap: 2px; height: 72px; margin-top: 0.4rem; }
+    .spark-bar { flex: 1; min-width: 2px; background: var(--green); min-height: 2px; }
+    .spark-bar.zero { background: rgba(34,197,94,0.15); }
+    .spark-bar:hover { background: #4ade80; }
+    .spark-axis { display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--text-muted); margin-top: 0.4rem; }
+
+    table { width: 100%; border-collapse: collapse; }
+    th { text-align: left; padding: 0.6rem 0.75rem; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-muted); background: var(--bg-card); font-weight: 500; }
+    td { padding: 0.6rem 0.75rem; font-size: 0.75rem; border-top: 1px solid var(--border); color: var(--text-secondary); }
+    tr:hover td { background: rgba(255,255,255,0.02); }
+    th.num, td.num { text-align: right; }
+    .provider-name { color: var(--text-primary); font-weight: 500; }
+    .provider-name a { color: var(--cyan); }
+    .provider-name a:hover { text-decoration: underline; }
+    .price { color: var(--mor); font-weight: 600; }
+    .badge { display: inline-block; padding: 0.15rem 0.4rem; font-size: 0.75rem; font-weight: 600; text-transform: uppercase; }
+    .badge-production { background: var(--green-dim); color: var(--green); }
+    .badge-testing { background: rgba(250, 204, 21, 0.15); color: var(--yellow); }
+    .badge-active { background: var(--green-dim); color: var(--green); }
+    .badge-closed { background: rgba(168,162,158,0.1); color: var(--text-muted); }
+    .badge-dispute { background: rgba(250, 204, 21, 0.15); color: var(--yellow); }
+
+    /* Mobile bid cards */
+    .bid-cards { display: none; }
+    .bid-card { background: var(--bg-card); border: 1px solid var(--border); padding: 0.75rem; margin-bottom: 0.5rem; }
+    .bid-card:last-child { margin-bottom: 0; }
+    .bid-card-provider { font-size: 0.8rem; font-weight: 600; margin-bottom: 0.5rem; word-break: break-word; }
+    .bid-card-provider a { color: var(--cyan); }
+    .bid-card-row { display: flex; justify-content: space-between; align-items: center; font-size: 0.75rem; color: var(--text-muted); }
+    .bid-card-row + .bid-card-row { margin-top: 0.35rem; }
+    .bid-card-price { color: var(--mor); font-weight: 600; }
+
+    /* Sessions list */
+    .session-item { background: var(--bg-secondary); border: 1px solid var(--border); padding: 0.6rem 0.75rem; margin-bottom: 0.35rem; }
+    .session-row { display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+    .session-user { font-size: 0.75rem; font-weight: 500; }
+    .session-meta { display: flex; gap: 0.75rem; font-size: 0.75rem; color: var(--text-muted); align-items: center; flex-wrap: wrap; width: 100%; }
+
+    .section-title { font-size: 0.75rem; color: var(--green); text-transform: uppercase; letter-spacing: 0.1em; font-weight: 600; margin-bottom: 0.75rem; margin-top: 1.5rem; }
+    .empty-msg { padding: 1rem; font-size: 0.75rem; color: var(--text-muted); }
+    .providers-table { min-width: 520px; }
+
+    /* Family card: every flavor of this model family, overall demand */
+    .fam-meta { font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 0.75rem; display: flex; align-items: center; gap: 0.4rem 0.9rem; flex-wrap: wrap; }
+    .fam-badge { display: inline-block; padding: 0.12rem 0.45rem; font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
+    .fam-badge.tee { background: rgba(196,181,253,0.14); color: var(--purple); }
+    .fam-badge.web { background: rgba(96,165,250,0.14); color: var(--blue); }
+    .fam-totals { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 0.75rem; margin-bottom: 1rem; }
+    .fam-table { min-width: 560px; }
+    .fam-table .variant-name a { color: var(--cyan); }
+    .fam-table .variant-name a:hover { text-decoration: underline; }
+    .fam-table tr.variant-current td { background: rgba(34,211,238,0.05); }
+    .fam-table .variant-name .you { color: var(--text-muted); font-size: 0.75rem; margin-left: 0.4rem; }
+    .fam-usd { color: var(--text-muted); font-weight: 400; font-size: 0.75rem; margin-left: 0.3rem; }
+
+    @media (max-width: 640px) {
+        .stats-row { flex-direction: column; gap: 0.75rem; }
+        .ask-grid { grid-template-columns: 1fr 1fr; }
+        .bids-table-wrap { display: none; }
+        .bid-cards { display: block; }
+    }
+</style>
+
+<a href="/analytics/overview#models" class="back-link">&larr; All Models</a>
+
+<div id="model-detail-root">
+    <div style="padding:1rem 0;"><div class="skeleton skel-line w60"></div><div class="skeleton skel-line w40"></div><div class="skel-row"><div class="skeleton skel-card"></div><div class="skeleton skel-card"></div><div class="skeleton skel-card"></div></div><div class="skeleton skel-table-row"></div><div class="skeleton skel-table-row"></div><div class="skeleton skel-table-row"></div></div>
+</div>

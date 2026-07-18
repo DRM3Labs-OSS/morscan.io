@@ -174,6 +174,30 @@ export const paths = {
 			},
 		},
 	},
+	"/mor/v1/models/{modelId}/detail": {
+		get: {
+			summary: "Model Detail",
+			description:
+				"One model's full marketplace picture: identity and description, active bids with providers and pricing, session demand (totals, distinct consumers, 30-day daily series), and per-provider reputation on the model.",
+			tags: ["Models"],
+			security: [{ apiKey: [] }],
+			parameters: [
+				{
+					name: "modelId",
+					in: "path",
+					required: true,
+					schema: { type: "string", pattern: "^0x[0-9a-fA-F]{64}$" },
+					description: "The bytes32 model id.",
+				},
+			],
+			responses: {
+				"200": { description: "Model detail with signed provenance receipt" },
+				"404": { description: "Model not found" },
+				"401": { $ref: "#/components/responses/Unauthorized" },
+				"402": { $ref: "#/components/responses/PaymentRequired" },
+			},
+		},
+	},
 	"/mor/v1/models/lookup": {
 		get: {
 			summary: "Model ID Lookup",

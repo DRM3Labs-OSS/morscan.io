@@ -12,6 +12,7 @@ import type { Env } from "../../types";
 import { baseUrl } from "../../config";
 import { handleWalletDetail } from "../sessions";
 import { handleProviderDetail } from "../provider-detail";
+import { handleModelDetail } from "../model-detail";
 import { buildFatboy } from "../fatboy";
 import { render, type StatBarData } from "../../ui/shell";
 import {
@@ -71,6 +72,8 @@ import providerDetailMarkup from "../../ui/partials/provider-detail-markup.html"
 import providerDetailScript from "../../ui/partials/provider-detail-script.html";
 import walletDetailMarkup from "../../ui/partials/wallet-detail-markup.html";
 import walletDetailScript from "../../ui/partials/wallet-detail-script.html";
+import modelDetailMarkup from "../../ui/partials/model-detail-markup.html";
+import modelDetailScript from "../../ui/partials/model-detail-script.html";
 
 // app.html, api.html, provider-detail.html, wallet-detail.html were each split
 // into <250-LOC fragments; recombine byte-identically.
@@ -83,6 +86,7 @@ const apiHtml =
 const providerDetailHtml =
 	(providerDetailMarkup as string) + (providerDetailScript as string);
 const walletDetailHtml = (walletDetailMarkup as string) + (walletDetailScript as string);
+const modelDetailHtml = (modelDetailMarkup as string) + (modelDetailScript as string);
 
 // ─── App (SPA - all 4 tabs) ───
 
@@ -126,9 +130,12 @@ export async function handleAppPage(env: Env, path: string): Promise<Response> {
 					: ago < 86400
 						? `${Math.floor(ago / 3600)}h ago`
 						: `${Math.floor(ago / 86400)}d ago`;
-			upgradeStatus = `<span style="color:var(--yellow);">Last upgrade: block ${((lastUpgrade as Record<string, unknown>).block_number as number).toLocaleString()} (${agoStr}) &middot; ${upgradeCount?.count || 1} total</span>`;
+			// Short enough to ride the one-row contract strip without wrapping the
+			// sync cluster onto a second line (the container caps at 1200px, so
+			// every extra word here costs the row). Block + count live in the title.
+			upgradeStatus = `<span style="color:var(--yellow);" title="Last upgrade: block ${((lastUpgrade as Record<string, unknown>).block_number as number).toLocaleString()} &middot; ${upgradeCount?.count || 1} total">Upgraded ${agoStr}</span>`;
 		} else {
-			upgradeStatus = `<span style="color:var(--text-muted);">No contract upgrades detected</span>`;
+			upgradeStatus = `<span style="color:var(--text-muted);">No upgrades</span>`;
 		}
 	} catch {
 		upgradeStatus = undefined;
@@ -379,6 +386,65 @@ export async function handleProviderDetailPage(
 							{ name: "Compute", path: "/compute/network" },
 							{ name: "Providers", path: "/compute/providers" },
 							{ name: shortAddr, path: `/compute/providers/${address}` },
+						]),
+					],
+				}),
+			].join("\n"),
+		}),
+		{ status: data ? 200 : 404, headers: HTML_HEADERS },
+	);
+}
+
+// ─── Model Detail ───
+
+export async function handleModelDetailPage(
+	env: Env,
+	modelId: string,
+): Promise<Response> {
+	const [price, detailResp, statBar] = await Promise.all([
+		getCachedPrice(env),
+		handleModelDetail(env, modelId, JSON_HEADERS),
+		getStatBarData(env, null),
+	]);
+	let data: Record<string, unknown> | null = null;
+	try {
+		data = JSON.parse(await detailResp.text());
+	} catch {}
+	if (data && (data as Record<string, unknown>).error) data = null;
+	const model = (data?.model || {}) as Record<string, unknown>;
+	const name = (model.name as string) || `${modelId.slice(0, 10)}...${modelId.slice(-4)}`;
+	const modelDesc = (model.description as string) || "";
+	const metaDescription = modelDesc
+		? `${name} on the Morpheus AI network: ${modelDesc}`.slice(0, 300)
+		: `${name} on the Morpheus AI network on Base: live provider bids, per-second pricing, inference sessions, and provider reputation.`;
+	const { styles, content } = extractPage(modelDetailHtml as string);
+	return new Response(
+		render({
+			title: data ? `${name} on Morpheus - MorScan` : "Model Not Found",
+			description: metaDescription,
+			ogUrl: `${baseUrl()}/compute/models/${modelId}`,
+			subtitle: "Morpheus Compute Explorer",
+			active: "network",
+			price,
+			planeConfig: computePlane("network" as Tab, [
+				morStat(price),
+				{ label: "Providers", value: statBar.providerCount },
+				{ label: "Sessions", value: statBar.activeSessions },
+				{ label: "In Sessions", value: statBar.morStaked },
+			]),
+			pageStyles: styles,
+			content,
+			headScripts: [
+				`<script>window.MORSCAN_API_KEY = "${escJs(env.MORSCAN_DEMO_KEY || "")}";</script>`,
+				`<script>window.__MODEL_DATA__ = ${safeJson(data)};window.__MOR_USD__ = ${price && price.usd > 0 ? price.usd : 0};</script>`,
+				seoHead({
+					path: `/compute/models/${modelId}`,
+					keywords: COMPUTE_KEYWORDS,
+					jsonLd: [
+						breadcrumbLd([
+							{ name: "Compute", path: "/compute/network" },
+							{ name: "Models", path: "/analytics/overview" },
+							{ name, path: `/compute/models/${modelId}` },
 						]),
 					],
 				}),

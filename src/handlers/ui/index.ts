@@ -11,6 +11,7 @@ export {
 	handleAnalyticsTabPage,
 	handleProviderDetailPage,
 	handleWalletDetailPage,
+	handleModelDetailPage,
 	getCachedPrice,
 	getStatBarData,
 	extractPage,

@@ -230,8 +230,12 @@ function renderStatBar(stats: StatItem[]): string {
 function renderContract(c: ContractInfo): string {
 	const basescanUrl = `https://basescan.org/${c.basescanPath || "address"}/${c.address}`;
 	const shortAddr = `${c.address.slice(0, 6)}...${c.address.slice(-4)}`;
+	// Inline, not flex-basis:100%: a full-width child wrapped the banner onto a
+	// second row on the compute plane while builder/holders stayed one thin
+	// row. The upgrade note now rides the same row (hidden on narrow screens,
+	// same treatment as the full address).
 	const upgradeLine = c.upgradeStatus
-		? `<div id="diamond-upgrade-status" style="font-size:0.75rem;flex-basis:100%;">${c.upgradeStatus}</div>`
+		? `<span id="diamond-upgrade-status" class="cb-upgrade">${c.upgradeStatus}</span>`
 		: "";
 	// ONE compact strip: contract identity + Read/Write left, block + live
 	// badge + chain note right. The old layout stacked two full banners (plus

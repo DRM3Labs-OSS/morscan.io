@@ -256,7 +256,7 @@ export function buildTickerItems(d: TickerData): TickerItem[] {
 			icon: "model",
 			label: "new model",
 			value: m.name || shortId(m.modelId),
-			href: "/compute/network",
+			href: `/compute/models/${m.modelId}`,
 			newTag: true,
 		});
 	}

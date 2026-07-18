@@ -364,6 +364,65 @@ export async function getNamedModelIdNames(
 	return r.results ?? [];
 }
 
+/** Full model row for the model detail page. */
+export async function getModelDetailById(
+	db: D1Database,
+	modelId: string,
+): Promise<Record<string, unknown> | null> {
+	return db
+		.prepare(
+			"SELECT model_id, name, description, tags, created_at FROM models WHERE model_id = ?",
+		)
+		.bind(modelId)
+		.first<Record<string, unknown>>();
+}
+
+/** Every model's id, name, and registration time (family grouping). */
+export async function getModelsIdNameCreated(
+	db: D1Database,
+): Promise<Record<string, unknown>[]> {
+	const r = await db
+		.prepare("SELECT model_id, name, created_at FROM models WHERE name IS NOT NULL")
+		.all<Record<string, unknown>>();
+	return r.results ?? [];
+}
+
+/** Active bid counts per model for a set of ids (family variant supply). */
+export async function getActiveBidCountsByModelIds(
+	db: D1Database,
+	modelIds: string[],
+): Promise<Record<string, unknown>[]> {
+	if (!modelIds.length) return [];
+	const placeholders = modelIds.map(() => "?").join(",");
+	const r = await db
+		.prepare(`
+      SELECT model_id, COUNT(*) as bid_count, COUNT(DISTINCT provider) as provider_count
+      FROM bids WHERE model_id IN (${placeholders})
+        AND (deleted_at = 0 OR deleted_at IS NULL)
+      GROUP BY model_id
+    `)
+		.bind(...modelIds)
+		.all<Record<string, unknown>>();
+	return r.results ?? [];
+}
+
+/** One model's active bids joined with provider endpoints, cheapest first. */
+export async function getModelActiveBidsWithProviders(
+	db: D1Database,
+	modelId: string,
+): Promise<Record<string, unknown>[]> {
+	const r = await db
+		.prepare(`
+      SELECT b.*, p.endpoint as provider_endpoint, p.stake as provider_stake
+      FROM bids b LEFT JOIN providers p ON b.provider = p.address
+      WHERE b.model_id = ? AND (b.deleted_at = 0 OR b.deleted_at IS NULL)
+      ORDER BY CAST(b.price_per_second AS REAL) ASC
+    `)
+		.bind(modelId)
+		.all<Record<string, unknown>>();
+	return r.results ?? [];
+}
+
 /** Names for a specific set of model ids (dynamic IN list, ids lowercased). */
 export async function getModelNamesByIds(
 	db: D1Database,

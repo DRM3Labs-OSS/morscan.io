@@ -41,6 +41,7 @@ import {
 	handleModelDemand,
 	handleDailySessions,
 } from "../handlers/provider-detail";
+import { handleModelDetail } from "../handlers/model-detail";
 import {
 	handleBuilderSubnets,
 	handleBuilderSubnetDetail,
@@ -510,6 +511,15 @@ export async function handleApiRoutes(
 			);
 		}
 		if (path === "/mor/v1/sync-status") return await handleSyncStatus(env, HEADERS);
+		// Model detail - one model's bids, sessions, providers, and demand series.
+		// Must match before the generic /mor/v1/models/<id> name lookup below.
+		const modelDetail = path.match(/^\/mor\/v1\/models\/(0x[0-9a-fA-F]{64})\/detail$/);
+		if (modelDetail) {
+			const mid = modelDetail[1].toLowerCase();
+			return await withCfCache(`v1:models:${mid}:detail`, 300, () =>
+				handleModelDetail(env, mid, HEADERS),
+			);
+		}
 		// Models - GET for specific model, POST for setting name
 		if (path.startsWith("/mor/v1/models/") && request.method === "POST") {
 			if (!admin.isAdmin(auth, env)) {

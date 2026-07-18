@@ -4,6 +4,31 @@ Releases are tagged vX.Y.Z on GitHub.
 
 ## Unreleased
 
+## v2.44.0 - 2026-07-18 - model detail pages
+
+Every model gets a real page: `/compute/models/:modelId`.
+
+- Landing-search model results now open the model's own page instead of
+  jumping mid-page into the analytics table. Model names across the explorer
+  (analytics Model Demand table, provider detail bids/reputation/sessions,
+  the landing live feed, the market-tape "new model" items) click through.
+- The page: name, registration date, curated description, active bids with
+  providers and pricing (Lock 1hr / 10 MOR gets), the ask spread, a 30-day
+  daily-session chart, per-provider reputation on the model, and recent
+  sessions.
+- The model family card: every flavor of the family (grouped by normalized
+  name), each linked, with first-seen dates, per-flavor sessions and stake,
+  TEE and web-search variant badges, and family-overall totals (sessions,
+  distinct providers, MOR staked with an approximate USD figure).
+- New signed API endpoint `GET /mor/v1/models/:modelId/detail` (OpenAPI +
+  llms.txt documented). Model descriptions curated for ~300 registered
+  models; unknown listings stay description-free rather than guessed at.
+- Landing search: builder-subnet rows now show the subnet's current staked
+  MOR inline.
+- The compute plane's contract banner is one thin row again: the upgrade
+  note rides inline (details in its tooltip) instead of wrapping the banner
+  onto a second line.
+
 ## v2.29.0 - 2026-07-08 - the human verify page
 
 `GET /verify` - a public, standalone page that verifies a live signed API
