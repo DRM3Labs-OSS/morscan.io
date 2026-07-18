@@ -256,13 +256,15 @@ export async function getModelSessionStats(
 	return r.results ?? [];
 }
 
-/** Aggregate session summary for one model (mirrors the provider summary,
- * plus distinct-consumer count for the model detail page). */
-export async function getModelSessionSummary(
+/** Aggregate session summary across a set of listings (one canonical
+ * model = several on-chain registrations; pass one id for a single listing). */
+export async function getSessionSummaryByModelIds(
 	db: D1Database,
 	now: number,
-	modelId: string,
+	modelIds: string[],
 ): Promise<Record<string, unknown> | null> {
+	if (!modelIds.length) return null;
+	const placeholders = modelIds.map(() => "?").join(",");
 	return db
 		.prepare(`
       SELECT
@@ -271,90 +273,128 @@ export async function getModelSessionSummary(
         SUM(CASE WHEN closeout_type = 1 THEN 1 ELSE 0 END) as disputed_sessions,
         SUM(CASE WHEN closeout_type = 0 AND closed_at > 0 THEN 1 ELSE 0 END) as success_sessions,
         COUNT(DISTINCT user_address) as unique_users,
+        COUNT(DISTINCT provider) as provider_count,
         SUM(CAST(stake AS REAL)) as total_stake_wei,
         AVG(CASE WHEN closed_at > 0 AND opened_at > 0 THEN (CASE WHEN ends_at > 0 AND ends_at < closed_at THEN ends_at ELSE closed_at END) - opened_at END) as avg_duration_secs,
         MIN(opened_at) as first_session,
         MAX(opened_at) as last_session
-      FROM sessions WHERE model_id = ?
+      FROM sessions WHERE model_id IN (${placeholders})
     `)
-		.bind(now, modelId)
+		.bind(now, ...modelIds)
 		.first<Record<string, unknown>>();
 }
 
-/** One model's 50 most recent sessions, joined with provider endpoints. */
-export async function getRecentModelSessions(
+/** Most recent sessions across a set of listings, with provider endpoints. */
+export async function getRecentSessionsByModelIds(
 	db: D1Database,
-	modelId: string,
+	modelIds: string[],
 ): Promise<Record<string, unknown>[]> {
+	if (!modelIds.length) return [];
+	const placeholders = modelIds.map(() => "?").join(",");
 	const r = await db
 		.prepare(`
-      SELECT s.id, s.user_address, s.provider, s.stake, s.opened_at, s.ends_at,
+      SELECT s.id, s.user_address, s.provider, s.model_id, s.stake, s.opened_at, s.ends_at,
              s.closed_at, s.closeout_type, s.is_active, p.endpoint as provider_endpoint
       FROM sessions s LEFT JOIN providers p ON s.provider = p.address
-      WHERE s.model_id = ?
+      WHERE s.model_id IN (${placeholders})
       ORDER BY s.opened_at DESC LIMIT 50
     `)
-		.bind(modelId)
+		.bind(...modelIds)
 		.all<Record<string, unknown>>();
 	return r.results ?? [];
 }
 
-/** Per-bid session counts for one model (demand per active ask). */
-export async function getModelBidSessionCounts(
+/** Per-bid session counts across a set of listings (demand per active ask). */
+export async function getBidSessionCountsByModelIds(
 	db: D1Database,
-	modelId: string,
+	modelIds: string[],
 ): Promise<Record<string, unknown>[]> {
+	if (!modelIds.length) return [];
+	const placeholders = modelIds.map(() => "?").join(",");
 	const r = await db
 		.prepare(`
       SELECT bid_id, SUM(CASE WHEN is_active = 1 THEN 1 ELSE 0 END) as active_count,
              SUM(CASE WHEN closeout_type = 0 AND closed_at > 0 THEN 1 ELSE 0 END) as success_count,
              SUM(CASE WHEN closeout_type = 1 THEN 1 ELSE 0 END) as dispute_count,
              COUNT(*) as total_count
-      FROM sessions WHERE model_id = ?
+      FROM sessions WHERE model_id IN (${placeholders})
       GROUP BY bid_id
     `)
-		.bind(modelId)
+		.bind(...modelIds)
 		.all<Record<string, unknown>>();
 	return r.results ?? [];
 }
 
-/** Per-provider reputation rows for one model, joined with endpoints. */
-export async function getModelProviderStats(
+/** Per-provider reputation aggregated across a set of listings. One row per
+ * provider even when they serve the model through several registrations. */
+export async function getProviderStatsByModelIds(
 	db: D1Database,
-	modelId: string,
+	modelIds: string[],
 ): Promise<Record<string, unknown>[]> {
+	if (!modelIds.length) return [];
+	const placeholders = modelIds.map(() => "?").join(",");
 	const r = await db
 		.prepare(`
-      SELECT ps.provider, ps.success_count, ps.dispute_count, ps.early_termination_count,
-             ps.total_sessions, ps.avg_duration_secs, p.endpoint as provider_endpoint
+      SELECT ps.provider,
+             SUM(ps.success_count) as success_count,
+             SUM(ps.dispute_count) as dispute_count,
+             SUM(ps.early_termination_count) as early_termination_count,
+             SUM(ps.total_sessions) as total_sessions,
+             AVG(ps.avg_duration_secs) as avg_duration_secs,
+             p.endpoint as provider_endpoint
       FROM provider_stats ps LEFT JOIN providers p ON ps.provider = p.address
-      WHERE ps.model_id = ?
-      ORDER BY ps.total_sessions DESC
+      WHERE ps.model_id IN (${placeholders})
+      GROUP BY ps.provider
+      ORDER BY total_sessions DESC
     `)
-		.bind(modelId)
+		.bind(...modelIds)
 		.all<Record<string, unknown>>();
 	return r.results ?? [];
 }
 
-/** Daily session counts for one model since a cutoff (detail-page sparkline).
- * Rides idx_sessions_model_id; the per-model row set is small. */
-export async function getModelDailySessions(
+/** Daily session counts across a set of listings (detail-page chart).
+ * Rides idx_sessions_model_id; per-model row sets are small. */
+export async function getDailySessionsByModelIds(
 	db: D1Database,
-	modelId: string,
+	modelIds: string[],
 	since: number,
 ): Promise<Record<string, unknown>[]> {
+	if (!modelIds.length) return [];
+	const placeholders = modelIds.map(() => "?").join(",");
 	const r = await db
 		.prepare(`
       SELECT date(opened_at, 'unixepoch') as day, COUNT(*) as sessions
-      FROM sessions WHERE model_id = ? AND opened_at > ?
+      FROM sessions WHERE model_id IN (${placeholders}) AND opened_at > ?
       GROUP BY day ORDER BY day
     `)
-		.bind(modelId, since)
+		.bind(...modelIds, since)
 		.all<Record<string, unknown>>();
 	return r.results ?? [];
 }
 
-/** Per-variant session rollup for a family of model ids. */
+/** Distinct providers who have served OR are currently bidding on a set of
+ * listings - "providers offering this model", not just live bidders. */
+export async function getProviderUnionCountByModelIds(
+	db: D1Database,
+	modelIds: string[],
+): Promise<number> {
+	if (!modelIds.length) return 0;
+	const placeholders = modelIds.map(() => "?").join(",");
+	const row = await db
+		.prepare(`
+      SELECT COUNT(*) as n FROM (
+        SELECT DISTINCT provider FROM sessions WHERE model_id IN (${placeholders})
+        UNION
+        SELECT DISTINCT provider FROM bids
+          WHERE model_id IN (${placeholders}) AND (deleted_at = 0 OR deleted_at IS NULL)
+      )
+    `)
+		.bind(...modelIds, ...modelIds)
+		.first<Record<string, unknown>>();
+	return Number(row?.n) || 0;
+}
+
+/** Per-listing session rollup for a set of model ids. */
 export async function getSessionAggByModelIds(
 	db: D1Database,
 	modelIds: string[],
@@ -374,27 +414,6 @@ export async function getSessionAggByModelIds(
 		.bind(...modelIds)
 		.all<Record<string, unknown>>();
 	return r.results ?? [];
-}
-
-/** One family-wide rollup row (distinct providers/users counted once). */
-export async function getFamilySessionTotals(
-	db: D1Database,
-	modelIds: string[],
-): Promise<Record<string, unknown> | null> {
-	if (!modelIds.length) return null;
-	const placeholders = modelIds.map(() => "?").join(",");
-	return db
-		.prepare(`
-      SELECT COUNT(*) as total_sessions,
-             SUM(CAST(stake AS REAL)) as total_stake_wei,
-             COUNT(DISTINCT provider) as provider_count,
-             COUNT(DISTINCT user_address) as unique_users,
-             MIN(opened_at) as first_session,
-             MAX(opened_at) as last_session
-      FROM sessions WHERE model_id IN (${placeholders})
-    `)
-		.bind(...modelIds)
-		.first<Record<string, unknown>>();
 }
 
 /** Sessions per model in the last 24h. */

@@ -37,6 +37,10 @@
     html, body { overflow-x: hidden; }
     body { font-family: var(--mono); background: var(--bg); color: var(--text); min-height: 100vh; line-height: 1.55; }
     .page { max-width: 680px; margin: 0 auto; padding: 3rem 1.25rem 4rem; }
+    /* One column rhythm for the connect view: every block sits on the same
+       left edge at the same width (mixed 420/460px centered/left blocks read
+       as a lopsided page). */
+    .connect-hero { --console-col: 560px; }
     .back { font-size: 0.75rem; color: var(--green); text-decoration: none; }
     h1 { font-size: 1.5rem; color: var(--green); margin: 1.6rem 0 0.3rem; }
     .who { font-size: 0.75rem; color: var(--muted); margin-bottom: 1.6rem; overflow-wrap: anywhere; }
@@ -72,15 +76,15 @@
     .kicker { font-size: 0.75rem; letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted, var(--sub)); margin: 2rem 0 0.5rem; }
     .connect-hero { text-align: left; padding: 0.5rem 0; }
     .connect-hero h1 { margin-top: 0; }
-    .connect-copy { font-size: 0.75rem; color: var(--sub); max-width: 460px; margin: 0.6rem auto 1.4rem; line-height: 1.7; }
-    .wallet-choices { display: flex; flex-direction: column; gap: 0.5rem; max-width: 340px; margin: 0.8rem auto 0; }
+    .connect-copy { font-size: 0.75rem; color: var(--sub); max-width: var(--console-col); margin: 0.6rem 0 1.4rem; line-height: 1.7; }
+    .wallet-choices { display: flex; flex-direction: column; gap: 0.5rem; max-width: 340px; margin: 0.8rem 0 0; }
     .wallet-choices .btn { width: 100%; }
     .caps-strip { display: inline-flex; gap: 0; border: 1px solid var(--border); margin: 0 0 1.4rem; font-size: 0.75rem; }
     .caps-strip span { padding: 0.4rem 0.8rem; color: var(--sub); border-right: 1px solid var(--border); }
     .caps-strip span:last-child { border-right: none; }
     .caps-strip strong { color: var(--green); }
     /* Public vs Connected comparison: what connecting buys over the free public UI */
-    .vs { display: grid; grid-template-columns: 1fr 1fr; gap: 0.55rem; max-width: 460px; margin: 0 0 1.4rem; }
+    .vs { display: grid; grid-template-columns: 1fr 1fr; gap: 0.55rem; max-width: var(--console-col); margin: 0 0 1.4rem; }
     .vs-col { border: 1px solid var(--border); background: var(--bg); padding: 0.7rem 0.8rem; }
     .vs-col.vs-hi { border-color: var(--green); }
     .vs-h { font-size: 0.75rem; font-weight: 700; color: var(--text); text-transform: uppercase; letter-spacing: 0.08em; }
@@ -94,7 +98,7 @@
     .vs-list li.vs-no { color: var(--muted); }
     .vs-list li.vs-no::before { content: 'x'; color: var(--muted); }
     /* Stake tier table: real caps from capsForStake, mono + tabular, scroll-safe */
-    .tiers { max-width: 460px; margin: 1.6rem 0 0; }
+    .tiers { max-width: var(--console-col); margin: 1.6rem 0 0; }
     .tiers-h { font-size: 0.75rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 0.5rem; }
     .tier-scroll { overflow-x: auto; }
     .tier-table { border-collapse: collapse; width: 100%; font-size: 0.75rem; font-variant-numeric: tabular-nums; }
@@ -111,10 +115,10 @@
     .wstat .l { display: block; font-size: 0.75rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; margin-top: 0.15rem; }
     .addr { font-size: 0.75rem; color: var(--cyan); overflow-wrap: anywhere; }
     /* Shared price widget wrapper (widget styles ship in src/ui/price-widget.html) */
-    .mkt-wrap { width: 100%; max-width: 420px; margin: 1.8rem auto 0; }
+    .mkt-wrap { width: 100%; max-width: var(--console-col); margin: 1.8rem 0 0; }
     /* Secondary key sign-in */
-    .keyalt { max-width: 420px; margin: 1.4rem auto 0; text-align: center; }
-    .keyalt-toggle { background: none; border: none; color: var(--muted); font-family: inherit; font-size: 0.75rem; cursor: pointer; text-decoration: underline; text-underline-offset: 3px; letter-spacing: 0.03em; padding: 0.3rem; }
+    .keyalt { max-width: var(--console-col); margin: 1.4rem 0 0; text-align: left; }
+    .keyalt-toggle { background: none; border: none; color: var(--muted); font-family: inherit; font-size: 0.75rem; cursor: pointer; text-decoration: underline; text-underline-offset: 3px; letter-spacing: 0.03em; padding: 0.3rem 0.3rem 0.3rem 0; }
     .keyalt-toggle:hover { color: var(--green); }
     .keyalt-input { width: 100%; background: var(--bg); border: 1px solid var(--border); color: var(--cyan); padding: 0.65rem 0.8rem; font-family: inherit; font-size: 0.75rem; text-align: center; }
     /* Usage & limits panel */

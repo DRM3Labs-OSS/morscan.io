@@ -4,7 +4,7 @@
     .back-link:hover { color: var(--cyan); }
 
     .detail-header { margin-bottom: 1.5rem; }
-    .detail-title { display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.4rem; }
+    .detail-title { display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.4rem; flex-wrap: wrap; }
     .detail-title .model-ic { flex: none; width: 26px; height: 26px; }
     .detail-name { font-size: 1.4rem; font-weight: 700; color: var(--cyan); line-height: 1.2; word-break: break-word; }
     .detail-address { font-size: 0.75rem; color: var(--text-secondary); display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; word-break: break-all; }
@@ -86,7 +86,7 @@
     .fam-table .variant-name a { color: var(--cyan); }
     .fam-table .variant-name a:hover { text-decoration: underline; }
     .fam-table tr.variant-current td { background: rgba(34,211,238,0.05); }
-    .fam-table .variant-name .you { color: var(--text-muted); font-size: 0.75rem; margin-left: 0.4rem; }
+    .fam-table .variant-name .you { color: var(--text-muted); font-size: 0.75rem; margin-left: 0.4rem; white-space: nowrap; }
     .fam-usd { color: var(--text-muted); font-weight: 400; font-size: 0.75rem; margin-left: 0.3rem; }
 
     @media (max-width: 640px) {

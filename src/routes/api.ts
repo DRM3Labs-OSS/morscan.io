@@ -535,6 +535,8 @@ export async function handleApiRoutes(
 				body.name as string,
 				(body.description as string) || null,
 				HEADERS,
+				(body.family as string) || null,
+				(body.canonical as string) || null,
 			);
 		}
 		if (path.startsWith("/mor/v1/models/"))

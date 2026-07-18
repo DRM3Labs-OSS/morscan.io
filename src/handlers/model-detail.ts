@@ -1,11 +1,17 @@
 /**
  * Model Detail Handler
  *
- * GET /mor/v1/models/:id/detail - one model's full marketplace picture:
- * identity (name, description, tags), the current asks (active bids with
- * providers), demand (sessions, distinct consumers, daily series), and
- * per-provider reputation on this model. The demand-side mirror of the
- * provider detail endpoint.
+ * GET /mor/v1/models/:id/detail - the canonical-model page. A model like
+ * "Kimi K3" can be registered on chain many times, under many spellings
+ * ("Kimi K3", "moonshotai/kimi-k3", a ":web" variant), by any number of
+ * providers. The page anchors on the CANONICAL MODEL: every listing whose
+ * normalized name matches is aggregated - providers offering it, sessions,
+ * stake, asks - with each on-chain listing itemized below, and ":web"/":tee"
+ * variants folded in as capability badges rather than separate models.
+ *
+ * Grouping is a name heuristic with a curated override: models.canonical
+ * (display name, admin-set) wins over the normalized on-chain name, and
+ * models.family wins over the derived family token.
  */
 
 import type { Env } from "../types";
@@ -14,26 +20,26 @@ import { getSyncState, buildMeta } from "../utils/rpc";
 import { signResponse } from "../utils/provenance";
 import {
 	getModelDetailById,
-	getModelActiveBidsWithProviders,
 	getModelsIdNameCreated,
+	getActiveBidsWithProvidersByModelIds,
 	getActiveBidCountsByModelIds,
 	getNetworkEconomics,
 } from "../db/explorer-market";
 import {
-	getModelSessionSummary,
-	getRecentModelSessions,
-	getModelBidSessionCounts,
-	getModelProviderStats,
-	getModelDailySessions,
+	getSessionSummaryByModelIds,
+	getRecentSessionsByModelIds,
+	getBidSessionCountsByModelIds,
+	getProviderStatsByModelIds,
+	getDailySessionsByModelIds,
+	getProviderUnionCountByModelIds,
 	getSessionAggByModelIds,
-	getFamilySessionTotals,
 } from "../db/explorer-sessions";
 
 const num = (v: unknown): number => Number(v) || 0;
 
 // Org prefixes that lead marketplace names ("moonshotai/kimi-k3",
-// "Google Gemma 4 31B"). They are dropped before picking the family token so
-// vendor-prefixed and bare listings of the same family group together.
+// "Google Gemma 4 31B"). They are dropped before normalizing so vendor-
+// prefixed and bare listings of the same model group together.
 const ORG_TOKENS = new Set([
 	"google",
 	"meta",
@@ -50,27 +56,123 @@ const ORG_TOKENS = new Set([
 	"anthropic",
 ]);
 
-/** Normalize a marketplace model name to a family key: first meaningful token,
- * version digits stripped ("Kimi K3" / "moonshotai/kimi-k3" / "Kimi-K2.5" all
- * map to "kimi"; "GLM 5.1" / "glm-4.7-flash:web" both map to "glm"). A
- * heuristic over free-form on-chain names, so it aims for useful, not perfect. */
-export function modelFamilyKey(name: string | null | undefined): string | null {
+const TEE_RE = /(^|[^a-z])tee([^a-z]|$)/i;
+const WEB_RE = /:web$/i;
+
+/** Peel capability suffixes (":web", ":tee", stacked in any order) off a
+ * listing name. The capabilities become badges; the base names the model. */
+export function stripListingFlags(name: string): {
+	base: string;
+	web: boolean;
+	tee: boolean;
+} {
+	let base = String(name || "").trim();
+	let web = false;
+	let tee = false;
+	for (;;) {
+		if (/:web$/i.test(base)) {
+			web = true;
+			base = base.replace(/:web$/i, "").trim();
+			continue;
+		}
+		if (/:tee$/i.test(base)) {
+			tee = true;
+			base = base.replace(/:tee$/i, "").trim();
+			continue;
+		}
+		break;
+	}
+	// A "tee" embedded elsewhere ("gpt-oss:120B:tee" handled above; "qwq-32b:tee"
+	// too) - the token test catches remaining spellings without eating words.
+	if (!tee && TEE_RE.test(name || "")) tee = true;
+	return { base, web, tee };
+}
+
+/** Normalize a listing name to its canonical-model key. "Kimi K3",
+ * "moonshotai/kimi-k3", "Kimi-K3" and "kimi-k3:web" all map to the same key;
+ * version digits stay significant ("kimi k2.5" != "kimi k3"). A heuristic
+ * over free-form on-chain names - useful, not perfect; models.canonical
+ * curates the exceptions. */
+export function canonicalModelKey(name: string | null | undefined): string | null {
 	if (!name) return null;
-	const tokens = String(name)
+	const { base } = stripListingFlags(String(name));
+	// Drop huggingface-style org prefixes ("org/model").
+	const afterSlash = base.includes("/") ? base.slice(base.lastIndexOf("/") + 1) : base;
+	const tokens = afterSlash
 		.toLowerCase()
-		.split(/[\s/_\-:.,()]+/)
-		.filter(Boolean);
-	for (const t of tokens) {
-		if (ORG_TOKENS.has(t)) continue;
+		.split(/[\s_\-()]+/)
+		.filter(Boolean)
+		.filter((t, i) => !(i === 0 && ORG_TOKENS.has(t)));
+	if (!tokens.length) return null;
+	// Split alpha-digit boundaries so "qwen3.6" and "qwen 3.6" agree.
+	const norm = tokens
+		.map((t) =>
+			t
+				.replace(/([a-z])(\d)/g, "$1 $2")
+				.replace(/(\d)([a-z])/g, "$1 $2")
+				.trim(),
+		)
+		.join(" ")
+		.replace(/\s+/g, " ")
+		.trim();
+	return norm || null;
+}
+
+/** First meaningful token of the canonical key = the model family
+ * ("kimi k3" -> "kimi", "glm 4.7 flash" -> "glm"). */
+export function modelFamilyKey(name: string | null | undefined): string | null {
+	const key = canonicalModelKey(name);
+	if (!key) return null;
+	for (const t of key.split(" ")) {
 		if (/^\d/.test(t)) continue;
-		const base = t.replace(/[\d.]+$/, "");
-		if (base.length >= 1) return base;
+		const basePart = t.replace(/[\d.]+$/, "");
+		if (basePart.length >= 1) return basePart;
 	}
 	return null;
 }
 
-const TEE_RE = /(^|[^a-z])tee([^a-z]|$)/i;
-const WEB_RE = /:web$/i;
+interface ModelRow {
+	model_id: string;
+	name: string | null;
+	family: string | null;
+	canonical: string | null;
+	description?: string | null;
+	created_at: number | null;
+	[key: string]: unknown;
+}
+
+const effectiveCanonicalKey = (m: ModelRow): string | null =>
+	canonicalModelKey(m.canonical || m.name);
+const effectiveFamilyKey = (m: ModelRow): string | null =>
+	(m.family as string) || modelFamilyKey(m.canonical || m.name);
+
+/** Pick the display name for a canonical group: curated name first, then the
+ * cleanest raw base name (no org slash, has spaces/capitals), busiest first. */
+function displayNameFor(
+	rows: ModelRow[],
+	sessionsById: Record<string, number>,
+): string | null {
+	for (const r of rows) if (r.canonical) return r.canonical;
+	let best: { name: string; score: number; sessions: number } | null = null;
+	for (const r of rows) {
+		if (!r.name) continue;
+		const { base } = stripListingFlags(r.name);
+		if (!base) continue;
+		let score = 0;
+		if (!base.includes("/")) score += 4;
+		if (base.includes(" ")) score += 2;
+		if (/[A-Z]/.test(base)) score += 1;
+		const sessions = sessionsById[r.model_id] || 0;
+		if (
+			!best ||
+			score > best.score ||
+			(score === best.score && sessions > best.sessions)
+		) {
+			best = { name: base, score, sessions };
+		}
+	}
+	return best ? best.name : null;
+}
 
 export async function handleModelDetail(
 	env: Env,
@@ -80,7 +182,7 @@ export async function handleModelDetail(
 	const id = modelId.toLowerCase();
 	const now = Math.floor(Date.now() / 1000);
 
-	const model = await getModelDetailById(env.DB, id);
+	const model = (await getModelDetailById(env.DB, id)) as ModelRow | null;
 	if (!model) {
 		return new Response(JSON.stringify({ error: "Model not found" }), {
 			status: 404,
@@ -89,81 +191,98 @@ export async function handleModelDetail(
 	}
 
 	const { lastBlock, currentBlock, startBlock, lastSyncTs } = await getSyncState(env);
+	const allModels = (await getModelsIdNameCreated(env.DB)) as unknown as ModelRow[];
+
+	// ── The canonical group: every listing of this model ──
+	const targetKey = effectiveCanonicalKey(model);
+	const members = targetKey
+		? allModels.filter((m) => m.model_id === id || effectiveCanonicalKey(m) === targetKey)
+		: [{ ...model, model_id: id }];
+	if (!members.some((m) => m.model_id === id)) members.push({ ...model, model_id: id });
+	const memberIds = members.map((m) => m.model_id);
+	const flagsById: Record<string, { web: boolean; tee: boolean }> = {};
+	for (const m of members) flagsById[m.model_id] = stripListingFlags(m.name || "");
+
+	// ── The family: every canonical model sharing the family token ──
+	const famKey = effectiveFamilyKey(model);
+	const famRows = famKey
+		? allModels.filter((m) => effectiveFamilyKey(m) === famKey)
+		: members;
+	const famIds = famRows.map((m) => m.model_id);
+
 	const [
 		activeBids,
-		sessionSummary,
+		groupSummary,
 		recentSessions,
 		bidSessionCounts,
 		providerStats,
 		dailySessions,
+		perListingAgg,
+		perListingBids,
+		providersOffering,
 		economicsRow,
-		allModels,
+		famAgg,
+		famBidCounts,
+		famSummary,
+		famProvidersUnion,
 	] = await Promise.all([
-		getModelActiveBidsWithProviders(env.DB, id),
-		getModelSessionSummary(env.DB, now, id),
-		getRecentModelSessions(env.DB, id),
-		getModelBidSessionCounts(env.DB, id),
-		getModelProviderStats(env.DB, id),
-		getModelDailySessions(env.DB, id, now - 30 * 86400),
+		getActiveBidsWithProvidersByModelIds(env.DB, memberIds),
+		getSessionSummaryByModelIds(env.DB, now, memberIds),
+		getRecentSessionsByModelIds(env.DB, memberIds),
+		getBidSessionCountsByModelIds(env.DB, memberIds),
+		getProviderStatsByModelIds(env.DB, memberIds),
+		getDailySessionsByModelIds(env.DB, memberIds, now - 30 * 86400),
+		getSessionAggByModelIds(env.DB, memberIds),
+		getActiveBidCountsByModelIds(env.DB, memberIds),
+		getProviderUnionCountByModelIds(env.DB, memberIds),
 		getNetworkEconomics(env.DB),
-		getModelsIdNameCreated(env.DB),
+		getSessionAggByModelIds(env.DB, famIds),
+		getActiveBidCountsByModelIds(env.DB, famIds),
+		getSessionSummaryByModelIds(env.DB, now, famIds),
+		getProviderUnionCountByModelIds(env.DB, famIds),
 	]);
-
-	// The family: every registration whose name normalizes to the same key.
-	// The current model always belongs, even when its own name is unset.
-	const famKey = modelFamilyKey(model.name as string);
-	const familyRows = famKey
-		? allModels.filter(
-				(m) => m.model_id === id || modelFamilyKey(m.name as string) === famKey,
-			)
-		: allModels.filter((m) => m.model_id === id);
-	const familyIds = familyRows.map((m) => m.model_id as string);
-	const [familyAgg, familyTotals, familyBids] = await Promise.all([
-		getSessionAggByModelIds(env.DB, familyIds),
-		getFamilySessionTotals(env.DB, familyIds),
-		getActiveBidCountsByModelIds(env.DB, familyIds),
-	]);
-	const aggById: Record<string, Record<string, unknown>> = {};
-	for (const r of familyAgg) aggById[r.model_id as string] = r;
-	const bidsById: Record<string, Record<string, unknown>> = {};
-	for (const r of familyBids) bidsById[r.model_id as string] = r;
-
-	const familyVariants = familyRows
-		.map((m) => {
-			const agg = aggById[m.model_id as string] || {};
-			const bc = bidsById[m.model_id as string] || {};
-			const vname = (m.name as string) || "";
-			return {
-				modelId: m.model_id,
-				name: vname || null,
-				createdAt: m.created_at,
-				totalSessions: num(agg.total_sessions),
-				stakeMor: (num(agg.total_stake_wei) / 1e18).toFixed(2),
-				providerCount: num(agg.provider_count),
-				activeBids: num(bc.bid_count),
-				tee: TEE_RE.test(vname),
-				web: WEB_RE.test(vname),
-				isCurrent: m.model_id === id,
-			};
-		})
-		// Busiest first, then newest; the current registration is highlighted
-		// client-side wherever it sorts.
-		.sort(
-			(a, b) => b.totalSessions - a.totalSessions || num(b.createdAt) - num(a.createdAt),
-		);
-	const familyFirstSeen = familyRows.length
-		? Math.min(...familyRows.map((m) => num(m.created_at) || now))
-		: null;
-	const ft = (familyTotals || {}) as Record<string, unknown>;
 
 	const stakingFactor =
 		((economicsRow as Record<string, unknown>)?.staking_factor as number) || 0.00315;
+
+	const aggById: Record<string, Record<string, unknown>> = {};
+	for (const r of perListingAgg) aggById[r.model_id as string] = r;
+	const listingBidsById: Record<string, Record<string, unknown>> = {};
+	for (const r of perListingBids) listingBidsById[r.model_id as string] = r;
+	const sessionsById: Record<string, number> = {};
+	for (const r of perListingAgg)
+		sessionsById[r.model_id as string] = num(r.total_sessions);
+
+	const canonicalName =
+		displayNameFor(members, sessionsById) || `${id.slice(0, 10)}...${id.slice(-4)}`;
+	const groupWeb = members.some((m) => flagsById[m.model_id]?.web);
+	const groupTee = members.some((m) => flagsById[m.model_id]?.tee);
+	const firstListed = members.length
+		? Math.min(...members.map((m) => num(m.created_at) || now))
+		: null;
+	// The lead listing (busiest, tie newest) is the group's canonical URL.
+	const leadListing = [...members].sort(
+		(a, b) =>
+			(sessionsById[b.model_id] || 0) - (sessionsById[a.model_id] || 0) ||
+			num(b.created_at) - num(a.created_at),
+	)[0];
+	// Description: the requested listing's, else the first member that has one.
+	let description = (model as Record<string, unknown>).description || null;
+	if (!description) {
+		for (const m of members) {
+			const d = (m as Record<string, unknown>).description;
+			if (d) {
+				description = d;
+				break;
+			}
+		}
+	}
 
 	// Per-bid session count lookup (demand per ask)
 	const bidSessions: Record<string, Record<string, unknown>> = {};
 	for (const r of bidSessionCounts) bidSessions[r.bid_id as string] = r;
 
-	// Active asks, cheapest first (the db query pre-sorts on price)
+	// Active asks across every listing of the model, cheapest first
 	const bids = activeBids.map((b: Record<string, unknown>) => {
 		const pricePerSec = BigInt((b.price_per_second as string) || "0");
 		const morPerHour = (Number(pricePerSec) * 3600) / 1e18;
@@ -171,10 +290,14 @@ export async function handleModelDetail(
 		const hourlyStake =
 			stakingFactor > 0 && morPerHour > 0 ? Math.ceil(morPerHour / stakingFactor) : 0;
 		const bs = bidSessions[b.bid_id as string] || {};
+		const flags = flagsById[b.model_id as string] || { web: false, tee: false };
 		return {
 			bidId: b.bid_id,
 			provider: b.provider,
 			providerEndpoint: b.provider_endpoint || null,
+			listingId: b.model_id,
+			web: flags.web,
+			tee: flags.tee,
 			pricePerSecond: pricePerSec.toString(),
 			priceMorPerHour: morPerHour.toFixed(6),
 			priceMorPerDay: pricePerDay.toFixed(6),
@@ -185,7 +308,7 @@ export async function handleModelDetail(
 		};
 	});
 
-	// Ask spread across active bids (wei/sec as numbers; fine at display precision)
+	// Ask spread across the group's active bids
 	const askWei = activeBids
 		.map((b) => Number((b.price_per_second as string) || "0"))
 		.filter((n) => n > 0)
@@ -196,7 +319,7 @@ export async function handleModelDetail(
 			: (askWei[askWei.length / 2 - 1] + askWei[askWei.length / 2]) / 2
 		: 0;
 
-	// Per-provider reputation on this model
+	// Providers offering this model (aggregated across its listings)
 	const providers = providerStats.map((r: Record<string, unknown>) => ({
 		provider: r.provider,
 		endpoint: r.provider_endpoint || null,
@@ -216,6 +339,7 @@ export async function handleModelDetail(
 		user: s.user_address,
 		provider: s.provider,
 		providerEndpoint: s.provider_endpoint || null,
+		listingId: s.model_id,
 		stakeMor: (Number(BigInt((s.stake as string) || "0")) / 1e18).toFixed(4),
 		openedAt: s.opened_at,
 		endsAt: s.ends_at,
@@ -224,27 +348,115 @@ export async function handleModelDetail(
 		closeoutType: s.closeout_type,
 	}));
 
-	const ss = (sessionSummary || {}) as Record<string, unknown>;
+	// The on-chain listings behind this model
+	const listings = members
+		.map((m) => {
+			const agg = aggById[m.model_id] || {};
+			const bc = listingBidsById[m.model_id] || {};
+			const flags = flagsById[m.model_id] || { web: false, tee: false };
+			return {
+				modelId: m.model_id,
+				name: m.name || null,
+				createdAt: m.created_at,
+				totalSessions: num(agg.total_sessions),
+				stakeMor: (num(agg.total_stake_wei) / 1e18).toFixed(2),
+				activeBids: num(bc.bid_count),
+				web: flags.web,
+				tee: flags.tee,
+				isRequested: m.model_id === id,
+			};
+		})
+		.sort(
+			(a, b) => b.totalSessions - a.totalSessions || num(b.createdAt) - num(a.createdAt),
+		);
+
+	// ── The family, collapsed to canonical models ──
+	const famAggById: Record<string, Record<string, unknown>> = {};
+	for (const r of famAgg) famAggById[r.model_id as string] = r;
+	const famBidsById: Record<string, Record<string, unknown>> = {};
+	for (const r of famBidCounts) famBidsById[r.model_id as string] = r;
+	const famSessionsById: Record<string, number> = {};
+	for (const r of famAgg) famSessionsById[r.model_id as string] = num(r.total_sessions);
+
+	const groups = new Map<string, ModelRow[]>();
+	for (const m of famRows) {
+		const k = effectiveCanonicalKey(m) || m.model_id;
+		const arr = groups.get(k);
+		if (arr) arr.push(m);
+		else groups.set(k, [m]);
+	}
+	const familyModels = [...groups.entries()]
+		.map(([key, rows]) => {
+			let sessionsTotal = 0;
+			let stakeWei = 0;
+			let bidsTotal = 0;
+			let web = false;
+			let tee = false;
+			let first: number | null = null;
+			for (const r of rows) {
+				const agg = famAggById[r.model_id] || {};
+				sessionsTotal += num(agg.total_sessions);
+				stakeWei += num(agg.total_stake_wei);
+				bidsTotal += num(famBidsById[r.model_id]?.bid_count);
+				const flags = stripListingFlags(r.name || "");
+				web = web || flags.web;
+				tee = tee || flags.tee;
+				const c = num(r.created_at);
+				if (c && (first === null || c < first)) first = c;
+			}
+			const lead = [...rows].sort(
+				(a, b) =>
+					(famSessionsById[b.model_id] || 0) - (famSessionsById[a.model_id] || 0) ||
+					num(b.created_at) - num(a.created_at),
+			)[0];
+			return {
+				key,
+				name: displayNameFor(rows, famSessionsById) || key,
+				leadModelId: lead.model_id,
+				listings: rows.length,
+				firstSeen: first,
+				totalSessions: sessionsTotal,
+				stakeMor: (stakeWei / 1e18).toFixed(2),
+				activeBids: bidsTotal,
+				web,
+				tee,
+				isCurrent: key === (targetKey || id),
+			};
+		})
+		.sort(
+			(a, b) => b.totalSessions - a.totalSessions || num(b.firstSeen) - num(a.firstSeen),
+		);
+
+	const familyFirstSeen = famRows.length
+		? Math.min(...famRows.map((m) => num(m.created_at) || now))
+		: null;
+	const fs = (famSummary || {}) as Record<string, unknown>;
+
+	const ss = (groupSummary || {}) as Record<string, unknown>;
 	const totalSessions = num(ss.total_sessions);
-	// Providers on this listing = anyone who has ever served it (provider_stats)
-	// or is bidding on it now. Counting only live bidders read as "0 providers"
-	// on a listing with a full session history right below it.
-	const providersEver = new Set<string>();
-	for (const b of activeBids) providersEver.add(String(b.provider));
-	for (const r of providerStats) providersEver.add(String(r.provider));
 	const responseData: Record<string, unknown> = {
 		...buildMeta(lastBlock, currentBlock, startBlock, lastSyncTs),
 		model: {
 			modelId: id,
-			name: model.name || null,
-			description: model.description || null,
-			tags: model.tags ? (model.tags as string).split(",").filter(Boolean) : [],
-			createdAt: model.created_at,
+			name: canonicalName,
+			canonicalKey: targetKey,
+			curated: Boolean(model.canonical),
+			description,
+			tags: (model as Record<string, unknown>).tags
+				? String((model as Record<string, unknown>).tags)
+						.split(",")
+						.filter(Boolean)
+				: [],
+			firstListed,
+			listingCount: members.length,
+			leadModelId: leadListing?.model_id || id,
+			web: groupWeb,
+			tee: groupTee,
 		},
 		summary: {
-			activeBids: bids.length,
-			providers: providersEver.size,
+			providers: providersOffering,
 			biddingProviders: new Set(activeBids.map((b) => b.provider as string)).size,
+			activeBids: bids.length,
 			totalSessions,
 			activeSessions: num(ss.active_sessions),
 			successSessions: num(ss.success_sessions),
@@ -260,6 +472,7 @@ export async function handleModelDetail(
 			medianAskMorPerHour: medianWei ? ((medianWei * 3600) / 1e18).toFixed(6) : null,
 			stakingFactor,
 		},
+		listings,
 		bids,
 		providers,
 		recentSessions: sessions,
@@ -270,18 +483,19 @@ export async function handleModelDetail(
 		family: {
 			key: famKey,
 			firstSeen: familyFirstSeen,
-			teeAvailable: familyVariants.some((v) => v.tee),
-			webAvailable: familyVariants.some((v) => v.web),
-			variantCount: familyVariants.length,
+			teeAvailable: familyModels.some((v) => v.tee),
+			webAvailable: familyModels.some((v) => v.web),
+			modelCount: familyModels.length,
+			listingCount: famRows.length,
 			totals: {
-				totalSessions: num(ft.total_sessions),
-				totalStakeMor: (num(ft.total_stake_wei) / 1e18).toFixed(2),
-				providerCount: num(ft.provider_count),
-				uniqueUsers: num(ft.unique_users),
-				firstSession: ft.first_session || null,
-				lastSession: ft.last_session || null,
+				totalSessions: num(fs.total_sessions),
+				totalStakeMor: (num(fs.total_stake_wei) / 1e18).toFixed(2),
+				providerCount: famProvidersUnion,
+				uniqueUsers: num(fs.unique_users),
+				firstSession: fs.first_session || null,
+				lastSession: fs.last_session || null,
 			},
-			variants: familyVariants,
+			models: familyModels,
 		},
 	};
 

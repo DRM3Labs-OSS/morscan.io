@@ -4,6 +4,36 @@ Releases are tagged vX.Y.Z on GitHub.
 
 ## Unreleased
 
+## v2.45.0 - 2026-07-18 - canonical model pages
+
+A model page is now about the MODEL, not one registration. "Kimi K3" can be
+listed on chain many times, under many spellings, by any number of
+providers; the page aggregates all of it.
+
+- Canonical grouping: listings whose normalized names agree ("Kimi K3",
+  "moonshotai/kimi-k3", "Kimi-K3") render one page - providers offering the
+  model, sessions, consumers, stake, asks, and the 30-day chart all span
+  every listing. An On-Chain Listings table itemizes each registration.
+  Every listing URL renders the same canonical page; the busiest listing is
+  the SEO-canonical URL.
+- ":web" and ":tee" variants fold in as capability badges (on the header,
+  each bid, each listing, and each family row) instead of appearing as
+  separate models.
+- The family card collapses to canonical models (not raw listings), and its
+  Providers Overall counts everyone who has served or is bidding across the
+  family.
+- Curation beats heuristics: new `models.family` and `models.canonical`
+  columns pin a listing's family and canonical name (admin POST
+  /mor/v1/models/:id accepts `family` and `canonical`); the name heuristic
+  fills the rest.
+- Description-gap workflow: the daily cron raises a `model_descriptions`
+  alert when new listings arrive without a description (watermarked, so a
+  listing is reported once), and `scripts/model-descriptions.mjs`
+  emits/applies the fill (empty rows only, curation preserved).
+- The /console connect view sits on one column: same width, same left edge
+  for the copy, access cards, stake table, price widget, and key sign-in
+  (previously a mix of centered 420px and left 460px blocks).
+
 ## v2.44.1 - 2026-07-18 - honest provider counts on model pages
 
 - The model page's Providers tile now counts every provider that has served

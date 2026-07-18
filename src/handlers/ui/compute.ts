@@ -417,6 +417,9 @@ export async function handleModelDetailPage(
 	const metaDescription = modelDesc
 		? `${name} on the Morpheus AI network: ${modelDesc}`.slice(0, 300)
 		: `${name} on the Morpheus AI network on Base: live provider bids, per-second pricing, inference sessions, and provider reputation.`;
+	// Every listing of the model renders this same canonical page; the busiest
+	// listing's URL is the SEO-canonical one so search engines index it once.
+	const leadId = ((model.leadModelId as string) || modelId).toLowerCase();
 	const { styles, content } = extractPage(modelDetailHtml as string);
 	return new Response(
 		render({
@@ -438,13 +441,13 @@ export async function handleModelDetailPage(
 				`<script>window.MORSCAN_API_KEY = "${escJs(env.MORSCAN_DEMO_KEY || "")}";</script>`,
 				`<script>window.__MODEL_DATA__ = ${safeJson(data)};window.__MOR_USD__ = ${price && price.usd > 0 ? price.usd : 0};</script>`,
 				seoHead({
-					path: `/compute/models/${modelId}`,
+					path: `/compute/models/${leadId}`,
 					keywords: COMPUTE_KEYWORDS,
 					jsonLd: [
 						breadcrumbLd([
 							{ name: "Compute", path: "/compute/network" },
 							{ name: "Models", path: "/analytics/overview" },
-							{ name, path: `/compute/models/${modelId}` },
+							{ name, path: `/compute/models/${leadId}` },
 						]),
 					],
 				}),

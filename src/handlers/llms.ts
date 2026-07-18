@@ -84,7 +84,7 @@ X-Morscan-Key header on all /mor/v1/* requests.
 - GET /mor/v1/models/lookup - model ID to name mapping
 - GET /mor/v1/models/demand - model demand heatmap (sessions, pricing, providers)
 - GET /mor/v1/models/:modelId - model name and description
-- GET /mor/v1/models/:modelId/detail - full model picture: description, active bids with providers and pricing, session demand + 30-day daily series, per-provider reputation, and the model family (all flavors, TEE/web variants, overall sessions and stake). Human page: /compute/models/:modelId
+- GET /mor/v1/models/:modelId/detail - the canonical-model picture: every on-chain listing of the model aggregated (any listing id of the model returns the same content) - description, active bids with providers and pricing, session demand + 30-day daily series, per-provider reputation, the listing inventory with web/TEE capability flags, and the model family rollup. Human page: /compute/models/:modelId
 
 ### Provider Reputation (X-Morscan-Key required)
 - GET /mor/v1/reputation - all provider reputation scores

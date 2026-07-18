@@ -41,6 +41,10 @@
         if (mins >= 60) return Math.floor(mins / 60) + 'h ' + (mins % 60) + 'm';
         return mins + 'm';
     }
+    function offerBadges(web, tee) {
+        var out = (tee ? '<span class="fam-badge tee">TEE</span> ' : '') + (web ? '<span class="fam-badge web">WEB</span>' : '');
+        return out || '<span style="color:var(--text-muted)">\u2014</span>';
+    }
 
     var MODEL_IC = '<svg class="model-ic" viewBox="0 0 16 16" fill="none" stroke="#22d3ee" stroke-width="1.3" aria-hidden="true"><rect x="3.5" y="3.5" width="9" height="9"/><rect x="6" y="6" width="4" height="4" stroke-opacity=".55"/><path d="M5.5 1v2.5M8 1v2.5M10.5 1v2.5M5.5 12.5V15M8 12.5V15M10.5 12.5V15M1 5.5h2.5M1 8h2.5M1 10.5h2.5M12.5 5.5H15M12.5 8H15M12.5 10.5H15"/></svg>';
 
@@ -84,24 +88,21 @@
 
         var html = '';
 
-        // Header
+        // Header: the canonical model, not one registration
         html += '<div class="detail-header">';
-        html += `<div class="detail-title">${MODEL_IC}<h1 class="detail-name">${escHtml(name)}</h1></div>`;
-        html += '<div class="detail-address">';
-        html += `<span>${escHtml(m.modelId)}</span>`;
-        html += `<button type="button" class="copy-id" id="copy-model-id" aria-label="Copy model id">Copy</button>`;
+        html += `<div class="detail-title">${MODEL_IC}<h1 class="detail-name">${escHtml(name)}</h1>`;
+        html += (m.tee ? '<span class="fam-badge tee">TEE</span>' : '') + (m.web ? '<span class="fam-badge web">WEB</span>' : '');
         html += '</div>';
-        var since = m.createdAt ? `Registered ${formatDate(m.createdAt)} (${formatTime(m.createdAt)})` : '';
-        var tags = (m.tags || []).map(function (t) { return `<span class="tag-chip">${escHtml(t)}</span>`; }).join('');
-        if (since || tags) html += `<div class="detail-since">${tags}${escHtml(since)}</div>`;
-        var famCount = ((data.family || {}).variants || []).length;
-        html += `<div class="listing-note">One listing on the on-chain model registry; any provider can bid to serve it.${famCount > 1 ? ' Other listings of this model appear in the family below.' : ''}</div>`;
+        var since = m.firstListed ? `First listed ${formatDate(m.firstListed)} (${formatTime(m.firstListed)})` : '';
+        var listingWord = m.listingCount === 1 ? 'listing' : 'listings';
+        html += `<div class="detail-since">${escHtml(since)}${since ? ' &middot; ' : ''}${formatNum(m.listingCount || 1)} on-chain ${listingWord}</div>`;
+        html += `<div class="listing-note">This page aggregates every on-chain listing of ${escHtml(name)}; any provider can bid on any of them. Web-search and TEE variants fold in as capabilities.</div>`;
         if (m.description) html += `<p class="model-desc">${escHtml(m.description)}</p>`;
         html += '</div>';
 
         // Stats row
         html += '<div class="stats-row">';
-        html += `<div class="stat-item"><span class="stat-val cyan">${formatNum(s.providers || 0)}</span><span class="stat-label">Providers</span></div>`;
+        html += `<div class="stat-item"><span class="stat-val cyan">${formatNum(s.providers || 0)}</span><span class="stat-label">Providers Offering</span></div>`;
         html += `<div class="stat-item"><span class="stat-val">${formatNum(s.activeBids || 0)}</span><span class="stat-label">Active Bids</span></div>`;
         html += `<div class="stat-item"><span class="stat-val green">${formatNum(s.totalSessions || 0)}</span><span class="stat-label">Sessions (indexed)</span></div>`;
         html += `<div class="stat-item"><span class="stat-val green">${formatNum(s.activeSessions || 0)}</span><span class="stat-label">Active Now</span></div>`;
@@ -109,7 +110,7 @@
         html += `<div class="stat-item"><span class="stat-val">${successRate != null ? successRate + '%' : '-'}</span><span class="stat-label">Success Rate</span></div>`;
         html += '</div>';
 
-        // Market card: the ask spread across live bids
+        // Market card: the ask spread across live bids on any listing
         if ((s.activeBids || 0) > 0 && s.minAskMorPerHour != null) {
             var cheapest = (data.bids || [])[0] || {};
             html += '<div class="card">';
@@ -122,7 +123,7 @@
             html += '</div></div>';
         }
 
-        // Demand: last 30 days
+        // Demand: last 30 days across every listing
         var spark = demandBars(data.dailySessions);
         if (spark) {
             html += '<div class="card">';
@@ -131,55 +132,13 @@
             html += '</div>';
         }
 
-        // Family: every flavor, and what the whole family has done overall
-        var fam = data.family || {};
-        var variants = fam.variants || [];
-        if (variants.length > 1) {
-            var famName = fam.key ? fam.key.charAt(0).toUpperCase() + fam.key.slice(1) : 'Model';
-            var tot = fam.totals || {};
-            var morUsd = window.__MOR_USD__ || 0;
-            var stakeNum = parseFloat(tot.totalStakeMor || '0');
-            var usdStr = morUsd > 0 && stakeNum > 0
-                ? `<span class="fam-usd">&asymp;&nbsp;$${formatNum(Math.round(stakeNum * morUsd))}</span>` : '';
-            html += '<div class="card">';
-            html += `<div class="card-title">The ${escHtml(famName)} Family (${variants.length} listings)</div>`;
-            html += '<div class="fam-meta">';
-            if (fam.firstSeen) html += `<span>First on scene ${formatDate(fam.firstSeen)} (${formatTime(fam.firstSeen)})</span>`;
-            if (fam.teeAvailable) html += '<span class="fam-badge tee">TEE available</span>';
-            if (fam.webAvailable) html += '<span class="fam-badge web">Web-search flavors</span>';
-            html += '</div>';
-            html += '<div class="fam-totals">';
-            html += `<div class="ask-item"><span class="ask-val" style="color:var(--green)">${formatNum(tot.totalSessions || 0)}</span><span class="ask-label">Sessions Overall</span></div>`;
-            html += `<div class="ask-item"><span class="ask-val" style="color:var(--cyan)">${formatNum(tot.providerCount || 0)}</span><span class="ask-label">Providers Overall</span></div>`;
-            html += `<div class="ask-item"><span class="ask-val">${formatNum(Math.round(stakeNum))} MOR${usdStr}</span><span class="ask-label">Staked Overall</span></div>`;
-            html += `<div class="ask-item"><span class="ask-val" style="color:var(--text-primary)">${formatNum(tot.uniqueUsers || 0)}</span><span class="ask-label">Consumers Overall</span></div>`;
-            html += '</div>';
-            html += '<div class="table-scroll" style="margin:0 -1.25rem -1rem;padding:0 1.25rem 1rem;"><table class="fam-table"><thead><tr>';
-            html += '<th>Flavor</th><th class="num">First Seen</th><th class="num">Sessions</th><th class="num">Staked MOR</th><th class="num">Bids</th><th>Runs As</th>';
-            html += '</tr></thead><tbody>';
-            variants.forEach(function (v) {
-                var vname = v.name || shortAddr(v.modelId);
-                var badges = (v.tee ? '<span class="fam-badge tee">TEE</span> ' : '') + (v.web ? '<span class="fam-badge web">WEB</span>' : '');
-                html += `<tr${v.isCurrent ? ' class="variant-current"' : ''}>`;
-                html += `<td class="variant-name"><a href="/compute/models/${encodeURIComponent(v.modelId)}">${escHtml(vname)}</a>${v.isCurrent ? '<span class="you">(this page)</span>' : ''}</td>`;
-                html += `<td class="num" style="color:var(--text-muted)">${formatDate(v.createdAt)}</td>`;
-                html += `<td class="num" style="color:${v.totalSessions > 0 ? 'var(--green)' : 'var(--text-muted)'}">${formatNum(v.totalSessions || 0)}</td>`;
-                html += `<td class="num">${formatNum(Math.round(parseFloat(v.stakeMor || '0')))}</td>`;
-                html += `<td class="num" style="color:${v.activeBids > 0 ? 'var(--text-secondary)' : 'var(--text-muted)'}">${formatNum(v.activeBids || 0)}</td>`;
-                html += `<td>${badges || '<span style="color:var(--text-muted)">\u2014</span>'}</td>`;
-                html += '</tr>';
-            });
-            html += '</tbody></table></div>';
-            html += '</div>';
-        }
-
-        // Current bids
+        // Current bids across every listing of the model
         var bids = data.bids || [];
         html += `<div class="section-title">Current Bids (${bids.length})</div>`;
         if (bids.length > 0) {
             html += '<div class="card" style="padding:0;overflow:hidden;">';
             html += '<div class="table-scroll bids-table-wrap"><table class="bids-table"><thead><tr>';
-            html += '<th>Provider</th><th class="num">Lock 1hr</th><th class="num">10 MOR gets</th><th class="num">Sessions</th><th>Status</th><th class="num">Since</th>';
+            html += '<th>Provider</th><th class="num">Lock 1hr</th><th class="num">10 MOR gets</th><th class="num">Sessions</th><th>Offers</th><th>Status</th><th class="num">Since</th>';
             html += '</tr></thead><tbody>';
             bids.forEach(function (bid) {
                 var testing = isTesting(bid.priceMorPerDay);
@@ -189,6 +148,7 @@
                 html += `<td class="num"><span class="price">${bid.hourlyStake ? formatNum(bid.hourlyStake) : '\u2014'} MOR</span></td>`;
                 html += `<td class="num" style="color:var(--text-muted)">${escHtml(computeDur10(bid.priceMorPerDay))}</td>`;
                 html += `<td class="num" style="color:${active > 0 ? 'var(--green);font-weight:600' : 'var(--text-muted)'}">${active > 0 ? active + ' active' : formatNum(bid.totalSessions || 0)}</td>`;
+                html += `<td>${offerBadges(bid.web, bid.tee)}</td>`;
                 html += `<td><span class="badge ${testing ? 'badge-testing' : 'badge-production'}">${testing ? 'Testing' : 'Prod'}</span></td>`;
                 html += `<td class="num" style="color:var(--text-muted)">${formatTime(bid.createdAt)}</td>`;
                 html += '</tr>';
@@ -203,17 +163,18 @@
                 html += `<div class="bid-card-row"><span>Lock 1hr:</span><span class="bid-card-price">${bid.hourlyStake ? formatNum(bid.hourlyStake) : '\u2014'} MOR</span></div>`;
                 html += `<div class="bid-card-row"><span>10 MOR gets:</span><span>${escHtml(computeDur10(bid.priceMorPerDay))}</span></div>`;
                 html += `<div class="bid-card-row"><span>Sessions:</span><span style="color:${active > 0 ? 'var(--green)' : 'var(--text-muted)'};font-weight:600">${active > 0 ? active + ' active' : formatNum(bid.totalSessions || 0)}</span></div>`;
+                if (bid.web || bid.tee) html += `<div class="bid-card-row"><span>Offers:</span><span>${offerBadges(bid.web, bid.tee)}</span></div>`;
                 html += `<div class="bid-card-row"><span>Status:</span><span class="badge ${testing ? 'badge-testing' : 'badge-production'}">${testing ? 'Testing' : 'Prod'}</span></div>`;
                 html += '</div>';
             });
             html += '</div>';
             html += '</div>';
         } else {
-            // Explain the quiet listing: who has served it and how recently, so
+            // Explain the quiet model: who has served it and how recently, so
             // "0 active bids" beside a real session history reads as retracted
             // supply, not broken data.
             var servedBy = (data.providers || []).length;
-            var msg = 'No active bids on this listing right now, so new sessions cannot be opened on it.';
+            var msg = 'No active bids on any listing of this model right now, so new sessions cannot be opened.';
             if (servedBy > 0) {
                 msg += ` ${formatNum(servedBy)} provider${servedBy === 1 ? ' has' : 's have'} served it`;
                 if (s.lastSession) msg += `; the last session opened ${formatTime(s.lastSession)}`;
@@ -222,10 +183,10 @@
             html += `<div class="empty-msg">${msg}</div>`;
         }
 
-        // Providers serving this model (reputation)
+        // Providers offering this model (aggregated across its listings)
         var providers = data.providers || [];
         if (providers.length > 0) {
-            html += '<div class="section-title">Providers Serving This Model</div>';
+            html += `<div class="section-title">Providers Offering ${escHtml(name)}</div>`;
             html += '<div class="card" style="padding:0;overflow:hidden;">';
             html += '<div class="table-scroll"><table class="providers-table"><thead><tr><th>Provider</th><th class="num">Sessions</th><th class="num">Success</th><th class="num">Disputes</th><th class="num">Success Rate</th></tr></thead><tbody>';
             providers.forEach(function (r) {
@@ -240,7 +201,70 @@
             html += '</tbody></table></div></div>';
         }
 
-        // Recent sessions
+        // The on-chain listings behind this model
+        var listings = data.listings || [];
+        if (listings.length > 0) {
+            html += `<div class="section-title">On-Chain Listings (${listings.length})</div>`;
+            html += '<div class="card" style="padding:0;overflow:hidden;">';
+            html += '<div class="table-scroll"><table class="fam-table"><thead><tr>';
+            html += '<th>Listing</th><th class="num">First Seen</th><th class="num">Sessions</th><th class="num">Staked MOR</th><th class="num">Bids</th><th>Offers</th>';
+            html += '</tr></thead><tbody>';
+            listings.forEach(function (l) {
+                var label = l.name || shortAddr(l.modelId);
+                html += `<tr${l.isRequested ? ' class="variant-current"' : ''}>`;
+                html += `<td class="variant-name"><a href="/compute/models/${encodeURIComponent(l.modelId)}" title="${escHtml(l.modelId)}">${escHtml(label)}</a><span class="you">${shortAddr(l.modelId)}</span></td>`;
+                html += `<td class="num" style="color:var(--text-muted)">${formatDate(l.createdAt)}</td>`;
+                html += `<td class="num" style="color:${l.totalSessions > 0 ? 'var(--green)' : 'var(--text-muted)'}">${formatNum(l.totalSessions || 0)}</td>`;
+                html += `<td class="num">${formatNum(Math.round(parseFloat(l.stakeMor || '0')))}</td>`;
+                html += `<td class="num" style="color:${l.activeBids > 0 ? 'var(--text-secondary)' : 'var(--text-muted)'}">${formatNum(l.activeBids || 0)}</td>`;
+                html += `<td>${offerBadges(l.web, l.tee)}</td>`;
+                html += '</tr>';
+            });
+            html += '</tbody></table></div></div>';
+        }
+
+        // Family: sibling canonical models, and the family's overall footprint
+        var fam = data.family || {};
+        var famModels = fam.models || [];
+        if (famModels.length > 1) {
+            var famName = fam.key ? fam.key.charAt(0).toUpperCase() + fam.key.slice(1) : 'Model';
+            var tot = fam.totals || {};
+            var morUsd = window.__MOR_USD__ || 0;
+            var stakeNum = parseFloat(tot.totalStakeMor || '0');
+            var usdStr = morUsd > 0 && stakeNum > 0
+                ? `<span class="fam-usd">&asymp;&nbsp;$${formatNum(Math.round(stakeNum * morUsd))}</span>` : '';
+            html += '<div class="card">';
+            html += `<div class="card-title">The ${escHtml(famName)} Family (${famModels.length} models &middot; ${formatNum(fam.listingCount || 0)} listings)</div>`;
+            html += '<div class="fam-meta">';
+            if (fam.firstSeen) html += `<span>First on scene ${formatDate(fam.firstSeen)} (${formatTime(fam.firstSeen)})</span>`;
+            if (fam.teeAvailable) html += '<span class="fam-badge tee">TEE available</span>';
+            if (fam.webAvailable) html += '<span class="fam-badge web">Web-search flavors</span>';
+            html += '</div>';
+            html += '<div class="fam-totals">';
+            html += `<div class="ask-item"><span class="ask-val" style="color:var(--green)">${formatNum(tot.totalSessions || 0)}</span><span class="ask-label">Sessions Overall</span></div>`;
+            html += `<div class="ask-item"><span class="ask-val" style="color:var(--cyan)">${formatNum(tot.providerCount || 0)}</span><span class="ask-label">Providers Overall</span></div>`;
+            html += `<div class="ask-item"><span class="ask-val">${formatNum(Math.round(stakeNum))} MOR${usdStr}</span><span class="ask-label">Staked Overall</span></div>`;
+            html += `<div class="ask-item"><span class="ask-val" style="color:var(--text-primary)">${formatNum(tot.uniqueUsers || 0)}</span><span class="ask-label">Consumers Overall</span></div>`;
+            html += '</div>';
+            html += '<div class="table-scroll" style="margin:0 -1.25rem -1rem;padding:0 1.25rem 1rem;"><table class="fam-table"><thead><tr>';
+            html += '<th>Model</th><th class="num">First Seen</th><th class="num">Listings</th><th class="num">Sessions</th><th class="num">Staked MOR</th><th class="num">Bids</th><th>Offers</th>';
+            html += '</tr></thead><tbody>';
+            famModels.forEach(function (v) {
+                html += `<tr${v.isCurrent ? ' class="variant-current"' : ''}>`;
+                html += `<td class="variant-name"><a href="/compute/models/${encodeURIComponent(v.leadModelId)}">${escHtml(v.name)}</a>${v.isCurrent ? '<span class="you">(this page)</span>' : ''}</td>`;
+                html += `<td class="num" style="color:var(--text-muted)">${formatDate(v.firstSeen)}</td>`;
+                html += `<td class="num" style="color:var(--text-muted)">${formatNum(v.listings || 1)}</td>`;
+                html += `<td class="num" style="color:${v.totalSessions > 0 ? 'var(--green)' : 'var(--text-muted)'}">${formatNum(v.totalSessions || 0)}</td>`;
+                html += `<td class="num">${formatNum(Math.round(parseFloat(v.stakeMor || '0')))}</td>`;
+                html += `<td class="num" style="color:${v.activeBids > 0 ? 'var(--text-secondary)' : 'var(--text-muted)'}">${formatNum(v.activeBids || 0)}</td>`;
+                html += `<td>${offerBadges(v.web, v.tee)}</td>`;
+                html += '</tr>';
+            });
+            html += '</tbody></table></div>';
+            html += '</div>';
+        }
+
+        // Recent sessions across every listing
         var sessions = data.recentSessions || [];
         html += `<div class="section-title">Recent Sessions (${Math.min(sessions.length, 20)})</div>`;
         if (sessions.length > 0) {
@@ -263,18 +287,6 @@
         }
 
         root.innerHTML = html;
-
-        var copyBtn = document.getElementById('copy-model-id');
-        if (copyBtn && navigator.clipboard) {
-            copyBtn.addEventListener('click', function () {
-                navigator.clipboard.writeText(m.modelId).then(function () {
-                    copyBtn.textContent = 'Copied';
-                    setTimeout(function () { copyBtn.textContent = 'Copy'; }, 1400);
-                }).catch(function () {});
-            });
-        } else if (copyBtn) {
-            copyBtn.style.display = 'none';
-        }
     }
 
     (() => {

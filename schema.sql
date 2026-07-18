@@ -6,7 +6,7 @@ CREATE TABLE sync_state (key TEXT PRIMARY KEY, value TEXT);
 CREATE TABLE providers (address TEXT PRIMARY KEY, endpoint TEXT, stake TEXT DEFAULT '0', created_at INTEGER, updated_block INTEGER);
 CREATE TABLE bids (bid_id TEXT PRIMARY KEY, provider TEXT, model_id TEXT, price_per_second TEXT, nonce INTEGER, created_at INTEGER, deleted_at INTEGER, updated_block INTEGER);
 CREATE TABLE sessions (id TEXT PRIMARY KEY, user_address TEXT, bid_id TEXT, provider TEXT, model_id TEXT, stake TEXT DEFAULT '0', opened_at INTEGER DEFAULT 0, ends_at INTEGER DEFAULT 0, closed_at INTEGER DEFAULT 0, is_active INTEGER DEFAULT 0, updated_block INTEGER, closeout_type INTEGER DEFAULT 0, provider_withdrawn TEXT DEFAULT '0', open_tx_hash TEXT DEFAULT NULL, close_tx_hash TEXT DEFAULT NULL);
-CREATE TABLE models (model_id TEXT PRIMARY KEY, name TEXT, tags TEXT, updated_at INTEGER, description TEXT, created_at INTEGER);
+CREATE TABLE models (model_id TEXT PRIMARY KEY, name TEXT, tags TEXT, updated_at INTEGER, description TEXT, created_at INTEGER, family TEXT, canonical TEXT);
 -- daily_cap/monthly_cap: day/month volume caps (NULL = free defaults 2000/40000).
 -- Wallet identities use id 'wallet:<lowercased address>'; caps follow the live
 -- stake on the MorScan builder subnet (see src/utils/stake-tier.ts).

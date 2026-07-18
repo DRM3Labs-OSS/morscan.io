@@ -92,17 +92,29 @@ export async function handleGetModelName(
 	);
 }
 
-// Set model name (POST)
+// Set model name (POST). Optional curation: `family` pins the family group,
+// `canonical` pins the canonical model name a listing belongs to (both
+// override the name heuristics on the model detail page).
 export async function handleSetModelName(
 	env: Env,
 	modelId: string,
 	name: string,
 	description: string | null,
 	headers: Record<string, string>,
+	family: string | null = null,
+	canonical: string | null = null,
 ) {
 	const now = Math.floor(Date.now() / 1000);
 
-	await upsertModel(env.DB, modelId.toLowerCase(), name, description || "", now);
+	await upsertModel(
+		env.DB,
+		modelId.toLowerCase(),
+		name,
+		description || "",
+		now,
+		family,
+		canonical,
+	);
 
 	return new Response(
 		JSON.stringify({
@@ -110,6 +122,8 @@ export async function handleSetModelName(
 			modelId: modelId.toLowerCase(),
 			name,
 			description,
+			family,
+			canonical,
 		}),
 		{ headers },
 	);

@@ -52,14 +52,16 @@ import { handleAuthRoutes } from "../routes/auth";
 import { handleUiRoutes } from "../routes/ui";
 import { handlePublicRoutes } from "../routes/public";
 import { handleApiRoutes } from "../routes/api";
-import { runAlertDetection } from "../alerts";
+import { notifyAlert, runAlertDetection } from "../alerts";
 import {
 	deleteSyncStateValue,
 	getMaxSyncedHead,
 	getSyncStateValue,
 	putSyncStateValue,
+	upsertSyncStateValue,
 	pruneOldReceipts,
 } from "../db/ops";
+import { getModelsNeedingDescriptions } from "../db/explorer-market";
 import { selectSyncStateIn3 } from "../db/explorer-core";
 
 // Re-export what a composition repo needs, so its entry module can import
@@ -328,6 +330,45 @@ export function createMorscanApp(options: MorscanAppOptions = {}): MorscanApp {
 							if (n) console.log(`[provenance-prune] deleted ${n} receipts >30d`);
 						}),
 						"provenancePrune",
+					),
+				);
+				// Description-gap check: freshly registered models arrive without a
+				// curated description. One info alert per new batch (watermarked on
+				// created_at in sync_state, so a model is reported once), surfaced
+				// in /admin/alerts + any configured chat channel. Descriptions are
+				// then written and applied with scripts/model-descriptions.mjs.
+				ctx.waitUntil(
+					safe(
+						(async () => {
+							const wmRow = await getSyncStateValue(env.DB, "desc_alert_watermark");
+							const wm = Number(wmRow?.value) || 0;
+							const missing = await getModelsNeedingDescriptions(env.DB, wm);
+							if (!missing.length) return;
+							const names = missing
+								.slice(0, 10)
+								.map((m) => String(m.name))
+								.join(", ");
+							const more = missing.length > 10 ? ` and ${missing.length - 10} more` : "";
+							await notifyAlert(
+								env,
+								{
+									level: "info",
+									kind: "model_descriptions",
+									message: `${missing.length} new model listing${missing.length === 1 ? "" : "s"} need a description: ${names}${more}. Run scripts/model-descriptions.mjs.`,
+								},
+								{ ctx },
+							);
+							const maxCreated = Math.max(
+								...missing.map((m) => Number(m.created_at) || 0),
+							);
+							if (maxCreated > 0)
+								await upsertSyncStateValue(
+									env.DB,
+									"desc_alert_watermark",
+									String(maxCreated),
+								);
+						})(),
+						"modelDescriptionGap",
 					),
 				);
 				return;

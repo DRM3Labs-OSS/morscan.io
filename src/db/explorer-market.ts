@@ -314,20 +314,31 @@ export async function getModelById(
 		.first<Record<string, unknown>>();
 }
 
-/** Upsert a model name/description, preserving the original created_at. */
+/** Admin upsert: set name/description and optionally the curated family and
+ * canonical grouping. ON CONFLICT (never REPLACE): a replace would delete the
+ * row and re-insert without tags/created_at/family/canonical, wiping curation
+ * on every edit. Null family/canonical means "leave whatever is there". */
 export async function upsertModel(
 	db: D1Database,
 	modelId: string,
 	name: string,
 	description: string,
 	now: number,
+	family: string | null = null,
+	canonical: string | null = null,
 ): Promise<D1Result> {
 	return db
 		.prepare(`
-    INSERT OR REPLACE INTO models (model_id, name, description, created_at, updated_at)
-    VALUES (?, ?, ?, COALESCE((SELECT created_at FROM models WHERE model_id = ?), ?), ?)
+    INSERT INTO models (model_id, name, description, family, canonical, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+    ON CONFLICT(model_id) DO UPDATE SET
+      name = excluded.name,
+      description = excluded.description,
+      family = COALESCE(excluded.family, models.family),
+      canonical = COALESCE(excluded.canonical, models.canonical),
+      updated_at = excluded.updated_at
   `)
-		.bind(modelId, name, description, modelId, now, now)
+		.bind(modelId, name, description, family, canonical, now, now)
 		.run();
 }
 
@@ -371,18 +382,38 @@ export async function getModelDetailById(
 ): Promise<Record<string, unknown> | null> {
 	return db
 		.prepare(
-			"SELECT model_id, name, description, tags, created_at FROM models WHERE model_id = ?",
+			"SELECT model_id, name, description, tags, family, canonical, created_at FROM models WHERE model_id = ?",
 		)
 		.bind(modelId)
 		.first<Record<string, unknown>>();
 }
 
-/** Every model's id, name, and registration time (family grouping). */
+/** Every model's id, name, curated family, and registration time. */
 export async function getModelsIdNameCreated(
 	db: D1Database,
 ): Promise<Record<string, unknown>[]> {
 	const r = await db
-		.prepare("SELECT model_id, name, created_at FROM models WHERE name IS NOT NULL")
+		.prepare(
+			"SELECT model_id, name, family, canonical, description, created_at FROM models WHERE name IS NOT NULL",
+		)
+		.all<Record<string, unknown>>();
+	return r.results ?? [];
+}
+
+/** Named models still missing a description, newest-first above a watermark
+ * (the daily description-gap alert). */
+export async function getModelsNeedingDescriptions(
+	db: D1Database,
+	createdAfter: number,
+): Promise<Record<string, unknown>[]> {
+	const r = await db
+		.prepare(`
+      SELECT model_id, name, created_at FROM models
+      WHERE (description IS NULL OR description = '') AND name IS NOT NULL
+        AND created_at > ?
+      ORDER BY created_at ASC LIMIT 50
+    `)
+		.bind(createdAfter)
 		.all<Record<string, unknown>>();
 	return r.results ?? [];
 }
@@ -406,19 +437,22 @@ export async function getActiveBidCountsByModelIds(
 	return r.results ?? [];
 }
 
-/** One model's active bids joined with provider endpoints, cheapest first. */
-export async function getModelActiveBidsWithProviders(
+/** Active bids across a set of listings, with provider endpoints, cheapest
+ * first (one canonical model = several on-chain registrations). */
+export async function getActiveBidsWithProvidersByModelIds(
 	db: D1Database,
-	modelId: string,
+	modelIds: string[],
 ): Promise<Record<string, unknown>[]> {
+	if (!modelIds.length) return [];
+	const placeholders = modelIds.map(() => "?").join(",");
 	const r = await db
 		.prepare(`
       SELECT b.*, p.endpoint as provider_endpoint, p.stake as provider_stake
       FROM bids b LEFT JOIN providers p ON b.provider = p.address
-      WHERE b.model_id = ? AND (b.deleted_at = 0 OR b.deleted_at IS NULL)
+      WHERE b.model_id IN (${placeholders}) AND (b.deleted_at = 0 OR b.deleted_at IS NULL)
       ORDER BY CAST(b.price_per_second AS REAL) ASC
     `)
-		.bind(modelId)
+		.bind(...modelIds)
 		.all<Record<string, unknown>>();
 	return r.results ?? [];
 }
