@@ -4,6 +4,19 @@ Releases are tagged vX.Y.Z on GitHub.
 
 ## Unreleased
 
+## v2.44.1 - 2026-07-18 - honest provider counts on model pages
+
+- The model page's Providers tile now counts every provider that has served
+  the listing or is bidding on it, so it can no longer read "0 providers"
+  above a table of providers with real session history (it previously
+  counted only live bidders).
+- The no-bids state explains itself: how many providers have served the
+  listing and when the last session opened, so retracted supply does not
+  read as broken data. A note under the model id explains that a page is
+  one on-chain registry listing that any provider can bid to serve.
+- New guard test: package.json and src/version.ts must agree before any
+  deploy or tag (a release was once tagged with the two skewed).
+
 ## v2.44.0 - 2026-07-18 - model detail pages
 
 Every model gets a real page: `/compute/models/:modelId`.

@@ -226,6 +226,12 @@ export async function handleModelDetail(
 
 	const ss = (sessionSummary || {}) as Record<string, unknown>;
 	const totalSessions = num(ss.total_sessions);
+	// Providers on this listing = anyone who has ever served it (provider_stats)
+	// or is bidding on it now. Counting only live bidders read as "0 providers"
+	// on a listing with a full session history right below it.
+	const providersEver = new Set<string>();
+	for (const b of activeBids) providersEver.add(String(b.provider));
+	for (const r of providerStats) providersEver.add(String(r.provider));
 	const responseData: Record<string, unknown> = {
 		...buildMeta(lastBlock, currentBlock, startBlock, lastSyncTs),
 		model: {
@@ -237,7 +243,8 @@ export async function handleModelDetail(
 		},
 		summary: {
 			activeBids: bids.length,
-			providers: new Set(activeBids.map((b) => b.provider as string)).size,
+			providers: providersEver.size,
+			biddingProviders: new Set(activeBids.map((b) => b.provider as string)).size,
 			totalSessions,
 			activeSessions: num(ss.active_sessions),
 			successSessions: num(ss.success_sessions),

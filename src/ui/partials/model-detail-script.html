@@ -94,6 +94,8 @@
         var since = m.createdAt ? `Registered ${formatDate(m.createdAt)} (${formatTime(m.createdAt)})` : '';
         var tags = (m.tags || []).map(function (t) { return `<span class="tag-chip">${escHtml(t)}</span>`; }).join('');
         if (since || tags) html += `<div class="detail-since">${tags}${escHtml(since)}</div>`;
+        var famCount = ((data.family || {}).variants || []).length;
+        html += `<div class="listing-note">One listing on the on-chain model registry; any provider can bid to serve it.${famCount > 1 ? ' Other listings of this model appear in the family below.' : ''}</div>`;
         if (m.description) html += `<p class="model-desc">${escHtml(m.description)}</p>`;
         html += '</div>';
 
@@ -207,7 +209,17 @@
             html += '</div>';
             html += '</div>';
         } else {
-            html += '<div class="empty-msg">No active bids for this model right now.</div>';
+            // Explain the quiet listing: who has served it and how recently, so
+            // "0 active bids" beside a real session history reads as retracted
+            // supply, not broken data.
+            var servedBy = (data.providers || []).length;
+            var msg = 'No active bids on this listing right now, so new sessions cannot be opened on it.';
+            if (servedBy > 0) {
+                msg += ` ${formatNum(servedBy)} provider${servedBy === 1 ? ' has' : 's have'} served it`;
+                if (s.lastSession) msg += `; the last session opened ${formatTime(s.lastSession)}`;
+                msg += '.';
+            }
+            html += `<div class="empty-msg">${msg}</div>`;
         }
 
         // Providers serving this model (reputation)
