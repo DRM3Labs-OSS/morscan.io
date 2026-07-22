@@ -40,7 +40,7 @@
     "esbuild": "^0.28.1",
     "typescript": "^6.0.3",
     "vitest": "^4.1.10",
-    "wrangler": "^4.108.0"
+    "wrangler": "^4.113.0"
   },
   "dependencies": {
     "@drm3labs-oss/provenance": "^0.2.3",
