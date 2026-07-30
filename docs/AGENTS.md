@@ -53,6 +53,23 @@ in [docs/GETTING_STARTED.md](GETTING_STARTED.md). Then `npm run deploy`.
   package `@drm3labs-oss/provenance` (compiled WASM + JS bindings); it is separately
   licensed (MIT) and not covered by this repo's FSL-1.1-MIT license.
 
+## Copy law: signing is ADDED trust, never a replacement
+
+An Ed25519 signature proves **attribution** ("this key said this") and **integrity**
+("and it has not changed since"). It does **not** prove **correctness**. You can sign a
+lie and the math verifies perfectly. So never write, in UI copy, docs, code comments, or
+test fixtures: "no trust required", "you do not have to trust the indexer", "don't take
+our word for it", "trustless", "trust-free", "zero-trust" as a claim about our data,
+"verify without trusting X", or any construction whose logic is "because it is signed,
+you don't have to trust the source".
+
+Write what the signature actually buys instead: which key produced the response, that it
+has not been altered since, that MorScan's name is on every number and cannot be quietly
+changed later. Do not delete the sentence and leave a gap; the honest version is the
+stronger one. The verify affordance stated in the positive ("check any receipt yourself
+against the published keys", `npm run verify:receipt`) is the point of `/verify` and is
+encouraged.
+
 ## More
 
 [README](../README.md) · [Getting Started](GETTING_STARTED.md) ·

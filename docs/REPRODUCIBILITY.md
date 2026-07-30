@@ -61,7 +61,7 @@ reproducible. The lockfile is committed.
 ## Part 2: proving the runtime is honest
 
 Every data response MorScan serves can be verified offline against published
-Ed25519 keys. You do not have to trust the indexer; you check it.
+Ed25519 keys. The indexer's name is on every response, and the check is yours to run.
 
 ### The signing model
 
