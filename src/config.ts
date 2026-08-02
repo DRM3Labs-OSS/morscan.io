@@ -89,3 +89,20 @@ export function setBaseUrl(url: string): void {
 export function baseUrl(): string {
 	return _baseUrl;
 }
+
+// --- Module-global GA measurement id ------------------------------------------
+// Same pattern as the base URL: the UI injection point (src/routes/ui.ts) sits
+// far from `env`, and the id is public page metadata. Set from fetch(); empty
+// (standalone/dev deployments) means the consent banner never renders.
+
+let _gaId = "";
+
+/** Called at the top of fetch() to pin the operator's GA4 measurement id. */
+export function setGaId(id: string): void {
+	_gaId = /^G-[A-Z0-9]{4,16}$/.test(id) ? id : "";
+}
+
+/** Current GA4 measurement id ("" when analytics is not configured). */
+export function gaId(): string {
+	return _gaId;
+}

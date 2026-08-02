@@ -4,6 +4,27 @@ Releases are tagged vX.Y.Z on GitHub.
 
 ## Unreleased
 
+## v2.47.0 - 2026-08-02 - consent-gated analytics
+
+Optional Google Analytics behind a real consent banner, and a privacy page
+that matches what the site actually does.
+
+- A cookie banner offers optional Google Analytics 4 on every human page.
+  The gtag script is never in the served HTML: it loads client-side only
+  after Accept, so nothing reaches Google before consent. Decline is
+  remembered, deletes the _ga cookies, and a "Cookie settings" footer link
+  (added client-side to the shared footer nav) reopens the choice.
+- Operators opt in by setting `GA_MEASUREMENT_ID`; standalone deployments
+  without it render no banner and load nothing, byte-identical to before.
+- CSP admits googletagmanager + the GA collect endpoints (the consent path
+  would otherwise be blocked); the outbound-call ledger in
+  docs/DEPENDENCIES.md records the new browser-side hosts.
+- Privacy page: drops the claim that pages load Cloudflare Web Analytics
+  (they do not; the code never injected it and the live site serves no
+  beacon) and the absolute "no tracking cookies" line; adds a full
+  consent-gated Analytics section (Google as processor, what is collected,
+  14-month retention, withdrawal path).
+
 ## v2.46.0 - 2026-07-18 - canonical model URLs
 
 The pretty spelling: `/compute/models/kimi-k3`. Canonical model names get

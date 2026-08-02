@@ -27,8 +27,11 @@ import walletBadge from "../../ui/partials/wallet-badge.html";
 //   - font-src:   the modal's KHTeka fonts (fonts.reown.com); 'self' covers the
 //     self-hosted IBM Plex Mono at /fonts/ (no third-party font host)
 //   - frame-src:  the WalletConnect verify iframe (verify.walletconnect.org)
+//   - googletagmanager/google-analytics: consent-gated GA4 (src/ui/consent.ts).
+//     The gtag script only loads after cookie-banner acceptance; these entries
+//     exist so the post-consent load and its collect beacons are not blocked.
 export const CSP =
-	"default-src 'self'; script-src 'self' 'unsafe-inline' https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline'; font-src 'self' https://fonts.reown.com data:; img-src 'self' data: blob: https:; connect-src 'self' https://cloudflareinsights.com wss://*.walletconnect.org wss://*.walletconnect.com wss://*.reown.com https://*.walletconnect.org https://*.walletconnect.com https://api.web3modal.org https://*.web3modal.org https://*.web3modal.com https://*.reown.com https://*.pinata.cloud; frame-src https://*.walletconnect.org https://*.walletconnect.com https://*.reown.com; frame-ancestors 'none';";
+	"default-src 'self'; script-src 'self' 'unsafe-inline' https://static.cloudflareinsights.com https://www.googletagmanager.com; style-src 'self' 'unsafe-inline'; font-src 'self' https://fonts.reown.com data:; img-src 'self' data: blob: https:; connect-src 'self' https://cloudflareinsights.com https://www.google-analytics.com https://*.google-analytics.com https://*.analytics.google.com https://*.googletagmanager.com wss://*.walletconnect.org wss://*.walletconnect.com wss://*.reown.com https://*.walletconnect.org https://*.walletconnect.com https://api.web3modal.org https://*.web3modal.org https://*.web3modal.com https://*.reown.com https://*.pinata.cloud; frame-src https://*.walletconnect.org https://*.walletconnect.com https://*.reown.com; frame-ancestors 'none';";
 
 export const HTML_HEADERS = {
 	"Content-Type": "text/html;charset=UTF-8",

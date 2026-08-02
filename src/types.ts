@@ -19,6 +19,7 @@ export interface Env {
 	// Deployment-neutral config (see src/config.ts). All optional with safe
 	// defaults so the explorer boots without operator-specific hostnames.
 	PUBLIC_BASE_URL?: string; // Explorer origin, e.g. https://morscan.example.com
+	GA_MEASUREMENT_ID?: string; // Public GA4 id; gtag loads only after cookie-banner consent (src/ui/consent.ts)
 	LOCK_WORKERS_DEV?: string; // "true" = admin-key-only API on *.workers.dev (no UI). Default: open.
 	COMING_SOON_HOSTS?: string; // Comma-separated hostnames that serve the coming-soon page instead of the UI
 	// Optional forwarding endpoint for /notify captures. With URL + KEY set, every

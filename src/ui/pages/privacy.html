@@ -81,7 +81,7 @@
     <main id="main" tabindex="-1">
     <div class="kicker">Legal</div>
     <h1>Privacy</h1>
-    <div class="updated">Last updated: July 7, 2026</div>
+    <div class="updated">Last updated: August 2, 2026</div>
 
     <p>MorScan is built to need almost nothing from you. No account is required to use the explorer.</p>
 
@@ -92,15 +92,20 @@
       <li>If you pay with x402: we store the record needed to verify and settle the payment - your payer wallet address, the signed transfer authorization, the amount, and the on-chain settlement transaction hash.</li>
       <li>Retention: key identity and payment records are kept for as long as needed to operate the service, settle payments, and meet our accounting obligations. Settled transactions are public and permanent on the Base blockchain; we cannot remove those. We never handle card data.</li>
       <li>If you sign in to the API console: one HttpOnly session cookie. It exists only to keep you signed in and expires in 24 hours.</li>
-      <li>Aggregate traffic analytics come from Cloudflare's server-side zone analytics (request counts and network metadata measured at Cloudflare's edge). Our pages also load Cloudflare Web Analytics, a cookieless, privacy-first beacon that records only aggregate page-performance metrics; it sets no cookies, does no cross-site tracking, and collects no personal data.</li>
+      <li>Aggregate traffic analytics come from Cloudflare's server-side zone analytics (request counts and network metadata measured at Cloudflare's edge). These are measured at the edge and set no cookies.</li>
     </ul>
+
+    <h2>Analytics (optional, consent-gated)</h2>
+    <p>We use Google Analytics 4, a web analytics service provided by Google LLC (and, for visitors in the EEA and the UK, Google Ireland Limited), to understand how visitors use morscan.io. It runs only if you accept it in the cookie banner. If you decline, or ignore the banner, no analytics code loads and nothing is sent to Google.</p>
+    <p>If you accept, the following is collected: the pages you view and how you arrived; approximate city-level location derived from your IP address (Google Analytics 4 does not log or store the IP itself); device information such as browser, operating system, screen size, and language; and a random identifier stored in first-party cookies (named _ga and _ga_ plus a container id) so repeat visits count as one visitor. We do not send Google your wallet address or any account identity, we do not use analytics data for advertising, and we do not sell it. Google processes this data on our behalf as a data processor under Google's data processing terms, which include the EU Standard Contractual Clauses where they apply; data may be processed in the United States, and Google LLC participates in the EU-U.S. Data Privacy Framework.</p>
+    <p>Retention: Google Analytics keeps this data for up to 14 months, then deletes it automatically; the _ga cookies expire after at most two years. Your consent choice stays in your browser until you change it: use the Cookie settings link in the footer at any time. Switching analytics off deletes the Google Analytics cookies for this site and stops any further collection.</p>
 
     <h2>Connecting a wallet</h2>
     <p>If you choose to connect a wallet through WalletConnect, your browser talks directly to the WalletConnect/Reown relay and related endpoints (the wss relay, the wallet registry, and the verify service) to establish the session; those services see your IP address and connection metadata under their own privacy policies. This happens only when you connect a wallet - simply browsing MorScan never contacts them.</p>
 
     <h2>What we do not do</h2>
     <ul>
-      <li>No advertising, no tracking cookies, no fingerprinting.</li>
+      <li>No advertising and no fingerprinting. The only analytics cookies are the optional, consent-gated Google Analytics cookies described above, and they exist only if you accept them.</li>
       <li>We never sell or share your data with data brokers.</li>
       <li>We do not link your IP address to blockchain addresses you look up.</li>
     </ul>

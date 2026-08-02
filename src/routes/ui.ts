@@ -37,6 +37,7 @@ import { handleOgCard, handleFavicon } from "../handlers/og-image";
 import { AGENT_LINK_HEADER } from "../handlers/agent-ready";
 import { wantsMarkdown, handleMarkdownPage } from "../handlers/markdown-pages";
 import { TICKER_SLOT, marketTickerHtml } from "../ui/ticker";
+import { consentSnippet } from "../ui/consent";
 import swJs from "../ui/vendor/sw.txt";
 
 /** Fill the layout's market-tape slot on pages that carry it. One place, so
@@ -47,9 +48,14 @@ async function withMarketTicker(env: Env, fresh: Response): Promise<Response> {
 	const ct = fresh.headers.get("Content-Type") || "";
 	if (!ct.includes("text/html")) return fresh;
 	const html = await fresh.text();
-	const filled = html.includes(TICKER_SLOT)
+	let filled = html.includes(TICKER_SLOT)
 		? html.replace(TICKER_SLOT, await marketTickerHtml(env))
 		: html;
+	// Consent-gated analytics: identical bytes for every visitor (cache-safe);
+	// the gtag script only ever loads client-side after Accept. Empty when
+	// GA_MEASUREMENT_ID is unset (standalone operators, local dev).
+	const consent = consentSnippet();
+	if (consent) filled = filled.replace("</body>", `${consent}\n</body>`);
 	return new Response(filled, { status: fresh.status, headers: fresh.headers });
 }
 

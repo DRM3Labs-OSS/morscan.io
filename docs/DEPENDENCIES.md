@@ -113,6 +113,7 @@ allowlist. Everything marked optional is silent unless you configure it.
 | `api.telegram.org` | O | Alert channel, only if `ALERT_TELEGRAM_*` set. |
 | Your Slack / Discord / webhook URLs | O | Alert channels, only if the matching `ALERT_*` var is set. |
 | `*.googleapis.com` (oauth2, bigquery) | O | BigQuery archive, only if `BIGQUERY_ENABLED=true`. |
+| `www.googletagmanager.com`, `www.google-analytics.com`, `*.analytics.google.com` | O | Browser-side only, never the Worker: consent-gated Google Analytics (`src/ui/consent.ts`). Loads only if `GA_MEASUREMENT_ID` is set AND the visitor accepts the cookie banner. |
 
 **Not outbound calls (redirects or static links only), for the record:**
 

@@ -35,7 +35,7 @@
  */
 
 import type { Env } from "../types";
-import { setBaseUrl, signingMnemonic } from "../config";
+import { setBaseUrl, setGaId, signingMnemonic } from "../config";
 import { configureRpcPool } from "../utils/rpc-pool";
 import { handle404 } from "../handlers/ui";
 import {
@@ -158,6 +158,7 @@ export function createMorscanApp(options: MorscanAppOptions = {}): MorscanApp {
 	return {
 		async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
 			setBaseUrl(env.PUBLIC_BASE_URL || "");
+			setGaId(env.GA_MEASUREMENT_ID || "");
 			configureRpcPool(env);
 			const url = new URL(request.url);
 			const path = url.pathname;
