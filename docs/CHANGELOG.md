@@ -4,6 +4,21 @@ Releases are tagged vX.Y.Z on GitHub.
 
 ## Unreleased
 
+## v2.48.0 - 2026-08-02 - analytics knows a DRM3 account is one person
+
+- `GET /api/me` returns `{signedIn, sub}` for a browser session: the DRM3
+  account subject when the visitor signed in through the DRM3 hub, and
+  `{signedIn:false}` otherwise. No email, no name, no token.
+- Consent-gated analytics configures GA with `user_id` = that subject, so a
+  person who uses several DRM3 apps is counted as one person rather than a
+  separate stranger on each domain. Read at runtime, never baked into the
+  page, because explorer HTML is shared-cached for 30s.
+- A wallet login or an API-key session reports NOTHING: neither is a DRM3
+  account, and filing one as the subject would not error, it would quietly
+  split one human into two users.
+- Privacy page: discloses the pseudonymous identifier and the cross-domain
+  linking it performs; the blanket "no account identity" line is gone.
+
 ## v2.47.0 - 2026-08-02 - consent-gated analytics
 
 Optional Google Analytics behind a real consent banner, and a privacy page

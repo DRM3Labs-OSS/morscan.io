@@ -8,6 +8,7 @@ import { MORSCAN_VERSION } from "../version";
 import { baseUrl, provenanceEnabled, signingMnemonic } from "../config";
 import { signBuildReceipt } from "../utils/provenance";
 import { handleHealth } from "../handlers/health";
+import { sessionPayload } from "../utils/auth/session";
 import { handleOpenApi } from "../handlers/openapi";
 import {
 	handleLlmsTxt,
@@ -71,6 +72,31 @@ export async function handlePublicRoutes(
 	}
 	if (path === "/sitemap.xml") {
 		return await withCfCache("sitemap:v2", 3600, () => handleSitemapXml(env));
+	}
+
+	// GET /api/me - the analytics identity probe, and ONLY that. Returns the DRM3
+	// account subject when the visitor signed in through the DRM3 hub, so the
+	// consent-gated GA snippet reports one person as one person across every DRM3
+	// app. MorScan stores that subject prefixed inside the session's `keyId`
+	// (`user:<sub>`), so it is unwrapped here and returned under the fleet-wide
+	// name `sub`.
+	//
+	// The prefix check is load-bearing, not defensive: a wallet login is
+	// `wallet:<address>` and an API-key login is an arbitrary key id, and NEITHER
+	// is a DRM3 account. Reporting one of those as `sub` would not error - it
+	// would quietly file that person as a different user than the same human is
+	// on every other DRM3 app, which is worse than reporting nothing. So anything
+	// that is not `user:` returns signedIn:false and MorScan sends no user_id.
+	if (path === "/api/me") {
+		const session = await sessionPayload(request, env);
+		const sub =
+			session && session.keyId.startsWith("user:") ? session.keyId.slice("user:".length) : "";
+		return new Response(JSON.stringify(sub ? { signedIn: true, sub } : { signedIn: false }), {
+			headers: {
+				"Content-Type": "application/json",
+				"Cache-Control": "no-store, must-revalidate",
+			},
+		});
 	}
 
 	// Health & Status (no key required)

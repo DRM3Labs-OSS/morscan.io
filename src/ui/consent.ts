@@ -10,6 +10,15 @@
 //
 // The injected HTML is identical for every visitor, so it is safe under the
 // path-keyed edge cache; all consent state lives in the browser.
+//
+// user_id: when the visitor signed in through the DRM3 hub, GA is configured
+// with the DRM3 account subject, so the same person is one person across every
+// DRM3 app rather than a separate stranger on each. The value comes from
+// /api/me at runtime, never from the HTML, because these pages are shared-cached
+// for 30s and a baked-in id would be served to the next visitor. A wallet login
+// or an API-key session is NOT a DRM3 account and reports nothing (see the
+// `user:` prefix check in routes/public.ts) - reporting the wrong identifier
+// does not error, it silently files one human as two.
 import { gaId } from "../config";
 
 /** The banner + gate script, or "" when analytics is not configured. */
@@ -44,12 +53,35 @@ export function consentSnippet(): string {
   var KEY = "drm3_cc", ID = "${id}";
   function read(){ try { return localStorage.getItem(KEY); } catch(e){ return null; } }
   function write(v){ try { localStorage.setItem(KEY, v); } catch(e){} }
-  function loadGA(){
+  function subOf(j){
+    var s = j && j.sub;
+    if (typeof s !== "string" || !s || s.length > 128) return null;
+    if (s.indexOf("@") !== -1) return null;
+    return s;
+  }
+  function startGA(){
+    if (window.__drm3ga) return;
+    var done = false;
+    var go = function(sub){ if (!done) { done = true; loadGA(sub); } };
+    var t = setTimeout(function(){ go(null); }, 900);
+    try {
+      fetch("/api/me", { credentials: "same-origin" })
+        .then(function(r){ return r.ok ? r.json() : null; })
+        .then(function(j){
+          clearTimeout(t);
+          var sub = subOf(j);
+          if (done) { if (sub && window.gtag) window.gtag("set", { user_id: sub }); return; }
+          go(sub);
+        })
+        .catch(function(){ clearTimeout(t); go(null); });
+    } catch(e) { clearTimeout(t); go(null); }
+  }
+  function loadGA(sub){
     if (window.__drm3ga) return; window.__drm3ga = 1;
     window.dataLayer = window.dataLayer || [];
     window.gtag = window.gtag || function(){ window.dataLayer.push(arguments); };
     window.gtag("js", new Date());
-    window.gtag("config", ID);
+    window.gtag("config", ID, sub ? { user_id: sub } : {});
     var s = document.createElement("script");
     s.async = true;
     s.src = "https://www.googletagmanager.com/gtag/js?id=" + ID;
@@ -73,7 +105,7 @@ export function consentSnippet(): string {
   function decide(v){
     write("v1:" + v);
     if (banner) banner.hidden = true;
-    if (v === "granted") loadGA(); else clearGaCookies();
+    if (v === "granted") startGA(); else clearGaCookies();
   }
   window.drm3CookieSettings = function(){ if (banner) banner.hidden = false; };
   if (banner) {
@@ -95,7 +127,7 @@ export function consentSnippet(): string {
     nav.appendChild(link);
   }
   var v = read();
-  if (v === "v1:granted") loadGA();
+  if (v === "v1:granted") startGA();
   else if (v !== "v1:denied") { if (banner) banner.hidden = false; }
 })();
 </script>`;
