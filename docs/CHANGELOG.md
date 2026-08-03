@@ -4,6 +4,17 @@ Releases are tagged vX.Y.Z on GitHub.
 
 ## Unreleased
 
+## v2.49.0 - 2026-08-02 - the policy says why we measure
+
+- Privacy page leads with the purpose: we measure how MorScan is used so we can
+  improve the experience and the product. We do not sell your data, share it
+  with data brokers, run advertising, or build advertising profiles.
+- Terms gains section 7, "Cookies and usage measurement". The contract
+  previously said nothing about cookies at all.
+- Dropped the absolute "no tracking cookies" framing in favour of what is
+  actually true and durable: analytics cookies are set only on consent, and
+  consent is withdrawable from the footer.
+
 ## v2.48.0 - 2026-08-02 - analytics knows a DRM3 account is one person
 
 - `GET /api/me` returns `{signedIn, sub}` for a browser session: the DRM3
