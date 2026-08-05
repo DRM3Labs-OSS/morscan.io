@@ -4,6 +4,19 @@ Releases are tagged vX.Y.Z on GitHub.
 
 ## Unreleased
 
+## v2.49.1 - 2026-08-04 - the fixture says what it holds
+
+- Renamed `tests/unit/fixtures/morscan-keys-live.json` to
+  `morscan-public-keys-live.json`. The file holds Ed25519 PUBLIC verification
+  keys captured from `/.well-known/morscan-keys.json`, an endpoint that is
+  public by design, but the old name read like private key material and drew a
+  second look in every audit of this repo. The `-live` suffix is kept: it is the
+  existing convention for a fixture captured from the running API, as in
+  `price-receipt-live.json`.
+- The `/verify` test docstring now states outright that the fixture is public
+  keys only, and that no private key or seed material belongs in this repo.
+- No behaviour change. Test-only.
+
 ## v2.49.0 - 2026-08-02 - the policy says why we measure
 
 - Privacy page leads with the purpose: we measure how MorScan is used so we can

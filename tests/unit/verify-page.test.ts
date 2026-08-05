@@ -14,7 +14,10 @@
  *     payload, via the page's own verifySignature() (WebCrypto, the exact code
  *     a browser runs) and independently via @noble/curves (the CLI's library).
  *  3. tampering one byte makes the same check fail.
- *  4. key matching against the live-captured /.well-known/morscan-keys.json.
+ *  4. key matching against the live-captured /.well-known/morscan-keys.json
+ *     (tests/unit/fixtures/morscan-public-keys-live.json holds Ed25519 PUBLIC
+ *     verification keys only, from an endpoint that is public by design; no
+ *     private key or seed material is present, or ever should be, in this repo).
  *
  * Both sources are read from disk and evaluated, so the assertions run the
  * SHIPPED code, not a copy that could drift.
@@ -33,7 +36,7 @@ const fixture = JSON.parse(
 	readFileSync(root("tests/unit/fixtures/price-receipt-live.json"), "utf8"),
 );
 const keysFixture = JSON.parse(
-	readFileSync(root("tests/unit/fixtures/morscan-keys-live.json"), "utf8"),
+	readFileSync(root("tests/unit/fixtures/morscan-public-keys-live.json"), "utf8"),
 );
 
 // ── Evaluate the page's shipped verifier core ──────────────────────────────
