@@ -90,13 +90,18 @@ export async function handlePublicRoutes(
 	if (path === "/api/me") {
 		const session = await sessionPayload(request, env);
 		const sub =
-			session && session.keyId.startsWith("user:") ? session.keyId.slice("user:".length) : "";
-		return new Response(JSON.stringify(sub ? { signedIn: true, sub } : { signedIn: false }), {
-			headers: {
-				"Content-Type": "application/json",
-				"Cache-Control": "no-store, must-revalidate",
+			session && session.keyId.startsWith("user:")
+				? session.keyId.slice("user:".length)
+				: "";
+		return new Response(
+			JSON.stringify(sub ? { signedIn: true, sub } : { signedIn: false }),
+			{
+				headers: {
+					"Content-Type": "application/json",
+					"Cache-Control": "no-store, must-revalidate",
+				},
 			},
-		});
+		);
 	}
 
 	// Health & Status (no key required)
