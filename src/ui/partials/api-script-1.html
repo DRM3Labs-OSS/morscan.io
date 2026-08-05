@@ -51,9 +51,9 @@ var EPS = [
     { m:'GET', p:'/health', d:'Sync status, block heights, counts',
       detail:'Current sync state: chain block, indexed block, blocks behind, provider/bid/session counts, and staking factor. No API key required.' },
     { m:'GET', p:'/mor/v1/price', d:'MOR/USD + ETH/USD (on-chain)',
-      detail:'MOR/USD read on-chain from the Base DEX (Uniswap v3 MOR/WETH pool), with ETH/USD from a Chainlink feed on Base. Provenance-signed. Includes USD price, 24h change, and market cap. Cached ~30s; CoinGecko is only a last-resort fallback if the on-chain read fails. Public market data: free and uncounted WITHOUT a key. If you send your key it routes through the metered path and counts as one call, so a playground RUN here does decrement.' },
+      detail:'USD price, 24h change and market cap, signed. MOR/USD comes from the Uniswap v3 MOR/WETH pool on Base and ETH/USD from a Chainlink feed on Base; CoinGecko is a last-resort fallback only if the on-chain read fails. Values move about every 30 seconds. Free without a key; send a key and it counts as one call.' },
     { m:'GET', p:'/mor/v1/price/chart', d:'90-day price history',
-      detail:'Array of {t, v} objects. t is Unix timestamp in milliseconds, v is MOR price in USD. Our own recorded on-chain price history (backfilled from CoinGecko until we have enough of our own points).' },
+      detail:'Array of {t, v} points: t is a Unix timestamp in milliseconds, v is MOR in USD. Our own recorded on-chain price history, with CoinGecko covering the stretch before we had enough points of our own.' },
   ]},
   { group: 'Account', base: '/mor/v1', items: [
     { m:'GET', p:'/mor/v1/capacity', d:'Your remaining rate-limit capacity',
@@ -83,7 +83,7 @@ var EPS = [
     { m:'GET', p:'/mor/v1/sessions/daily', d:'30-day daily session counts',
       detail:'Daily session counts for the last 30 days plus economics trend data. Useful for charting network activity over time.' },
     { m:'GET', p:'/mor/v1/sessions/analytics', d:'Per-wallet session analytics',
-      detail:'Precomputed per-wallet analytics from wallet_stats table: total sessions, active sessions, total MOR staked, active stake, and claimable stake.' },
+      detail:'Per-wallet analytics: total sessions, active sessions, total MOR staked, active stake, and claimable stake.' },
   ]},
   { group: 'Wallets', base: '/mor/v1/wallet', items: [
     { m:'GET', p:'/mor/v1/wallet/{wallet}', d:'Wallet detail',
@@ -93,7 +93,7 @@ var EPS = [
     { m:'GET', p:'/mor/v1/reputation', d:'All provider reputation scores',
       detail:'Quality metrics for all providers: success rate, dispute count, early termination rate, average tokens per second (TPS), and time to first token (TTFT). Broken down per model.' },
     { m:'GET', p:'/mor/v1/disputes', d:'Recent disputed sessions',
-      detail:'Sessions that were closed with a dispute (closeout_type = 1). Shows which providers had quality issues and on which models.' },
+      detail:'Sessions closed with a dispute on-chain. Shows which providers had quality issues and on which models.' },
   ]},
   { group: 'Leaderboard', base: '/mor/v1', items: [
     { m:'GET', p:'/mor/v1/leaderboard', d:'Top providers & wallets',
@@ -113,7 +113,7 @@ var EPS = [
     { m:'GET', p:'/mor/v1/builder/stats', d:'Global builder staking stats',
       detail:'Aggregate builder stats: total MOR staked across all subnets, pool APR, daily emissions (the protocol\'s current builder emissions pool, live value), pending rewards, claimed rewards, and contract address.' },
     { m:'GET', p:'/mor/v1/builder/all', d:'Full builder blob - stats + all subnets',
-      detail:'Combined response: global stats merged with all subnet data. One call for the entire builder plane. Used for SSR and dashboard rendering.' },
+      detail:'Combined response: global stats merged with all subnet data. One call for the entire builder plane.' },
     { m:'GET', p:'/mor/v1/builder/events', d:'Recent builder events (paginated)',
       detail:'On-chain builder events: deposits, withdrawals, claims. Supports ?page=N&limit=N. Note: event capture limited by proxy contract, may not include all historical events.' },
   ]},

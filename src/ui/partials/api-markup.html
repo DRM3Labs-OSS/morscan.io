@@ -50,7 +50,9 @@
         <span class="pnl-title">Request</span>
         <span class="req-meter" id="req-meter"></span>
       </div>
-      <div id="ep-detail" style="padding:0.5rem 1rem;font-size:0.75rem;color:var(--text-muted);line-height:1.5;border-bottom:1px solid var(--border);display:none;"></div>
+      <!-- Endpoint detail: the same role="note" callout the session/holder
+           browse-limit cards use, not a strip of small print. -->
+      <div id="ep-detail" role="note" style="display:none;margin:0.75rem 1rem;border:1px solid var(--border);border-left:3px solid var(--green);background:var(--bg-card);padding:0.75rem 0.9rem;font-size:0.78rem;color:var(--text-secondary);line-height:1.6;"></div>
       <div class="req-bar">
         <span id="req-badge" class="ep-method get">GET</span>
         <input type="text" id="req-url" class="req-url" spellcheck="false" aria-label="Request URL">

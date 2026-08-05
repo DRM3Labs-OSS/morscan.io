@@ -178,7 +178,7 @@ export const paths = {
 		get: {
 			summary: "Model Detail",
 			description:
-				"The canonical-model picture: every on-chain listing of the model (grouped by normalized name, curated via models.canonical) aggregated - description, active bids with providers and pricing across all listings, session demand (totals, distinct consumers, 30-day daily series), per-provider reputation, the listing inventory with web/TEE capability flags, and the model family rollup.",
+				"The canonical-model picture: every on-chain listing of the model, grouped by normalized name with a curated alias mapping, aggregated - description, active bids with providers and pricing across all listings, session demand (totals, distinct consumers, 30-day daily series), per-provider reputation, the listing inventory with web/TEE capability flags, and the model family rollup.",
 			tags: ["Models"],
 			security: [{ apiKey: [] }],
 			parameters: [
