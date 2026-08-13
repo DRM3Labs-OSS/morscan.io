@@ -1,2 +1,2 @@
 /** Single source of truth for the deployed MorScan version. Update here + package.json. */
-export const MORSCAN_VERSION = "2.49.2";
+export const MORSCAN_VERSION = "2.50.0";
