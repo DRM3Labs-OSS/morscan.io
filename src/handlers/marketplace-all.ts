@@ -7,6 +7,7 @@
  */
 
 import type { Env } from "../types";
+import { withKvValue } from "../utils/cache";
 import { signingMnemonic } from "../config";
 import { getSyncState, buildMeta } from "../utils/rpc";
 import { signResponse, signBatchResponse } from "../utils/provenance";
@@ -140,7 +141,11 @@ export async function handleAll(env: Env, headers: Record<string, string>) {
 		getActiveBidsWithModels(env.DB),
 		getRetractedBidsWithModels(env.DB),
 		countActiveSessions(env.DB, now),
-		countSessions(env.DB),
+		// Page-invariant total, memoized under the key sessions-list shares (60s). Uncached it
+		// was a full scan of ~208k sessions rows per call; across both callers that was 16,825
+		// scans and 3.50 billion rows read in 24h - the largest reader on this database
+		// (measured 2026-08-13). Same `{count}` row shape on both sides; keep them identical.
+		withKvValue(env, "v1:count:sessions", 60, () => countSessions(env.DB)),
 		sumActiveSessionStake(env.DB, now),
 		getClaimableSessionTotals(env.DB, now),
 		getAllProviderStats(env.DB),

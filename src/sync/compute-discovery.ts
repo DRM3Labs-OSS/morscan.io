@@ -15,7 +15,7 @@ import {
 	parseArrayResult,
 	parseModelResult,
 } from "./parsers";
-import { invalidateCfCache } from "../utils/cache";
+import { invalidateCfCache, withKvValue } from "../utils/cache";
 import { rpcBatch } from "./compute-rpc";
 import type { ComputeCtx } from "./compute-events";
 import {
@@ -42,7 +42,19 @@ export async function processProviderDiscovery(
 ): Promise<number> {
 	let bidsCreated = 0;
 	try {
-		const bidProviders = await getKnownProviderAddresses(env.DB);
+		// `SELECT DISTINCT provider FROM bids UNION SELECT DISTINCT provider FROM sessions`
+		// scans the whole sessions table (~208k rows) to yield ~37 addresses, and this runs on
+		// every compute pass: 14,908 runs and 3.14 BILLION rows read in 24h, the second-largest
+		// reader on this database (measured 2026-08-13).
+		//
+		// The provider SET is what is cached here, not provider DETAIL - the eth_call batch
+		// below still refreshes every address's on-chain state on every pass, so nothing about
+		// a known provider goes stale. The only effect of the TTL is how fast an address that
+		// has NEVER been seen before enters discovery, and 5 minutes is well inside the cadence
+		// a new provider appears at. Fails open: a KV miss recomputes the real query.
+		const bidProviders = await withKvValue(env, "sync:known-providers", 300, () =>
+			getKnownProviderAddresses(env.DB),
+		);
 		const provAddresses = bidProviders.map((r) => r.provider).filter(Boolean);
 		if (provAddresses.length > 0) {
 			// Fetch provider details

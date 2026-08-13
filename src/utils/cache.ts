@@ -71,6 +71,60 @@ export async function withKvCache(
 }
 
 /**
+ * Memoize a VALUE (not a Response) in KV.
+ *
+ * WHY THIS EXISTS, and it is not the same job as withKvCache. withKvCache keys on the
+ * REQUEST, so anything that varies per request gets its own entry - `/mor/v1/sessions` is
+ * keyed `limit:page:status`. That is correct for the page body and wrong for the totals
+ * inside it: `SELECT COUNT(*) FROM sessions` is PAGE-INVARIANT, so every pagination shape
+ * was paying for its own full-table scan of ~208k rows to produce the same number.
+ * Measured 2026-08-13: that one count ran 16,825 times in 24h for 3.50 BILLION rows read,
+ * the single largest reader on this database. The provider-discovery union was another
+ * 3.14 billion. Together, two thirds of morscan's D1 bill for two values that barely move.
+ *
+ * So: cache the value once, under a key that does NOT carry the request shape, and let
+ * every caller and every page share it.
+ *
+ * Fails OPEN in both directions - a KV miss, a parse error or a write failure all fall
+ * through to the real query. A cache that can break the page is worse than no cache.
+ */
+export async function withKvValue<T>(
+	env: Env,
+	cacheKey: string,
+	ttlSeconds: number,
+	compute: () => Promise<T>,
+): Promise<T> {
+	const kv = env.MORSCAN_CACHE;
+	if (kv) {
+		try {
+			const raw = await kv.get(cacheKey);
+			if (raw !== null) {
+				const entry = JSON.parse(raw) as { cachedAt: number; value: T };
+				if (Date.now() - entry.cachedAt < ttlSeconds * 1000) return entry.value;
+			}
+		} catch (_e) {
+			// Corrupted or unreadable entry - recompute rather than fail.
+		}
+	}
+
+	const value = await compute();
+
+	if (kv) {
+		try {
+			await kv.put(cacheKey, JSON.stringify({ cachedAt: Date.now(), value }), {
+				// KV's minimum expirationTtl is 60s; the cachedAt check above enforces the
+				// real TTL when it is shorter.
+				expirationTtl: Math.max(ttlSeconds, 60),
+			});
+		} catch (_e) {
+			// Non-fatal: the value is already computed and correct.
+		}
+	}
+
+	return value;
+}
+
+/**
  * Write a pre-built response body to KV cache (used by SyncCoordinator to warm cache).
  */
 export async function warmKvCache(
