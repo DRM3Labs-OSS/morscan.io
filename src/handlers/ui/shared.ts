@@ -81,7 +81,7 @@ export function withWalletBadge(html: string): string {
  * (src/ui/build-stamp.ts), computed from the same sources /version reports,
  * so the footer and the composition honesty marker can never disagree. */
 export function withBuildFooter(html: string): string {
-	const line = `<p style="margin:0;font-size:0.6rem;color:#8a8580;">${buildStampHtml()}</p><address style="margin:0.45rem auto 0;max-width:44rem;font-size:0.6rem;line-height:1.5;color:#8a8580;font-style:normal;">DRM3 Labs Corp., 333 3rd Ave N, Suite 400, St. Petersburg, FL 33701</address><p style="margin:0.45rem auto 0;max-width:46rem;font-size:0.62rem;line-height:1.5;color:#c7c2bc;">Open alpha, no warranties expressed or implied. Data is served as-is from on-chain events; verify it with the provenance receipts. Not financial advice.</p>`;
+	const line = `<p style="margin:0;font-size:0.6rem;color:#8a8580;">${buildStampHtml()}</p><p style="margin:0.45rem auto 0;max-width:46rem;font-size:0.62rem;line-height:1.5;color:#c7c2bc;">Open alpha, no warranties expressed or implied. Data is served as-is from on-chain events; verify it with the provenance receipts. Not financial advice.</p>`;
 	return withWalletBadge(html.split(STATIC_FOOTER_CREDIT).join(line));
 }
 
