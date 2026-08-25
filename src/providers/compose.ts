@@ -261,8 +261,11 @@ export function createMorscanApp(options: MorscanAppOptions = {}): MorscanApp {
 				// admin-gated by construction. Non-admin (or reference-build) requests
 				// fall through unchanged - unknown paths keep their stock 404.
 				if (composedAdminRoutes && path.startsWith("/admin/")) {
-					const adminKey =
-						request.headers.get("X-Morscan-Key") || url.searchParams.get("key") || "";
+					// Header only, never ?key=: a URL credential lands in access logs, browser
+					// history and Referer headers. Every caller of this API surface (the DRM3
+					// admin console, operator curl) can set a header; the browser-viewed admin
+					// pages (alerts, notify) keep their own documented query fallback.
+					const adminKey = request.headers.get("X-Morscan-Key") || "";
 					if (adminKey) {
 						const adminAuth = await validateKey(adminKey, env);
 						if (getProviders().admin.isAdmin(adminAuth, env)) {
