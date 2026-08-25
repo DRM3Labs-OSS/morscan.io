@@ -13,7 +13,6 @@ import type { Env } from "../types";
 import { getSyncState } from "../utils/rpc";
 import {
 	countActiveBids,
-	countAllSessions,
 	countProviders,
 	countServingSessions,
 	countZombieSessions,
@@ -41,6 +40,7 @@ import {
 } from "../db/explorer-core";
 import { getNamedModelIdNames, getSyncStateTokenPrices } from "../db/explorer-market";
 import { withKvValue } from "../utils/cache";
+import { getTotalSessionCount } from "../utils/metrics";
 
 const _JSON_HEADERS = {
 	"Content-Type": "application/json",
@@ -99,25 +99,33 @@ export async function buildFatboy(env: Env): Promise<Record<string, unknown>> {
 		getNamedModelIdNames(env.DB),
 		selectRecentSessions(env.DB),
 		selectTopWalletStats(env.DB),
-		// Leaderboards: three of these are full scans of the ~209k-row sessions table
-		// (GROUP BY with no WHERE, or a WHERE nothing narrows), and this builder runs
-		// every minute from cron plus on every fatboy-cache miss - measured 2026-08-14
-		// at ~1.06 BILLION rows read/day across the three, the top D1 readers left
-		// after v2.50.0. The results are page-invariant (LIMIT is fixed in the SQL:
-		// top 15 providers / top 25 wallets) and vary with nothing per-request, so
-		// memoize the VALUE (v2.50.0 pattern; withKvValue fails open on any KV error).
-		// TTL 300s, NOT 60s: the dominant caller is the 60s cron itself, so a 60s TTL
-		// is always exactly expired at the next tick and would never hit for cron -
-		// 300s computes each once per 5 ticks (same staleness bound as
-		// sync:known-providers). The weekly-wallet key carries the hour-bucketed
-		// cutoff because that query varies with "7 days ago"; within the hour the
-		// bucket is constant so the cache can hit, and a bucket roll forces a fresh
-		// compute. These keys are owned HERE - any future caller of these aggregates
-		// must reuse the same key with the same row shape, never mint a sibling key.
+		// Leaderboards + model demand: heavy aggregates over the ~220k-row sessions
+		// table (GROUP BY with no WHERE, or a WHERE nothing narrows), and this builder
+		// runs every minute from cron plus on every fatboy-cache miss - measured
+		// 2026-08-14 at ~1.06 BILLION rows read/day across the first three, the top D1
+		// readers left after v2.50.0. The results are page-invariant (LIMIT is fixed
+		// in the SQL: top 15 providers / top 25 wallets / top 20 models) and vary with
+		// nothing per-request, so memoize the VALUE (v2.50.0 pattern; withKvValue
+		// fails open on any KV error). TTL 300s, NOT 60s: the dominant caller is the
+		// 60s cron itself, so a 60s TTL is always exactly expired at the next tick and
+		// would never hit for cron - 300s computes each once per 5 ticks (same
+		// staleness bound as sync:known-providers). The windowed keys (7d
+		// leaderboards, model demand) carry an hour-bucketed cutoff because those
+		// queries vary with "N days ago"; within the hour the bucket is constant so
+		// the cache can hit, and a bucket roll forces a fresh compute. These keys are
+		// owned HERE - any future caller of these aggregates must reuse the same key
+		// with the same row shape, never mint a sibling key.
 		withKvValue(env, "v1:agg:providers", 300, () =>
 			selectProviderLeaderboardAllTime(env.DB),
 		),
-		selectProviderLeaderboardSince(env.DB, nowTs - 604800),
+		// The 7d provider leaderboard was the one aggregate the v2.50.0 pass left
+		// unwrapped; same reasoning, same 300s, same hour-bucketed key style.
+		withKvValue(
+			env,
+			`v1:agg:providers:7d:${Math.floor((nowTs - 604800) / 3600)}`,
+			300,
+			() => selectProviderLeaderboardSince(env.DB, nowTs - 604800),
+		),
 		// Consumer wallets: serving = is_active AND provider has bids. Precompute serving_providers to avoid O(n*m) EXISTS.
 		// The serving set is DB-derived (not request-derived), so it is data, not key:
 		// a cached row's serving/zombie split may lag a bid change by up to the TTL.
@@ -136,7 +144,10 @@ export async function buildFatboy(env: Env): Promise<Record<string, unknown>> {
 		countServingSessions(env.DB, servingIn),
 		// Not serving = is_active AND provider has NO active bids (LEFT JOIN IS NULL instead of NOT EXISTS)
 		countZombieSessions(env.DB, servingIn),
-		countAllSessions(env.DB),
+		// Cumulative total: the ONE shared memoized count (utils/metrics.ts owns the
+		// key, TTL and shape) - this builder, the metrics cron and the session +
+		// marketplace handlers all read it instead of each running a full scan.
+		getTotalSessionCount(env),
 		// MOR in escrow: split serving (live) vs zombie (stuck) - LEFT JOIN instead of EXISTS
 		selectEscrowSplit(env.DB, servingIn),
 		// Gas + session duration stats (inlined from analytics)
@@ -144,8 +155,11 @@ export async function buildFatboy(env: Env): Promise<Record<string, unknown>> {
 		selectAvgSessionDuration(env.DB),
 		selectActiveSessionsByProvider(env.DB),
 		selectActiveSessionsByBid(env.DB),
-		// Model demand: aggregate sessions by model across all providers
-		selectModelDemand(env.DB, nowTs - 86400, nowTs - 604800),
+		// Model demand: aggregate sessions by model across all providers. Both
+		// cutoffs derive from nowTs, so one hour bucket keys them both.
+		withKvValue(env, `v1:agg:model-demand:${Math.floor(nowTs / 3600)}`, 300, () =>
+			selectModelDemand(env.DB, nowTs - 86400, nowTs - 604800),
+		),
 		// Newcomers: newest arrivals by on-chain created_at (tiny tables)
 		selectNewestProviders(env.DB),
 		selectNewestModels(env.DB),
@@ -263,7 +277,7 @@ export async function buildFatboy(env: Env): Promise<Record<string, unknown>> {
 			models: bidCount?.c || 0,
 			serving: servingCount?.c || 0, // Sessions where provider has active bids
 			zombie: notServingCount?.c || 0, // Sessions where provider retracted all bids
-			totalSessions: totalCount?.c || 0,
+			totalSessions: totalCount,
 			morServing: Math.floor(escrowSplit?.serving_mor || 0), // MOR in active sessions
 			morZombie: Math.floor(escrowSplit?.zombie_mor || 0), // MOR stuck in zombie sessions
 		},

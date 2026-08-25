@@ -21,6 +21,7 @@ import type { ComputeCtx } from "./compute-events";
 import {
 	getKnownProviderAddresses,
 	getActiveBidCountsByProvider,
+	getProviderDetailRows,
 	getUnnamedBidModelIds,
 	upsertProviderStmt,
 	upsertBidStmt,
@@ -66,6 +67,17 @@ export async function processProviderDiscovery(
 				],
 			}));
 			const provResults = await rpcBatch(rpcUrl, provCalls, alchemy);
+			// Write only rows that actually changed. This pass runs every tick, and the
+			// old unconditional INSERT OR REPLACE rewrote the whole (~40-row) providers
+			// table each time whether the chain state moved or not - a constant stream
+			// of no-op D1 row writes, by far the table's write volume. Reading the
+			// current rows first costs ~40 cheap row reads; freshness is identical (a
+			// changed provider still lands the same pass). updated_block on an
+			// unchanged row now stays at the block of its last real change, which also
+			// lets the BigQuery insertId (provider:address:updated_block) dedup
+			// identical snapshots instead of streaming one per pass.
+			const currentRows = await getProviderDetailRows(env.DB);
+			const current = new Map(currentRows.map((r) => [r.address, r]));
 			const provInserts: D1PreparedStatement[] = [];
 			for (let i = 0; i < provAddresses.length; i++) {
 				const addr = provAddresses[i].toLowerCase();
@@ -73,6 +85,14 @@ export async function processProviderDiscovery(
 					? parseProviderResult(provResults[i] as string, addr)
 					: null;
 				if (!parsed) continue;
+				const row = current.get(addr);
+				if (
+					row &&
+					(row.endpoint ?? "") === parsed.endpoint &&
+					String(row.stake ?? "0") === parsed.stake &&
+					(row.created_at ?? 0) === parsed.createdAt
+				)
+					continue;
 				provInserts.push(
 					upsertProviderStmt(
 						env.DB,

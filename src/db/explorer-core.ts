@@ -281,10 +281,8 @@ export function countZombieSessions(
 		.first<CountRow>();
 }
 
-/** Total session count. */
-export function countAllSessions(db: D1Database): Promise<CountRow | null> {
-	return db.prepare("SELECT COUNT(*) as c FROM sessions").first<CountRow>();
-}
+// The cumulative session count lives in ONE place now: getTotalSessionCount in
+// utils/metrics.ts (KV-memoized). Do not add another COUNT(*) over sessions here.
 
 /** MOR in escrow split into serving (live) vs zombie (stuck). */
 export function selectEscrowSplit(

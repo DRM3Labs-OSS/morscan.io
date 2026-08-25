@@ -16,15 +16,16 @@
  *                    is claimable (expired but not yet closed out).
  */
 
+import { countSessions } from "../db/explorer-sessions";
 import {
 	countActiveSessions,
-	countAllSessions,
 	countLiveBids,
 	countProviders,
 	sumActiveSessionStake,
 	sumClaimableSessionStake,
 } from "../db/ops";
 import type { Env } from "../types";
+import { withKvValue } from "./cache";
 
 export interface NetworkMetrics {
 	providers: number;
@@ -51,7 +52,10 @@ export interface NetworkMetrics {
 // canonical (computeNetworkMetrics is unchanged) - this only changes how often
 // the same query runs. On a cold summary (fresh deploy before the first cron
 // tick, or a multi-minute cron outage) the request path computes ONCE and
-// repopulates so the next reader is served from the summary again.
+// repopulates so the next reader is served from the summary again. The
+// cumulative totalSessions is the one number NOT recomputed per tick: it comes
+// from the shared 300s memo below (getTotalSessionCount), so the full-table
+// count runs once per 5 ticks, not every tick.
 const METRICS_CACHE_KEY = "metrics:network";
 // How stale a summary the request path will still serve before falling back to
 // a live compute. The cron refreshes every 60s, so 5 min absorbs a few missed
@@ -121,7 +125,7 @@ async function computeNetworkMetrics(env: Env): Promise<NetworkMetrics> {
 			countProviders(env.DB),
 			countLiveBids(env.DB),
 			countActiveSessions(env.DB, nowTs),
-			countAllSessions(env.DB),
+			getTotalSessionCount(env),
 			sumActiveSessionStake(env.DB, nowTs),
 			sumClaimableSessionStake(env.DB, nowTs),
 		]);
@@ -129,7 +133,34 @@ async function computeNetworkMetrics(env: Env): Promise<NetworkMetrics> {
 		providers: providers?.cnt || 0,
 		bids: bids?.cnt || 0,
 		activeSessions: activeSessions?.cnt || 0,
-		totalSessions: totalSessions?.cnt || 0,
+		totalSessions,
 		morStaked: Math.floor((activeStake?.total || 0) + (claimableStake?.total || 0)),
 	};
+}
+
+// ─── shared total-session count ───
+
+// The ONE memoized `SELECT COUNT(*) FROM sessions`. Four call sites need the
+// cumulative total (the metrics cron above, the fatboy builder, and the
+// sessions + marketplace handlers), and each used to run its own full scan of
+// the ~220k-row sessions table - the two cron-driven builders paid it every
+// minute, and the handlers' old 60s TTL on this same key was always exactly
+// expired for a 60s-cadence caller, so it never hit (the fatboy TTL lesson,
+// see handlers/fatboy.ts). One key, 300s: the scan runs once per 5 minutes
+// across the whole worker. A cumulative dashboard total a few minutes stale is
+// invisible - the heavier v1:agg:* aggregates already accepted 300s. The
+// stored value keeps the `{count}` row shape every existing consumer of this
+// key reads. Key, TTL and shape are owned HERE - never mint a sibling key.
+const SESSION_COUNT_CACHE_KEY = "v1:count:sessions";
+const SESSION_COUNT_TTL_SECONDS = 300;
+
+/** Cumulative session count (every session ever seen), shared + KV-memoized. */
+export async function getTotalSessionCount(env: Env): Promise<number> {
+	const row = await withKvValue(
+		env,
+		SESSION_COUNT_CACHE_KEY,
+		SESSION_COUNT_TTL_SECONDS,
+		() => countSessions(env.DB),
+	);
+	return ((row as Record<string, unknown>)?.count as number) || 0;
 }

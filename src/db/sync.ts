@@ -89,6 +89,24 @@ export async function getSyncStatePair(
 
 // ─── providers ───
 
+/** Stored provider detail, keyed by address (unchanged-row skip in discovery). */
+export interface ProviderDetailRow {
+	address: string;
+	endpoint: string | null;
+	stake: string | null;
+	created_at: number | null;
+}
+
+/** Every stored provider row's detail columns (the table holds ~40 rows). */
+export async function getProviderDetailRows(
+	db: D1Database,
+): Promise<ProviderDetailRow[]> {
+	const r = await db
+		.prepare("SELECT address, endpoint, stake, created_at FROM providers")
+		.all<ProviderDetailRow>();
+	return r.results ?? [];
+}
+
 export function upsertProviderStmt(
 	db: D1Database,
 	address: string,

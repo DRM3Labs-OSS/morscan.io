@@ -126,10 +126,8 @@ export async function countActiveSessions(
 		.first<CountRow>();
 }
 
-/** Every session ever seen (cumulative). */
-export async function countAllSessions(db: D1Database): Promise<CountRow | null> {
-	return db.prepare("SELECT COUNT(*) as cnt FROM sessions").first<CountRow>();
-}
+// The cumulative session count lives in ONE place now: getTotalSessionCount in
+// utils/metrics.ts (KV-memoized). Do not add another COUNT(*) over sessions here.
 
 /** MOR currently locked in active sessions. */
 export async function sumActiveSessionStake(

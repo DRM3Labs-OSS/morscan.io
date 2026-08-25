@@ -5,12 +5,11 @@
 import type { Env } from "../types";
 import { signingMnemonic } from "../config";
 import { getSyncState, buildMeta } from "../utils/rpc";
-import { withKvValue } from "../utils/cache";
+import { getTotalSessionCount } from "../utils/metrics";
 import { signResponse, signBatchResponse } from "../utils/provenance";
 import { SELECTORS, ethCallBatchChecked } from "../sync/parsers";
 import {
 	buildCloseExpiredSessionStmt,
-	countSessions,
 	countActiveSessions,
 	countDistinctSessionWallets,
 	getSessionsPage,
@@ -91,15 +90,11 @@ export async function handleAllSessions(
 	// The total is PAGE-INVARIANT, but this route's KV cache is keyed on limit/page/status,
 	// so every pagination shape used to buy its own full scan of ~208k sessions rows for the
 	// same number - 16,825 scans in 24h, 3.50 billion rows read, the biggest reader on this
-	// database (measured 2026-08-13). Memoize the value under a shape-free key so all pages
-	// share one compute. 60s, matching the sync cadence; a session count a minute stale is
-	// invisible next to a list that is already cached for 30s.
-	// Shape is `{count}` - the same row shape marketplace-all memoizes under this key, so the
-	// two share one cached compute. Keep them identical if you touch either.
-	const countResult = await withKvValue(env, "v1:count:sessions", 60, () =>
-		countSessions(env.DB),
-	);
-	const totalCount = ((countResult as Record<string, unknown>)?.count as number) || 0;
+	// database (measured 2026-08-13). getTotalSessionCount is the ONE shared memoized count
+	// (utils/metrics.ts owns the key, TTL and shape); all pages and all other consumers
+	// share its compute. A session count a few minutes stale is invisible next to a list
+	// that is already cached for 30s.
+	const totalCount = await getTotalSessionCount(env);
 	const now = Math.floor(Date.now() / 1000);
 
 	const result = await getSessionsPage(env.DB, limit, offset);

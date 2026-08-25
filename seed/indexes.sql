@@ -14,5 +14,14 @@ CREATE INDEX IF NOT EXISTS idx_sessions_opened ON sessions(opened_at DESC);
 -- active pair every sync tick; without this it full-scans the sessions table.
 CREATE INDEX IF NOT EXISTS idx_sessions_provider_model ON sessions(provider, model_id);
 
--- Bids: active/retracted split in handleAll()
-CREATE INDEX IF NOT EXISTS idx_bids_deleted ON bids(deleted_at);
+-- Bids: active/retracted split in handleAll(). ONE index on deleted_at only -
+-- this file used to create idx_bids_deleted next to schema.sql's
+-- idx_bids_active on the same column, and the duplicate doubled every bid
+-- write. On an existing database, drop the duplicate:
+--   DROP INDEX IF EXISTS idx_bids_deleted;
+CREATE INDEX IF NOT EXISTS idx_bids_active ON bids(deleted_at);
+
+-- Receipt chaining: the per-minute job reads `WHERE chain_root IS NULL ORDER BY
+-- timestamp ASC LIMIT 500`; without this partial index that scans every receipt
+-- ever written to find the few unchained ones.
+CREATE INDEX IF NOT EXISTS idx_provrec_unchained ON provenance_receipts(timestamp) WHERE chain_root IS NULL;

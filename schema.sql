@@ -90,7 +90,9 @@ CREATE INDEX idx_bids_model_id ON bids(model_id);
 CREATE INDEX idx_bids_active ON bids(deleted_at);
 CREATE INDEX idx_gas_costs_session ON gas_costs(session_id);
 CREATE INDEX idx_sessions_user ON sessions(user_address, opened_at DESC);
-CREATE INDEX idx_bids_deleted ON bids(deleted_at);
+-- idx_bids_deleted was an exact duplicate of idx_bids_active (both on
+-- bids(deleted_at)); dropped. Keep ONE index per column set - a duplicate
+-- doubles every bid write and speeds up nothing.
 CREATE UNIQUE INDEX idx_builder_events_dedup ON builder_events (tx_hash, log_index, event_type);
 CREATE INDEX idx_sessions_provider_model ON sessions(provider, model_id);
 -- Session-duration analytics does `WHERE closed_at > 0 ORDER BY closed_at DESC
@@ -99,6 +101,12 @@ CREATE INDEX idx_sessions_provider_model ON sessions(provider, model_id);
 -- read per call). This index lets SQLite walk the newest closed sessions
 -- directly and read ~1000 rows instead.
 CREATE INDEX idx_sessions_closed_at ON sessions(closed_at DESC);
+-- Receipt chaining (listUnchainedReceipts) reads `WHERE chain_root IS NULL
+-- ORDER BY timestamp ASC LIMIT 500` every minute. Without this partial index
+-- that is a scan over every receipt ever written to find the (usually few)
+-- not-yet-chained ones; with it SQLite walks only the unchained rows, already
+-- in timestamp order.
+CREATE INDEX idx_provrec_unchained ON provenance_receipts(timestamp) WHERE chain_root IS NULL;
 
 -- Our own MOR price series, recorded from the on-chain Base DEX read (no
 -- external dependency). ts = unix seconds; usd = MOR/USD; eth_usd = ETH/USD.
