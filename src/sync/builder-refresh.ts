@@ -28,11 +28,20 @@ import {
  *
  * Subnets are discovered via SubnetCreated events (event sync layer). This only
  * refreshes their deposited/rewards/metadata/admin from subnetsData().
+ *
+ * `onlyIds` narrows the pass to the given subnet ids - the event tick uses it to
+ * pull a just-touched subnet's totals from chain within one tick, so a fresh
+ * stake shows on the page in seconds instead of waiting for the cron's
+ * full-state backup pass.
  */
-export async function refreshSubnetData(env: Env): Promise<void> {
+export async function refreshSubnetData(env: Env, onlyIds?: string[]): Promise<void> {
 	if (!env.BUILDER_CONTRACT) return;
 
-	const rows = await getAllSubnetAdmins(env.DB);
+	let rows = await getAllSubnetAdmins(env.DB);
+	if (onlyIds && onlyIds.length > 0) {
+		const want = new Set(onlyIds);
+		rows = rows.filter((r) => want.has(r.subnet_id));
+	}
 	if (!rows.length) {
 		console.log("[syncBuilder] No subnets in DB - nothing to refresh");
 		return;

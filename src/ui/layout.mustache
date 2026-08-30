@@ -450,25 +450,42 @@
           var fmt = function(n){return n ? n.toLocaleString() : '-';};
           var synced = h.syncedBlock || (h.extended||{}).syncedBlock || 0;
           var lastTs = h.lastSyncTimestamp || (h.extended||{}).lastSyncTs || null;
-          var ce = document.getElementById('sync-chain');
-          if(ce){
-            var ago = '';
-            if(lastTs){
-              var secs = Math.floor((Date.now() - new Date(lastTs).getTime()) / 1000);
-              if(secs < 60) ago = ' · ' + secs + 's ago';
-              else if(secs < 3600) ago = ' · ' + Math.floor(secs/60) + 'm ago';
-              else ago = ' · ' + Math.floor(secs/3600) + 'h ago';
-            }
-            ce.textContent = fmt(synced) + ago;
+          var ago = '', live = false;
+          if(lastTs){
+            var secs = Math.floor((Date.now() - new Date(lastTs).getTime()) / 1000);
+            if(secs < 60) ago = ' · ' + secs + 's ago';
+            else if(secs < 3600) ago = ' · ' + Math.floor(secs/60) + 'm ago';
+            else ago = ' · ' + Math.floor(secs/3600) + 'h ago';
+            live = (Date.now() - new Date(lastTs).getTime()) < 60000;
           }
+          // Builder pages show the BUILDER indexer's own cursor, never the
+          // compute plane's clock. The compute tick can be 4s fresh while the
+          // builder cursor sits minutes back - stamping that page "Live · 4s"
+          // told a staker their deposit did not exist. Freshness here is blocks
+          // behind the head (~2s Base blocks): under 30 blocks reads Live.
+          if(plane === 'builder'){
+            var b = (h.contracts||{}).builder||{};
+            if(b.syncedBlock){
+              synced = b.syncedBlock;
+              var behind = (typeof b.blocksBehind === 'number') ? b.blocksBehind : null;
+              if(behind === null){ ago = ''; live = false; }
+              else if(behind <= 5){ ago = ' · at head'; live = true; }
+              else {
+                var bs = behind * 2;
+                ago = ' · ~' + (bs < 60 ? bs + 's' : Math.floor(bs/60) + 'm') + ' behind';
+                live = behind < 30;
+              }
+            }
+          }
+          var ce = document.getElementById('sync-chain');
+          if(ce){ ce.textContent = fmt(synced) + ago; }
           var badge = document.getElementById('sync-badge');
           if(badge){
-            var age = Date.now() - new Date(lastTs).getTime();
-            if(lastTs && age < 60000){badge.textContent='Live';badge.className='sync-badge';}
-            else{badge.textContent='Stale';badge.className='sync-badge behind';}
+            if(live){badge.textContent='Live';badge.className='sync-badge';}
+            else{badge.textContent='Behind';badge.className='sync-badge behind';}
           }
           var fe = document.getElementById('sync-fill');
-          if(fe) fe.style.width = (lastTs && (Date.now()-new Date(lastTs).getTime())<60000 ? '100' : '30') + '%';
+          if(fe) fe.style.width = (live ? '100' : '30') + '%';
         }).catch(function(){});
       }
       updateSync();

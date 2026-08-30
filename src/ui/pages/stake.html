@@ -87,6 +87,19 @@
     .ys-main a { color: var(--green); }
     tr.you td { background: var(--green-dim); }
     tr.you td:first-child { color: var(--green); font-weight: 700; }
+    @media (max-width: 600px) {
+      /* The capacity table's fourth column falls off a phone screen and the
+         scroll wrapper gives no cue, so each tier becomes a card: tier name on
+         top, the three caps as label/value rows. Nothing is hidden. */
+      #cap-table, #cap-table tbody, #cap-table tr, #cap-table td { display: block; min-width: 0; }
+      #cap-table thead { display: none; }
+      #cap-table tr { padding: 0.55rem 0.9rem 0.65rem; border-bottom: 1px solid var(--border); }
+      #cap-table tr:last-child { border-bottom: none; }
+      #cap-table td { padding: 0.14rem 0; border-bottom: none; text-align: left; }
+      #cap-table td:first-child { font-weight: 600; padding-bottom: 0.35rem; }
+      #cap-table td[data-label] { display: flex; justify-content: space-between; align-items: baseline; gap: 0.75rem; }
+      #cap-table td[data-label]::before { content: attr(data-label); font-size: 0.75rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
+    }
     .backers { list-style: none; margin: 0.5rem 0 0.7rem; border: 1px solid var(--border); background: var(--bg2); }
     .backers li { display: flex; align-items: center; gap: 0.7rem; padding: 0.6rem 0.9rem; margin: 0; border-bottom: 1px solid rgba(68,64,60,0.35); font-size: 0.75rem; color: var(--sub); }
     .backers li:last-child { border-bottom: none; }
@@ -172,9 +185,9 @@
       <table id="cap-table">
         <thead><tr><th scope="col">Tier</th><th scope="col">Burst/min</th><th scope="col">Per day</th><th scope="col">Per month</th></tr></thead>
         <tbody>
-          <tr data-min="0"><td>Connected wallet (free)</td><td>60</td><td>2,000</td><td>40,000</td></tr>
-          <tr class="staked" data-min="100"><td>100 MOR staked</td><td>300</td><td>5,000</td><td>100,000</td></tr>
-          <tr class="staked" data-min="500"><td>500 MOR</td><td>1,500</td><td>37,500</td><td>750,000</td></tr>
+          <tr data-min="0"><td>Connected wallet (free)</td><td data-label="Burst/min">60</td><td data-label="Per day">2,000</td><td data-label="Per month">40,000</td></tr>
+          <tr class="staked" data-min="100"><td>100 MOR staked</td><td data-label="Burst/min">300</td><td data-label="Per day">5,000</td><td data-label="Per month">100,000</td></tr>
+          <tr class="staked" data-min="500"><td>500 MOR</td><td data-label="Burst/min">1,500</td><td data-label="Per day">37,500</td><td data-label="Per month">750,000</td></tr>
         </tbody>
       </table>
     </div>

@@ -177,6 +177,10 @@ export async function syncBuilderEvents(
 		claimed = 0,
 		subnetsCreated = 0;
 	let iter = 0;
+	// Subnets whose stakes moved this tick. After the loop these get a targeted
+	// on-chain totals refresh, so the page's STAKED number lands within the same
+	// ~10s tick as the event instead of waiting for the cron's full-state pass.
+	const touchedSubnets = new Set<string>();
 
 	while (
 		cursor < targetHead &&
@@ -230,6 +234,7 @@ export async function syncBuilderEvents(
 				const idx = k.indexOf(":");
 				return [k.slice(0, idx), k.slice(idx + 1)];
 			});
+			for (const [subnetId] of pairs) touchedSubnets.add(subnetId);
 			const res = await getStakesByPairs(env.DB, pairs);
 			const bqStakeRows = res.map(builderStakeRow);
 			if (bqStakeRows.length > 0) await writeBqSafe(env, "builder_stakes", bqStakeRows);
@@ -256,6 +261,19 @@ export async function syncBuilderEvents(
 		console.warn(
 			`[syncBuilder] tick ended ${targetHead - cursor} blocks behind (iter=${iter}, ${Date.now() - startTime}ms) - will continue next tick`,
 		);
+	}
+
+	// Targeted totals refresh for subnets whose stakes moved this tick (3
+	// eth_calls per touched subnet, chain-authoritative - no arithmetic drift).
+	if (touchedSubnets.size > 0) {
+		try {
+			await refreshSubnetData(env, Array.from(touchedSubnets));
+			console.log(
+				`[syncBuilder] refreshed ${touchedSubnets.size} touched subnet(s) from chain`,
+			);
+		} catch (e) {
+			errors.push(`Touched refresh error: ${e instanceof Error ? e.message : String(e)}`);
+		}
 	}
 
 	// Refresh global stats every tick (cheap - 2 eth_calls).

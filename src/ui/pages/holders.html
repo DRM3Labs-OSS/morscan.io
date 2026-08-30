@@ -40,7 +40,16 @@
     }
     @media(max-width:500px) {
       .wallet-link { font-size:0.75rem; }
-      .eth-bal { display:none; }
+      .eth-bal, .holders-table th:nth-child(5) { display:none; }
+    }
+    @media(max-width:600px) {
+      /* A full 0x address is wider than a phone, and it was shoving the MOR
+         balance off the screen inside a scroll wrapper with no cue. The
+         address ellipsizes instead; the balance stays visible. No sideways
+         scroll on the page's one essential table. */
+      .holders-table { min-width:0; }
+      .holders-table th:nth-child(2), .holders-table td:nth-child(2) { max-width:0; width:46%; }
+      .wallet-link { display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
     }
 </style>
 

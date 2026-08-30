@@ -159,10 +159,12 @@ describe("honesty: the REFERENCE build never renders the pack door", () => {
 
 describe("copy drift: static pages match capsForStake", () => {
 	const root = join(__dirname, "..", "..");
+	// Cells may carry attributes (e.g. data-label for the phone card layout) -
+	// the drift guard cares about the numbers, not the markup around them.
 	const rowsOf = (html: string): number[][] =>
-		[...html.matchAll(/<tr[^>]*>(?:<td>.*?<\/td>)+<\/tr>/g)]
+		[...html.matchAll(/<tr[^>]*>(?:<td[^>]*>.*?<\/td>)+<\/tr>/g)]
 			.map((m) =>
-				[...m[0].matchAll(/<td>([\d,]+)<\/td>/g)].map((c) =>
+				[...m[0].matchAll(/<td[^>]*>([\d,]+)<\/td>/g)].map((c) =>
 					Number(c[1].replace(/,/g, "")),
 				),
 			)

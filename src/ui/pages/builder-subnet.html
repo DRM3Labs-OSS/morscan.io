@@ -41,6 +41,24 @@
   .builder-profile-desc { font-size: 0.75rem; color: var(--text-muted); line-height: 1.6; margin-top: 0.25rem; white-space: pre-line; }
   .builder-profile-link { font-size: 0.75rem; color: var(--green); text-decoration: none; margin-top: 0.25rem; display: inline-block; }
   .builder-profile-link:hover { text-decoration: underline; }
+  .builder-profile-terms { display: flex; flex-wrap: wrap; gap: 0.35rem 1rem; margin-top: 0.5rem; font-size: 0.75rem; color: var(--text-muted); }
+  .builder-profile-terms span { white-space: nowrap; }
+  /* Headline stats. Desktop: a compact column on the card's right edge. */
+  .builder-profile-stats { display: flex; flex-direction: column; gap: 0.6rem; text-align: center; padding: 0 0.5rem; flex-shrink: 0; }
+  .bp-stat-value { font-family: ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Consolas, monospace; font-variant-numeric: tabular-nums; font-weight: 700; color: var(--green); font-size: 0.9rem; line-height: 1.2; }
+  .bp-stat:first-child .bp-stat-value { font-size: 1.5rem; }
+  .bp-stat-label { font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.1em; margin-top: 0.1rem; }
+  @media (max-width: 600px) {
+    /* Narrow: the stats column would squeeze the description into a one-word
+       ladder, so the card wraps and the stats become one full-width row under
+       the profile text - both values on a single line, labels beneath. */
+    .builder-profile { flex-wrap: wrap; }
+    .builder-profile-stats { flex: 1 1 100%; flex-direction: row; justify-content: space-between; align-items: baseline; gap: 1rem; border-top: 1px solid var(--border); margin-top: 0.35rem; padding: 0.65rem 0 0; }
+    .bp-stat { text-align: left; }
+    .bp-stat + .bp-stat { text-align: right; }
+    .bp-stat:first-child .bp-stat-value { font-size: 1.15rem; }
+    .bp-stat-value { font-size: 1.15rem; }
+  }
   @media (max-width: 600px) {
     /* Each staker becomes a compact card. The address + staked amount are the
        signal (large, high-contrast); the field labels are quiet secondary text
@@ -170,16 +188,14 @@
       '<div class="builder-profile-name">' + escHtml(displayName) + '</div>' +
       (s.metadataDescription ? '<div class="builder-profile-desc">' + escHtml(s.metadataDescription) + '</div>' : '') +
       (s.metadataUrl ? '<a class="builder-profile-link" href="' + escHtml(s.metadataUrl) + '" target="_blank">' + escHtml(s.metadataUrl) + ' &rarr;</a>' : '') +
-      '<div style="display:flex;gap:1rem;margin-top:0.5rem;font-size:0.75rem;color:var(--text-muted)">' +
+      '<div class="builder-profile-terms">' +
         '<span>Min deposit: <span style="color:var(--green)">' + fmtMor(s.minimalDeposit) + ' MOR</span></span>' +
         '<span>Lock: <span style="color:var(--text-primary)">' + lockDays + ' days</span></span>' +
       '</div>' +
     '</div>' +
-    '<div style="text-align:center;padding:0 0.5rem;flex-shrink:0">' +
-      '<div class="mono" style="font-size:1.5rem;font-weight:700;color:var(--green)">' + (s.stakerCount || 0) + '</div>' +
-      '<div style="font-size:0.75rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.1em">Active Stakers</div>' +
-      '<div class="mono" style="font-size:0.75rem;font-weight:600;color:var(--green);margin-top:0.25rem">' + fmtMor(s.totalDeposited) + '</div>' +
-      '<div style="font-size:0.75rem;color:var(--text-muted)">MOR Staked</div>' +
+    '<div class="builder-profile-stats">' +
+      '<div class="bp-stat"><div class="bp-stat-value">' + (s.stakerCount || 0) + '</div><div class="bp-stat-label">Active Stakers</div></div>' +
+      '<div class="bp-stat"><div class="bp-stat-value">' + fmtMor(s.totalDeposited) + '</div><div class="bp-stat-label">MOR Staked</div></div>' +
     '</div>' +
   '</div>';
   prof.innerHTML = html;
