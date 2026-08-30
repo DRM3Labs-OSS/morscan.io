@@ -464,7 +464,7 @@
           // told a staker their deposit did not exist. Freshness here is blocks
           // behind the head (~2s Base blocks): under 30 blocks reads Live.
           if(plane === 'builder'){
-            var b = (h.contracts||{}).builder||{};
+            var b = ((h.contracts || (h.extended||{}).contracts || {}).builder) || {};
             if(b.syncedBlock){
               synced = b.syncedBlock;
               var behind = (typeof b.blocksBehind === 'number') ? b.blocksBehind : null;
