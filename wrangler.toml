@@ -1,7 +1,7 @@
 name = "morscan"
 main = "src/index.ts"
 compatibility_date = "2024-01-01"
-workers_dev = true
+workers_dev = false # the custom domain is the only door (fleet surface audit 2026-09-07)
 
 # Stamp the git build identity into src/build-info.ts before every build/deploy
 # (surfaced at /version, in /health, and the UI footer).
