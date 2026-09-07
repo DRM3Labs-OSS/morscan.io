@@ -28,7 +28,6 @@ test-results/
 # IDE
 .claude/
 CLAUDE.md
-AGENTS.md
 
 # Generated build identity (stamped at build/deploy by scripts/stamp-build.mjs)
 src/build-info.ts
