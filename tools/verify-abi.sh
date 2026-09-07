@@ -4,7 +4,7 @@
 #
 #   ./tools/verify-abi.sh
 #
-# Exits nonzero on any mismatch. See docs/architecture/abi-provenance.md for
+# Exits nonzero on any mismatch. See docs/architecture/contracts.md for
 # where each signature comes from.
 set -euo pipefail
 cd "$(dirname "$0")/.."

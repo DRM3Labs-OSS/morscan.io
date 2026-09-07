@@ -1,5 +1,7 @@
 # Security Model
 
+> **Status: LIVE** - 2026-09-07. Describes the auth model and hardening as deployed.
+
 MorScan authenticates three kinds of caller:
 
 1. **Public endpoints** - a small allowlist (`src/routes/public.ts`), e.g.

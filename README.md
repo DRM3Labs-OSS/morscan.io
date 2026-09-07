@@ -109,7 +109,7 @@ Anyone with the published public keys (`/.well-known/morscan-keys.json`, schema
 `drm3-keys/v2`) can verify a response offline: hash each row to its `_receipt`,
 recompute the Merkle root against `_provenance`, and cross-check the service
 attestation. The runnable verifier below does exactly this; the full by-hand
-walkthrough lives in [`docs/REPRODUCIBILITY.md`](docs/REPRODUCIBILITY.md).
+walkthrough lives in [`docs/product/reproducibility.md`](docs/product/reproducibility.md).
 
 Revoking the signer key (not an API key) is what invalidates published data: rotate
 or retire it and previously signed responses no longer verify against the live keys.
@@ -147,7 +147,7 @@ interactive playground, and `/llms.txt` tells an AI agent how to discover and ca
 ## Getting Started
 
 The full path from a fresh clone to a running local instance, for development and
-contribution, is in **[docs/GETTING_STARTED.md](docs/GETTING_STARTED.md)** (about ten
+contribution, is in **[docs/product/getting-started.md](docs/product/getting-started.md)** (about ten
 minutes). The short version:
 
 ```bash
@@ -171,21 +171,21 @@ npm run dev
 ships as a template with placeholder ids and neutral defaults, so a clone belongs to no
 particular operator. A handful of opt-in operator vars (`LOCK_WORKERS_DEV`,
 `COMING_SOON_HOSTS`, `REGISTER_URL`, the `SSO_*` sign-in vars) are documented in
-[GETTING_STARTED](docs/GETTING_STARTED.md#full-env-var-reference); leave them unset and a
+[GETTING_STARTED](docs/product/getting-started.md#full-env-var-reference); leave them unset and a
 fresh clone runs generic.
 
 ### Runs standalone
 
 A fresh clone needs a Cloudflare account and a Base RPC, nothing else. On
 Cloudflare you create a D1 database and two KV namespaces (a few `wrangler`
-commands, walked through in [Getting Started](docs/GETTING_STARTED.md)); the Base
+commands, walked through in [Getting Started](docs/product/getting-started.md)); the Base
 RPC has a working public default committed, so that one is optional to change. It
 boots wallet-first with no identity provider, prices MOR on-chain over public
 RPC, and self-signs provenance with a mnemonic **you** generate. SSO, hosted brand assets, and the status monitor are opt-in. Each
 external service and integration, the env var that controls it, and how to swap or
-disable it is listed in **[docs/DEPENDENCIES.md](docs/DEPENDENCIES.md)**. For
+disable it is listed in **[docs/product/dependencies.md](docs/product/dependencies.md)**. For
 reproducing a build and verifying a running instance's signed receipts, see
-**[docs/REPRODUCIBILITY.md](docs/REPRODUCIBILITY.md)**.
+**[docs/product/reproducibility.md](docs/product/reproducibility.md)**.
 
 ### Optional dependencies
 
@@ -216,7 +216,7 @@ signed, CC0 dataset:
 
 - **Fast-forward a node:** import it into a fresh `morscan` D1 and resume live sync
   from the snapshot block, skipping the historical backfill entirely. See
-  **[docs/SEED.md](docs/SEED.md)**.
+  **[docs/product/seeding.md](docs/product/seeding.md)**.
 - **Just want the numbers?** The dataset is queryable on its own with SQLite or
   DuckDB (holders, sessions, providers, and the full MOR/USD price history), no
   MorScan required. Verify it against the key committed to that repo.
@@ -228,12 +228,11 @@ Release asset, `node verify.mjs <asset>`, then follow that repo's `llms.txt`.
 
 | Where | Contents |
 |-------|----------|
-| [`docs/GETTING_STARTED.md`](docs/GETTING_STARTED.md) | From-zero setup, every env var, troubleshooting |
-| [`docs/DEPENDENCIES.md`](docs/DEPENDENCIES.md) | Every external dependency and DRM3 integration: required/optional, config, how to replace or disable |
-| [`docs/REPRODUCIBILITY.md`](docs/REPRODUCIBILITY.md) | Proving the build and the runtime: green checks + offline receipt verification |
-| [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | How the pieces fit, with links to each subsystem |
+| [`docs/product/getting-started.md`](docs/product/getting-started.md) | From-zero setup, every env var, troubleshooting |
+| [`docs/product/dependencies.md`](docs/product/dependencies.md) | Every external dependency and DRM3 integration: required/optional, config, how to replace or disable |
+| [`docs/product/reproducibility.md`](docs/product/reproducibility.md) | Proving the build and the runtime: green checks + offline receipt verification |
+| [`docs/architecture/README.md`](docs/architecture/README.md) | How the pieces fit, with links to each subsystem |
 | [`docs/architecture/`](docs/architecture/) | Deep dives: sync, database, security, API, UI, provenance, deployment |
-| [`docs/specs/`](docs/specs/) | Planned and partially-scoped extensions |
 | `/openapi.json` (on a running instance) | The full, machine-readable API contract |
 
 ## Contributing

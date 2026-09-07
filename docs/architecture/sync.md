@@ -1,5 +1,7 @@
 # Sync Architecture
 
+> **Status: LIVE** - 2026-09-07. Describes the sync loop as deployed.
+
 Forward-only event projector using `eth_getLogs`. Single sync path owned by the Durable Object.
 
 ## How It Works

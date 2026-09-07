@@ -23,7 +23,7 @@
  * rpc-pool first), backfill's heavy historical getLogs go straight through
  * `buildEndpoints()` which is ALCHEMY-FIRST. Large historical getLogs ranges
  * need an archive-capable RPC; free public peers fail on them. See
- * docs/DEPENDENCIES.md -> "Historical backfill".
+ * docs/product/dependencies.md -> "Historical backfill".
  *
  * THROTTLE: a free Alchemy account has a monthly compute-unit budget and a
  * per-second throughput cap. Backfill is chunked + delayed so it stays well

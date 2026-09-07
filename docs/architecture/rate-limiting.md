@@ -1,5 +1,7 @@
 # Rate Limiting and Metering
 
+> **Status: LIVE** - 2026-09-07. Describes rate limiting and metering as deployed.
+
 Two layers, checked on every gated request (`src/utils/auth/rate-limit.ts`):
 a **minute burst** limit (abuse protection) and **day/month volume caps** (the
 metered good). Keys are per-wallet: connecting a wallet at `/console` mints a

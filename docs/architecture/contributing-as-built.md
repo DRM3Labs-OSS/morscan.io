@@ -1,7 +1,10 @@
-# AGENTS.md - MorScan
+# Contributing: the repo as built
 
-Guidance for AI coding agents (and humans) working in this repo. Everything here is
-**as-built** and verified against the code.
+> **Status: LIVE** - 2026-09-07. Describes the repo as it is built today: layout, gates, conventions.
+
+The short orientation for anyone working in this repo. Everything here is
+**as-built** and verified against the code. The community guide (issues, PRs,
+license) is [CONTRIBUTING.md](../../CONTRIBUTING.md) at the repo root.
 
 ## What this is
 
@@ -28,7 +31,7 @@ All three gates (`typecheck`, `lint`, `build`) must stay green.
 Configure `wrangler.toml` (it ships as a template with placeholders): set your
 Cloudflare `account_id`, create a D1 database (`npm run db:create` / `wrangler d1
 create`), set its `database_id`, and set the env vars. Full steps + the env table are
-in [docs/GETTING_STARTED.md](GETTING_STARTED.md). Then `npm run deploy`.
+in [docs/product/getting-started.md](../product/getting-started.md). Then `npm run deploy`.
 
 ## Layout
 
@@ -42,6 +45,16 @@ in [docs/GETTING_STARTED.md](GETTING_STARTED.md). Then `npm run deploy`.
 | `src/ui/` | Dashboard HTML/templates (string-imported assets) |
 | `src/config.ts`, `src/types.ts` | Config resolution + env/type definitions |
 
+## Version and changelog
+
+The version lives in two places and must match: `package.json` (`"version"`)
+and `src/version.ts` (`MORSCAN_VERSION`). A release bumps both and adds a top
+entry to [CHANGELOG.md](../../CHANGELOG.md) at the repo root. MorScan follows
+semantic versioning. `scripts/stamp-build.mjs` runs before `dev`, `build`,
+`typecheck` and `deploy` and stamps the git commit into `src/build-info.ts`
+(gitignored), so a running instance reports its exact source commit at
+`/version`, in `/health` and in the UI footer.
+
 ## Conventions / gotchas
 
 - Keep `typecheck`, `lint`, and `build` green; `npm run lint:fix` auto-fixes.
@@ -53,7 +66,7 @@ in [docs/GETTING_STARTED.md](GETTING_STARTED.md). Then `npm run deploy`.
   package `@drm3labs-oss/provenance` (compiled WASM + JS bindings); it is separately
   licensed (MIT) and not covered by this repo's FSL-1.1-MIT license.
 
-## Copy law: signing is ADDED trust, never a replacement
+## Writing about signatures: signing is added trust, never a replacement
 
 An Ed25519 signature proves **attribution** ("this key said this") and **integrity**
 ("and it has not changed since"). It does **not** prove **correctness**. You can sign a
@@ -72,5 +85,5 @@ encouraged.
 
 ## More
 
-[README](../README.md) · [Getting Started](GETTING_STARTED.md) ·
-[Contributing](../CONTRIBUTING.md) · [Architecture](ARCHITECTURE.md)
+[README](../../README.md) · [Getting Started](../product/getting-started.md) ·
+[Contributing](../../CONTRIBUTING.md) · [Architecture](README.md)

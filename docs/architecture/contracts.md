@@ -1,5 +1,7 @@
 # Contracts - the on-chain surface MorScan indexes
 
+> **Status: LIVE** - 2026-09-07. Describes the on-chain surface MorScan indexes today.
+
 As-built reference for the third-party contracts MorScan integrates with on Base
 mainnet: the addresses, the event topics and function selectors the indexer
 depends on, where those signatures come from, how DiamondCut upgrades are

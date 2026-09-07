@@ -1,5 +1,7 @@
 # Reproducibility: proving the build and the runtime
 
+> **Status: LIVE** - 2026-09-07. How to verify a build and a running instance today.
+
 MorScan is source-open, so anyone can clone it, and anyone can stand up a
 copycat. This document explains how to prove two separate things:
 
@@ -33,7 +35,7 @@ reproducible. The lockfile is committed.
 ### Deterministic-ish inputs
 
 - **Seven runtime dependencies**, all published to the public npm registry (see
-  [DEPENDENCIES.md](DEPENDENCIES.md#npm-packages-packagejson)). No private
+  [dependencies.md](dependencies.md#npm-packages-packagejson)). No private
   registry, no gated package.
 - **The provenance signer is a pinned npm package**, `@drm3labs-oss/provenance`
   (compiled WASM + JS bindings). The committed `package-lock.json` locks its
@@ -55,7 +57,7 @@ reproducible. The lockfile is committed.
   the pinned `@drm3labs-oss/provenance` version.
 - `npm run build` produces a bundle with no surprise network origins (the CSP in
   `src/handlers/ui/shared.ts` and the outbound-host list in
-  [DEPENDENCIES.md](DEPENDENCIES.md#external-hosts-the-running-worker-contacts)
+  [dependencies.md](dependencies.md#external-hosts-the-running-worker-contacts)
   are the complete egress surface).
 
 ## Part 2: proving the runtime is honest
@@ -148,7 +150,7 @@ clock, so lag can never be masked by an estimate. The endpoint exposes
 `syncedBlock`, `currentBlock`, `blocksBehind`, and `lastSyncTs` so a monitor can
 judge staleness itself. A stalled sync surfaces here within about a minute, and
 the cron watchdog reschedules it (see
-[architecture/sync.md](architecture/sync.md)).
+[architecture/sync.md](../architecture/sync.md)).
 
 ## Summary
 
@@ -159,5 +161,5 @@ the cron watchdog reschedules it (see
 | The data is from the real operator | Verify Ed25519 receipts vs published keys | The operator's private mnemonic |
 | The instance is fresh | `/health` real-block freshness | On-chain block height |
 
-See [DEPENDENCIES.md](DEPENDENCIES.md) for the full dependency and integration
+See [dependencies.md](dependencies.md) for the full dependency and integration
 inventory.

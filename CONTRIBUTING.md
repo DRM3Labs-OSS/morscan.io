@@ -14,7 +14,7 @@ and serves a dashboard + read API.
 - A Cloudflare account + [`wrangler`](https://developers.cloudflare.com/workers/wrangler/)
   (for local dev and deploy)
 
-See [docs/GETTING_STARTED.md](docs/GETTING_STARTED.md) for first-run setup (account
+See [docs/product/getting-started.md](docs/product/getting-started.md) for first-run setup (account
 id, D1 database, env vars).
 
 ## Build, test, lint
@@ -44,7 +44,7 @@ in CI. If the change touches behavior with tests, run those too (`npm test`). Us
 | `src/utils/` | Provenance signing, snapshots, RPC, helpers |
 | `src/ui/` | Dashboard HTML/templates (string-imported assets) |
 | `src/config.ts`, `src/types.ts` | Config resolution + env/type definitions |
-| `docs/` | Architecture, specs, getting-started |
+| `docs/` | Architecture (how it works) and product guides (getting started, seeding, dependencies, reproducibility) |
 
 ## Provenance
 
@@ -69,7 +69,7 @@ it, signing is skipped and the explorer still serves normally.
 - Commit messages describe **what changed and what you verified**, imperative mood.
 - Small, atomic commits.
 - Don't hardcode deployment-specific hosts/ids - route them through `src/config.ts`
-  env vars (see the env table in [docs/GETTING_STARTED.md](docs/GETTING_STARTED.md)).
+  env vars (see the env table in [docs/product/getting-started.md](docs/product/getting-started.md)).
 
 ## Reporting bugs and proposing features
 

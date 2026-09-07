@@ -1,5 +1,7 @@
 # Marketplace Snapshot (CDN) - OPTIONAL
 
+> **Status: LIVE** - 2026-09-07. Describes the optional signed CDN snapshot as deployed.
+
 > **Optional subsystem.** Off unless an R2 bucket (`SNAPSHOT_BUCKET`) is bound;
 > the snapshot writer no-ops without it. Not required to run MorScan.
 

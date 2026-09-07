@@ -1,5 +1,7 @@
 # Database Schema
 
+> **Status: LIVE** - 2026-09-07. Describes the D1 schema as deployed; `schema.sql` at the repo root is the DDL of record.
+
 Cloudflare D1 (SQLite). The `database_id` is configured per-deployment in
 `wrangler.toml`. The canonical DDL is [`schema.sql`](../../schema.sql) at the
 repo root (27 tables).

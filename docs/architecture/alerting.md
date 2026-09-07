@@ -1,5 +1,7 @@
 # Alerting
 
+> **Status: LIVE** - 2026-09-07. Describes the alerting path as deployed (`src/alerts/index.ts`).
+
 MorScan has a small, self-contained operational alerting system
 (`src/alerts/index.ts`). It exists to answer one question loudly: **is the
 scanner still keeping up with the chain, and if not, does someone get paged.**

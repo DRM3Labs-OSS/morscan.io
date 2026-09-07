@@ -1,5 +1,7 @@
 # Provenance - row-level signing and key discovery
 
+> **Status: LIVE** - 2026-09-07. Describes row signing, key discovery and verification as deployed.
+
 MorScan signs every row of its data endpoints with an Ed25519 receipt and an
 aggregate Merkle root, periodically chains those receipts into a service
 attestation, and publishes the public keys at a stable well-known endpoint, so
@@ -163,7 +165,7 @@ It fetches a signed response, recomputes the receipt hash, verifies the Ed25519
 signature, and confirms the signing key is published at
 `/.well-known/morscan-keys.json` with a validity window covering the receipt. The
 full step-by-step offline procedure (and why a copycat cannot fake it) is in
-[`../REPRODUCIBILITY.md`](../REPRODUCIBILITY.md); this doc does not repeat it.
+[`../product/reproducibility.md`](../product/reproducibility.md); this doc does not repeat it.
 
 ## Relation to `/mor/v1/provenance`
 

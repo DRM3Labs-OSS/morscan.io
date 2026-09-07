@@ -211,7 +211,7 @@ npm run lint       # biome lint src/
 npm run build      # wrangler deploy --dry-run
 \`\`\`
 
-First-run setup is in docs/GETTING_STARTED.md. The explorer runs without
+First-run setup is in docs/product/getting-started.md. The explorer runs without
 provenance signing, so no secrets are needed for a working local instance.
 
 Style and workflow details are in CONTRIBUTING.md; CI runs the same checks

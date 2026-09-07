@@ -1,5 +1,7 @@
 # Data Coverage, Backfill, and the Syncing State
 
+> **Status: LIVE** - 2026-09-07. Describes how coverage, backfill and the syncing state work today.
+
 > How MorScan indexes Base, how far back each dataset really goes, how the
 > historical backfill works, and how sync/indexing state is shown honestly. If a
 > number on the site looks low, this file explains whether it is incomplete and
@@ -95,7 +97,7 @@ Two mechanisms fill history, and they compose:
    the defaults) in tens of seconds and returns `nextFrom` for the next call.
    Script calls back-to-back to walk a large range. The compute-unit and
    wall-clock math is in
-   [DEPENDENCIES.md](DEPENDENCIES.md#historical-backfill-requires-an-archive-rpc):
+   [dependencies.md](../product/dependencies.md#historical-backfill-requires-an-archive-rpc):
    at the defaults a full re-scan of the ~5.8M-block history is ~2,900 chunks
    (~97 calls), a small fraction of a free monthly CU budget.
 

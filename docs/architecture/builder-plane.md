@@ -1,5 +1,7 @@
 # Builder Staking Plane (as-built)
 
+> **Status: LIVE** - 2026-09-07. Describes the builder staking plane as deployed.
+
 > The Builder economic plane is **shipped** (v1.31-1.32). MorScan indexes the Morpheus BuildersV4 staking contract alongside the Compute plane. This doc is the as-built contract reference and shipped surface. Genuinely-unbuilt route ideas remain the "My Stakes" wallet page, the cross-plane wallet portfolio view, and FeeConfig decoding.
 
 ## What it is

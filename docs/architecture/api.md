@@ -1,5 +1,7 @@
 # API Reference
 
+> **Status: LIVE** - 2026-09-07. Describes the `/mor/v1` API as deployed; `/openapi.json` on a running instance is the machine-readable contract.
+
 Three caller types (`src/routes/`):
 
 - **Public** - a small allowlist (`src/routes/public.ts`), no auth.

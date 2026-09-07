@@ -1,5 +1,7 @@
 # MorScan Data Tier - as-built
 
+> **Status: LIVE** - 2026-09-07. Describes the D1 / KV / Cache API tiers as deployed.
+
 D1 is the transactional source of truth. KV and the CF Cache API sit in front of
 it to absorb repeat reads; an optional BigQuery dual-write archives every sync
 write for downstream analytics.
@@ -52,14 +54,6 @@ The SPA is powered by one precomputed JSON blob ("fatboy"), rebuilt by
 `fatboy_cache`. The UI fetches it once at init via `GET /mor/v1/ui-init`, so
 dashboard page loads put zero per-request query pressure on D1. See
 [`ui.md`](ui.md) for how the SPA consumes it.
-
-## Write dedup
-
-| Path | Strategy |
-|---|---|
-| `captureTelemetry` on every `/mor/v1/*` | KV `tele:seen:<signer>` with 60s TTL. First hit in the window UPSERTs the node row; rest no-op. `first_seen`/`last_seen` are accurate at 60s resolution; `request_count` undercounts by design (kill the per-request D1 write, keep the visibility signal). |
-
-Source: `src/handlers/telemetry.ts`.
 
 ## Optional BigQuery archive
 

@@ -1,5 +1,7 @@
 # Canonical Session Accounting
 
+> **Status: LIVE** - 2026-09-07. Describes session accounting as deployed (`src/accounting/`).
+
 > **Data-completeness caveat:** most sessions classified `closed` do not carry a
 > `close_tx_hash`. Close *counts* derived from `closed_at` / `is_active` are
 > sound (a reconciliation sweep can set `closed_at` without observing the close
@@ -9,13 +11,13 @@
 
 ## Module
 
-`src/accounting.ts` is the single source of truth for session classification and wallet MOR buckets. Every handler that needs accounting reads from `buildWalletAccounting()`.
+`src/accounting/` (`index.ts` + `wallet.ts`) is the single source of truth for session classification and wallet MOR buckets. Every handler that needs accounting reads from `buildWalletAccounting()`.
 
 ## Session State Machine
 
 Every session row is classified into exactly one state:
 
-`classifySession()` in `src/accounting.ts` returns exactly one of:
+`classifySession()` in `src/accounting/index.ts` returns exactly one of:
 
 | State | Condition (in code) |
 |-------|---------------------|

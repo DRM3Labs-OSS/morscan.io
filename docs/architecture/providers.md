@@ -1,5 +1,7 @@
 # Providers (the open-core seam)
 
+> **Status: LIVE** - 2026-09-07. Describes the provider seams and the composition factory as deployed.
+
 MorScan is open-core. The OSS repo defines a small set of stable provider
 **interfaces** and ships bundled **reference implementations**. The reference
 impls make the standalone OSS product fully functional and behaving identically

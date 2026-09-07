@@ -89,7 +89,7 @@ export async function handleSyncRoute(
 	// NEVER moves the live cursor (last_event_block), so the live forward sync
 	// keeps running at head and the site stays fresh. Bounded per call by
 	// BACKFILL_MAX_CHUNKS_PER_RUN; resume via the returned `nextFrom`.
-	// Requires an archive-capable RPC (Alchemy) - see docs/DEPENDENCIES.md.
+	// Requires an archive-capable RPC (Alchemy) - see docs/product/dependencies.md.
 	if (path === "/sync/backfill") {
 		const from = parseInt(url.searchParams.get("from") || "", 10);
 		const to = parseInt(url.searchParams.get("to") || "", 10);

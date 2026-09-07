@@ -1,5 +1,7 @@
 # BigQuery dual-write - OPTIONAL
 
+> **Status: LIVE** - 2026-09-07. Describes the optional BigQuery dual-write as deployed (off by default).
+
 An optional capability of the reference `AnalyticsProvider`: append-only
 dual-write of MorScan's indexed rows (sessions, bids, providers, models,
 economics, builder events) to your own BigQuery dataset.
@@ -29,6 +31,8 @@ Flip `BIGQUERY_ENABLED` back to `"false"` to pause all dual-write.
   and backfill sweeps are safe. Backfill endpoints:
   `POST /mor/v1/bq/backfill?table=<name>&limit=&after=` (admin key required).
 - Keep downstream queries bounded by a partition filter on `observed_at`.
+- To add a dual-write target, add its DDL to `seed/bq-schema.sql` and its row
+  builder to `src/utils/bigquery/rows.ts`.
 
 The seam is the contract; BigQuery is just the reference. To target a
 different warehouse, swap the `AnalyticsProvider` (see

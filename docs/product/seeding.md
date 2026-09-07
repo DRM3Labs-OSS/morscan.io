@@ -1,5 +1,7 @@
 # Seeding MorScan history
 
+> **Status: LIVE** - 2026-09-07. The two seeding paths as they work today.
+
 MorScan indexes the Morpheus AI network from Base mainnet. A fresh deploy needs
 history before its dashboards are useful.
 
@@ -25,12 +27,12 @@ contract deploy blocks via RPC. The MOR token deployed at Base block 15,002,375
 transfer backfill replays close to two years of Base blocks (about 33 million
 blocks). On a rate-limited public RPC that is slow: hours to days, and the
 historical `getLogs` sweep wants an archive-capable RPC (see
-[docs/DEPENDENCIES.md](DEPENDENCIES.md)). This is the zero-dependency path,
+[docs/product/dependencies.md](dependencies.md)). This is the zero-dependency path,
 and the numbers come straight from chain, but you wait for the backfill.
 
 1. Create the D1 database and KV caches, then apply the schema. (Full setup,
    including the KV ids and `wrangler.toml` edits, is in
-   [docs/GETTING_STARTED.md](GETTING_STARTED.md); the minimum is:)
+   [docs/product/getting-started.md](getting-started.md); the minimum is:)
 
    ```bash
    npx wrangler d1 create morscan
@@ -100,7 +102,7 @@ delta is small: roughly ten minutes of sync, not a full-history replay.
    ```
 
    `wrangler.toml` (the committed template you configured in
-   [docs/GETTING_STARTED.md](GETTING_STARTED.md)) is the config used
+   [docs/product/getting-started.md](getting-started.md)) is the config used
    throughout below. If you keep a separate private deploy config, point
    `WRANGLER_CONFIG` (and `--config`) at that file instead.
 

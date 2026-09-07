@@ -1,5 +1,7 @@
 # UI Architecture
 
+> **Status: LIVE** - 2026-09-07. Describes the dashboard rendering path as deployed.
+
 The explorer UI is read-only and public: no sign-in is required to browse any
 page. `/console` is the site's single sign-in door (wallet-first) and exists for
 API-key management, not for viewing the explorer.
@@ -22,8 +24,8 @@ Content fragments (just <style> + HTML, no document shell)
 4. Returns a complete HTML document
 
 **Files:**
-- `src/shell.ts` - `render(PageParams)` function
-- `src/morscan_header.ts` - unified header component (nav planes, price ticker)
+- `src/ui/shell.ts` - `render(PageParams)` function
+- `src/ui/morscan_header.ts` - unified header component (nav planes, price ticker)
 - `src/ui/layout.mustache` - shared document skeleton (head, footer, CSS vars)
 - `src/handlers/ui/` - page handlers (`compute.ts`, `builder.ts`, `pages.ts`, `assets.ts`, `seo.ts`)
 - `src/routes/ui.ts` - route dispatch + edge caching (CF Cache API, ~30s per page)
@@ -74,7 +76,7 @@ One pre-built JSON blob powers the SPA. Rebuilt every cron cycle (1 minute).
 
 ## Service Worker
 
-Minimal SW (`src/ui/sw.txt`, served at `/sw.js`):
+Minimal SW (`src/ui/vendor/sw.txt`, served at `/sw.js` by `src/routes/ui.ts`):
 - Cache versioning (morscan-v1)
 - Skip waiting + claim clients on install
 - No prefetch - server SSR is fast enough (<100ms)

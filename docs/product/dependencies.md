@@ -1,5 +1,7 @@
 # Dependency transparency
 
+> **Status: LIVE** - 2026-09-07. The dependency inventory of the code as it ships today.
+
 MorScan is built to be forked. This document is the complete, audited list of
 everything the running Worker touches outside its own code: every external
 service, every DRM3-specific integration, and every hardcoded network constant.
@@ -7,14 +9,14 @@ For each one it says whether it is required or optional, the env var that
 controls it, how you replace or disable it, and what happens with nothing set.
 
 For proving that a build and a running instance are honest (the copycat
-question), see [REPRODUCIBILITY.md](REPRODUCIBILITY.md).
+question), see [reproducibility.md](reproducibility.md).
 
 ## What a fresh clone needs
 
 A fresh clone needs a Cloudflare account and a Base L2 RPC endpoint, and nothing
 else. On the Cloudflare side you create a D1 database and two KV namespaces and
 paste their ids into `wrangler.toml` - a few `wrangler` commands, walked through
-in [GETTING_STARTED.md](GETTING_STARTED.md). The Base RPC ships with a working
+in [getting-started.md](getting-started.md). The Base RPC ships with a working
 public default (`base.llamarpc.com`) committed in `wrangler.toml`, so that one is
 optional to change. Everything else in this document is optional and
 configurable, and nothing is bolted to DRM3's infrastructure.
@@ -89,7 +91,7 @@ Cloudflare and your RPC.
 ### Cloudflare primitives (bindings you create)
 
 These are the platform your Worker runs on, not third-party dependencies. The
-setup is in [GETTING_STARTED.md](GETTING_STARTED.md#3-create-the-database-and-caches).
+setup is in [getting-started.md](getting-started.md#3-create-the-database-and-caches).
 
 | Binding | R/O | Purpose |
 |---------|-----|---------|
@@ -161,7 +163,7 @@ WASM + JS bindings, pinned in `package-lock.json`). It is generic Ed25519
 receipt signing. **The keys are yours:** receipts are signed with keys derived
 from `MORSCAN_MNEMONIC`, a mnemonic YOU generate. DRM3 cannot sign your
 instance's receipts, and you cannot sign DRM3's. This is the integrity guarantee
-against copycats (see [REPRODUCIBILITY.md](REPRODUCIBILITY.md)).
+against copycats (see [reproducibility.md](reproducibility.md)).
 
 To run your own signed instance: generate a real BIP39 mnemonic and set it as
 the `MORSCAN_MNEMONIC` secret. Your public keys then publish automatically at
@@ -215,9 +217,9 @@ attests" unless you edit that string to name your own operator.
 
 ## See also
 
-- [REPRODUCIBILITY.md](REPRODUCIBILITY.md) - proving the build and the runtime.
-- [GETTING_STARTED.md](GETTING_STARTED.md) - full setup and the complete env-var
+- [reproducibility.md](reproducibility.md) - proving the build and the runtime.
+- [getting-started.md](getting-started.md) - full setup and the complete env-var
   reference.
-- [architecture/sync.md](architecture/sync.md) - the RPC pool and failover.
-- [architecture/provenance.md](architecture/provenance.md) - row signing, service
+- [architecture/sync.md](../architecture/sync.md) - the RPC pool and failover.
+- [architecture/provenance.md](../architecture/provenance.md) - row signing, service
   attestation, and the `/.well-known/morscan-keys.json` key-discovery endpoint.

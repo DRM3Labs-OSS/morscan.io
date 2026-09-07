@@ -191,7 +191,7 @@ export function createMorscanApp(options: MorscanAppOptions = {}): MorscanApp {
 			// *.workers.dev origin to admin-key API access only - no UI, no demo key,
 			// no login. Useful when a custom domain is the real front door and the
 			// workers.dev origin should not be a bypass. Default is OPEN so the
-			// GETTING_STARTED workers.dev path works out of the box.
+			// getting-started workers.dev path works out of the box.
 			// `isAdminAuth` accepts `admin` + anything in MORSCAN_ADMIN_KEY_IDS.
 			const isWorkersDev =
 				env.LOCK_WORKERS_DEV === "true" && url.hostname.endsWith(".workers.dev");
@@ -485,7 +485,7 @@ export function createMorscanApp(options: MorscanAppOptions = {}): MorscanApp {
 			// died on session cycles), it now GRINDS MANY windows per tick within a wall-
 			// clock budget - so the per-minute cron ALONE converges in hours and needs no
 			// babysitting. It is a SEPARATE pass - it never touches the live DO cursor (see
-			// docs/data-coverage.md) - and runs on the DEDICATED backfill key
+			// docs/architecture/data-coverage.md) - and runs on the DEDICATED backfill key
 			// (BACKFILL_ALCHEMY_URL, via backfillHolders -> buildBackfillEndpoints) so it
 			// never competes with the live sync's key. Locked so grinds never stack.
 			ctx.waitUntil(

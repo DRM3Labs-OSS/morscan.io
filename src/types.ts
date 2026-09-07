@@ -79,7 +79,7 @@ export interface Env {
 	X402_PAY_TO?: string; // Owner's self-custodied pay-to address on Base; unset = x402 disabled (keyless stays 401)
 	X402_PRICE_USDC?: string; // Price per call in USDC, e.g. "0.01" (default 0.01 = 10000 atomic units)
 	X402_FACILITATOR_URL?: string; // Optional x402 facilitator base URL for live verify+settle. Unset/empty (default) = verify-only mode: payments are cryptographically verified and queued in D1 (x402_payments) for later batch settlement.
-	// Alerting (all optional; see src/alerts + docs/GETTING_STARTED "Alerting").
+	// Alerting (all optional; see src/alerts + docs/product/getting-started.md "Alerting").
 	// MorScan records every alert to the D1 `alerts` table / /admin/alerts area
 	// regardless of these. Set any subset to also fan out to that channel. Values
 	// are secrets - set via `wrangler secret put`, never committed to a toml.

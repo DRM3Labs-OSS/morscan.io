@@ -1,5 +1,7 @@
 # Getting Started
 
+> **Status: LIVE** - 2026-09-07. The setup path for the code as it ships today.
+
 This is the copy-paste path from a fresh clone to a running MorScan explorer,
 both locally and deployed. It takes about 10 minutes.
 
@@ -50,7 +52,7 @@ npx wrangler kv namespace create MORSCAN_CACHE
 The shipped `wrangler.toml` has placeholder ids (`0000...`); replace them with
 the real ids printed above.
 
-Then apply the schema (all 27 tables + indexes, from [`schema.sql`](../schema.sql)
+Then apply the schema (all 27 tables + indexes, from [`schema.sql`](../../schema.sql)
 at the repo root):
 
 ```bash
@@ -85,6 +87,7 @@ indexing a different deployment.
 | `BUILDER_CONTRACT` | yes | BuildersV4 proxy (Base). |
 | `PUBLIC_BASE_URL` | recommended | Your deployed origin (no trailing slash). |
 | `LOCK_WORKERS_DEV` | no | `true` restricts the `*.workers.dev` origin to admin-key API calls only (no UI). Default: open, so the copy-paste path below just works. |
+| `D1_DAILY_READ_BUDGET` | no | Approximate D1 rows-read per UTC day before the heavy uncached endpoints shed to `503`. Default `4000000`, under the Workers Free plan's 5,000,000/day. See `src/utils/d1-budget.ts`. |
 | `COMING_SOON_HOSTS` | no | Comma-separated hostnames that serve a static coming-soon page instead of the UI (`/health` + brand assets stay live). |
 | `REGISTER_URL` | no | Where the signup / upgrade link on the access-tier cards points. Default `/about`. |
 | `SSO_APP_ID` | no | Audience id for IdP launch tokens. Default `morscan`. |
@@ -168,7 +171,7 @@ npx wrangler deploy
 ```bash
 # Optional: seed from the published snapshot so you skip the long cold catch-up.
 # It verifies the signed snapshot, loads it, and sets the sync watermark so the
-# first sync resumes from the snapshot block. Edits the REMOTE D1. See SEED.md.
+# first sync resumes from the snapshot block. Edits the REMOTE D1. See seeding.md.
 DATASET_DIR=/path/to/morpheus-ai-base-data \
 BLOB=/path/to/morpheus-ai-base-data-<block>.sql.gz \
 TARGET_DB=morscan WRANGLER_CONFIG=wrangler.toml \
@@ -185,7 +188,7 @@ snapshot watermark block instead of re-indexing from chain. If you skip the
 seed, sync starts near chain head and history backfills slowly.
 
 The two seeding paths (from scratch, or from the published snapshot) are laid
-out in [`SEED.md`](SEED.md). The snapshot itself is a separate signed, CC0
+out in [`seeding.md`](seeding.md). The snapshot itself is a separate signed, CC0
 project: [morpheus-ai-base-data](https://github.com/DRM3Labs-OSS/morpheus-ai-base-data).
 
 ## 10. View the dashboard
@@ -239,12 +242,12 @@ Open `https://<your-worker>/admin/alerts?key=<your-admin-key>` and click
 | `/sync/*` returns 403 | The key you used is not the admin key. Only the admin `keyId` may call sync routes; the demo key is rejected. |
 | `D1_ERROR: no such table` | The schema was not applied. Run `npx wrangler d1 execute <db> --remote --file=./schema.sql` (step 3). |
 | RPC errors / sync stalls | The default public `RPC_URL` is rate-limited. Point `RPC_URL` at a dedicated Base RPC, optionally set `ALCHEMY_FALLBACK_URL`. |
-| `scripts/import-seed.mjs` fails verification | The snapshot did not verify against its own key, or the target D1 is not empty. Re-download the Release asset and seed only a fresh D1. See [`SEED.md`](SEED.md). |
+| `scripts/import-seed.mjs` fails verification | The snapshot did not verify against its own key, or the target D1 is not empty. Re-download the Release asset and seed only a fresh D1. See [`seeding.md`](seeding.md). |
 | Provenance receipts are absent | `MORSCAN_MNEMONIC` is unset. Signing no-ops without it; set a real BIP39 mnemonic to enable. |
-| Snapshot writer does nothing | The `SNAPSHOT_BUCKET` R2 binding is commented out by default. See [`architecture/marketplace-snapshot.md`](architecture/marketplace-snapshot.md). |
+| Snapshot writer does nothing | The `SNAPSHOT_BUCKET` R2 binding is commented out by default. See [`architecture/marketplace-snapshot.md`](../architecture/marketplace-snapshot.md). |
 
 ## Next
 
-- [`architecture/deployment.md`](architecture/deployment.md) - the operator reference for every moving part.
-- [`ARCHITECTURE.md`](ARCHITECTURE.md) - how MorScan is put together, with links to every subsystem doc.
-- [`../CONTRIBUTING.md`](../CONTRIBUTING.md) - build, test, layout, and conventions.
+- [`architecture/deployment.md`](../architecture/deployment.md) - the operator reference for every moving part.
+- [`../architecture/README.md`](../architecture/README.md) - how MorScan is put together, with links to every subsystem doc.
+- [`../CONTRIBUTING.md`](../../CONTRIBUTING.md) - build, test, layout, and conventions.

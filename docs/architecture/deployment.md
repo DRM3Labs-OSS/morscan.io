@@ -1,10 +1,12 @@
 # Deployment
 
+> **Status: LIVE** - 2026-09-07. Describes what a deployment of MorScan consists of today.
+
 MorScan is a single Cloudflare Worker plus D1, KV, an optional R2 bucket, and a
 Durable Object. This is the operator's guide to standing up your own instance.
 
 For a copy-paste, zero-to-running walkthrough see
-[`../GETTING_STARTED.md`](../GETTING_STARTED.md). This file is the reference for
+[`../product/getting-started.md`](../product/getting-started.md). This file is the reference for
 the moving parts.
 
 ## Secrets model
@@ -64,7 +66,7 @@ npx wrangler d1 execute morscan --remote \
 npx wrangler deploy
 
 # 8. Seed history from the published snapshot (optional, avoids hours of cold
-#    re-sync). See ../SEED.md for this and the from-scratch path.
+#    re-sync). See ../product/seeding.md for this and the from-scratch path.
 DATASET_DIR=/path/to/morpheus-ai-base-data \
 BLOB=/path/to/morpheus-ai-base-data-<block>.sql.gz \
 TARGET_DB=morscan WRANGLER_CONFIG=wrangler.deploy.toml \
@@ -80,7 +82,7 @@ curl "$PUBLIC_BASE_URL/sync/coordinator/start" -H "X-Morscan-Key: $KEY"
 > (`src/sync/compute-stats.ts`); everything else must exist before the worker
 > writes to it. A fresh deploy works with no seed at all - incremental sync
 > backfills from the chain, just slowly. To seed instead, import the published
-> snapshot (see [`../SEED.md`](../SEED.md)). The `seed/` directory holds
+> snapshot (see [`../product/seeding.md`](../product/seeding.md)). The `seed/` directory holds
 > the recommended indexes (`indexes.sql`) and the BigQuery archive schema
 > (`bq-schema.sql`).
 
@@ -97,6 +99,10 @@ curl "$PUBLIC_BASE_URL/sync/coordinator/start" -H "X-Morscan-Key: $KEY"
 | `SNAPSHOT_PUBLIC_HOST` | Public host fronting the R2 snapshot bucket. |
 | `SNAPSHOT_SIGNER_KEY_ID` | Key id advertised in the signed snapshot envelope. |
 | `BIGQUERY_ENABLED` / `BIGQUERY_PROJECT_ID` / `BIGQUERY_DATASET_ID` | Optional BigQuery archive (off by default). |
+| `D1_DAILY_READ_BUDGET` | `4000000`. Approximate D1 rows-read per UTC day before the heavy uncached `/mor/v1` endpoints shed to `503` + `Retry-After`; sized under the Workers Free plan's 5,000,000 rows-read/day so the app degrades instead of going dark. The running total lives in `MORSCAN_CACHE` under `d1reads:<UTC-date>` and resets at 00:00 UTC (`src/utils/d1-budget.ts`). Admin identities bypass the shed. |
+| `LOCK_WORKERS_DEV` | `true` restricts the `*.workers.dev` origin to admin-key API calls (no UI, no demo key). Default: open. |
+| `COMING_SOON_HOSTS` | Comma-separated hostnames that serve a static coming-soon page instead of the UI. |
+| `PROVENANCE_ENABLED` / `RPC_POOL_ENABLED` | Both default `"true"`. `false` runs unsigned (no receipt fields, `/version` reports `provenance: "disabled"`) or swaps the RPC failover pool for a plain `fetch` to `RPC_URL`. |
 
 ### Secrets (`wrangler secret put <NAME>`)
 
