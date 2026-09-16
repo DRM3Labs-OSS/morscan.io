@@ -272,8 +272,8 @@
       The MorScan core is public: the sync engine, the queries, the API, and the page you are reading
       are built from code anyone can inspect on <a href="https://github.com/DRM3Labs-OSS/morscan.io" target="_blank" rel="noopener">GitHub</a>.
       A deployment can compose that exact core with private plugs, like the commerce and analytics
-      providers behind morscan.io, through documented sockets (<code>src/providers/</code> in the
-      repo): the same sockets anyone can implement, and the same model Sentry has run for a decade.
+      providers behind morscan.io: the same extension points anyone can implement, and the same
+      model Sentry has run for a decade.
       <a href="/version">/version</a> is the receipt: it reports the core tag and commit actually
       running, verifiable against the public repo, plus the exact list of plugs the deployment
       injected (empty for the plain reference build). A composed build can never pass itself off

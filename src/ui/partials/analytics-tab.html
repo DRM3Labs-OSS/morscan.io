@@ -313,7 +313,7 @@ function renderEcon(d){
   if(d._provenance_aggregate)document.getElementById('an-ec-signed').style.display='block';
 }
 
-// ── Leaderboards from the cron-built fatboy blob (1 D1 read, never a live
+// ── Leaderboards from the cron-built fatboy blob (one cached read, never a live
 // GROUP BY on the request path - data-cost law).
 function renderBoards(fb){
   var lb=fb&&fb.leaderboard;if(!lb)return;
