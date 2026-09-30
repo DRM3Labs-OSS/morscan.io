@@ -31,8 +31,11 @@ beyond the ones listed.
   loaded; the page-embedded serving key could read it.
 - The 500 handler no longer returns the exception text. The body carries a
   `requestId` (the edge ray id) that finds the log line.
-- SDK wallet-auth (EIP-712) nonce dedup awaits its KV write instead of firing
-  and forgetting it.
+- SDK wallet-auth (EIP-712) nonce dedup now writes with the 60-second KV
+  minimum TTL. The previous 10-second value was rejected by KV, so the dedup
+  never landed. The write is awaited (the nonce is on record before the
+  request is served) but non-fatal: a KV failure is logged and the request
+  continues, because the 5-second timestamp window is the primary gate.
 
 ## v2.49.1 - 2026-08-04 - the fixture says what it holds
 

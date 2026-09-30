@@ -91,8 +91,14 @@ export async function validateWalletAuth(
 	}
 	const stakingWallet = attestation.staking_wallet;
 
-	// Best-effort nonce dedup via Workers KV (defense-in-depth, timestamp is primary gate)
-	// KV is eventually consistent (~60s propagation) - this catches same-isolate replays only.
+	// Nonce dedup via Workers KV: defense-in-depth, the 5s timestamp window is the
+	// primary gate. TTL 60 is the KV minimum (a smaller expirationTtl is rejected
+	// with a 400 and the write never lands); 60s still covers the 5s window plus
+	// clock skew and widens the replay guard. The put is awaited so the write has
+	// landed before the request is served (closes the same-isolate race), but a
+	// KV failure is logged and the request continues: an outage of the dedup
+	// store must not fail every SDK request. KV is eventually consistent across
+	// isolates, so a cross-isolate replay inside the window is still possible.
 	if (env.NONCE_CACHE) {
 		const nonceHeader = request.headers.get("X-Morscan-Nonce");
 		if (nonceHeader) {
@@ -101,11 +107,14 @@ export async function validateWalletAuth(
 			if (existing) {
 				return { valid: false, error: "Nonce already used" };
 			}
-			// Store nonce with 10s TTL (covers the 5s timestamp window + clock skew margin).
-			// Awaited so the write has landed before the request is served; KV is still
-			// eventually consistent across isolates, so the timestamp window stays the
-			// primary gate.
-			await env.NONCE_CACHE.put(nonceKey, "1", { expirationTtl: 10 });
+			try {
+				await env.NONCE_CACHE.put(nonceKey, "1", { expirationTtl: 60 });
+			} catch (e) {
+				console.error(
+					"nonce dedup put failed:",
+					e instanceof Error ? e.message : String(e),
+				);
+			}
 		}
 	}
 
