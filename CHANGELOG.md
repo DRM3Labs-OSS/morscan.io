@@ -4,6 +4,36 @@ Releases are tagged vX.Y.Z on GitHub.
 
 ## Unreleased
 
+## v2.50.9 - 2026-09-30 - the sign-in message names the site
+
+Security fixes from the fleet code audit of 2026-09-30. No API shape changes
+beyond the ones listed.
+
+- Wallet sign-in is now an EIP-4361 (Sign-In with Ethereum) message bound to
+  the host and the wallet. `GET /console/wallet/challenge` takes
+  `?wallet=0x..` (required) and returns a message naming the host, the URI,
+  chain 8453, that wallet, the nonce, the mint time and a 5-minute expiry;
+  `POST /console/wallet/verify` rebuilds that exact text from the stored mint
+  and refuses a nonce minted for another wallet or another host. Before, the
+  message was two fixed lines plus a nonce, so a signature collected on any
+  other site could be relayed here and log the signer in. Wallet apps that
+  parse EIP-4361 now warn when the asking site is not this host. Headless
+  callers: add `?wallet=` to the challenge request; the rest of the recipe
+  (`/auth.md`) is unchanged.
+- The operator admin key is header-only. `/admin/alerts`, `/api/admin/alerts`,
+  `/api/admin/alerts/test`, `/admin/notify` and `/api/admin/notify` no longer
+  read `?key=`; a request that carries it is refused with 400 before the key
+  is looked at. The two HTML pages are keyless shells with a key field (held
+  in the tab's sessionStorage, sent as `X-Morscan-Key`); the key is no longer
+  written into the page either.
+- `GET /mor/v1/bq/status` is admin-gated like `/mor/v1/bq/backfill`. It names
+  the BigQuery project and dataset and whether a service-account key is
+  loaded; the page-embedded serving key could read it.
+- The 500 handler no longer returns the exception text. The body carries a
+  `requestId` (the edge ray id) that finds the log line.
+- SDK wallet-auth (EIP-712) nonce dedup awaits its KV write instead of firing
+  and forgetting it.
+
 ## v2.49.1 - 2026-08-04 - the fixture says what it holds
 
 - Renamed `tests/unit/fixtures/morscan-keys-live.json` to

@@ -34,9 +34,16 @@ never masquerade as admin in logs or authorization checks.
 
 The console is the site's single sign-in door:
 
-- `GET /console/wallet/challenge` mints a single-use nonce (KV, 5 min TTL).
-- `POST /console/wallet/verify` recovers the `personal_sign` signer; on match it
-  creates the session and auto-issues the wallet's free API key if absent.
+- `GET /console/wallet/challenge?wallet=0x..` mints a single-use nonce (KV, 5
+  min TTL) bound to the request host and that wallet, and returns the EIP-4361
+  (Sign-In with Ethereum) message to sign: it names the host, the URI
+  (`/console`), chain 8453, the wallet, the nonce, the mint time and the
+  expiry. A wallet app that parses it warns when the asking site is not this
+  host, so a message collected on another site is not signed blind.
+- `POST /console/wallet/verify` rebuilds that exact message from the stored
+  mint (host, wallet, nonce, time), refuses a nonce minted for another wallet
+  or another host, recovers the `personal_sign` signer, and on match creates
+  the session and auto-issues the wallet's free API key if absent.
 - The nonce is deleted on first use (no replay).
 
 ## Rate limiting

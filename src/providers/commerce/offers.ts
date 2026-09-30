@@ -113,7 +113,7 @@ export function liveAccessDoors(env: Env): Offer[] {
 		{
 			id: "free-key",
 			kind: "free",
-			how: `Mint a free API key with one wallet signature (no email, no signup, no payment): connect at ${b}/console, or headless: GET /console/wallet/challenge, sign the message with EIP-191 personal_sign, POST { wallet, signature, nonce } to /console/wallet/verify. Send the key as X-Morscan-Key on /mor/v1/* requests.`,
+			how: `Mint a free API key with one wallet signature (no email, no signup, no payment): connect at ${b}/console, or headless: GET /console/wallet/challenge?wallet=0x<your address>, sign the returned message with EIP-191 personal_sign, POST { wallet, signature, nonce } to /console/wallet/verify. Send the key as X-Morscan-Key on /mor/v1/* requests.`,
 			caps: capsForStake(0),
 			url: `${b}/console`,
 		},
@@ -172,7 +172,7 @@ export function accessHint(env: Env): string {
 export async function accessDoorsMarkdown(env: Env): Promise<string> {
 	const b = baseUrl();
 	const lines = [
-		`- Free key: connect a wallet at ${b}/console and sign one challenge (no email, no signup, no payment) - ${freeCapsPhrase()}. Headless mint: GET /console/wallet/challenge, sign with EIP-191 personal_sign, POST /console/wallet/verify.`,
+		`- Free key: connect a wallet at ${b}/console and sign one challenge (no email, no signup, no payment) - ${freeCapsPhrase()}. Headless mint: GET /console/wallet/challenge?wallet=0x<your address>, sign with EIP-191 personal_sign, POST /console/wallet/verify.`,
 		`- Stake for more: stake MOR on the MorScan builder subnet and the same key's caps follow your live stake (${stakeScalingPhrase()}). Your principal stays yours. See ${b}/stake`,
 	];
 	if (x402Enabled(env)) {

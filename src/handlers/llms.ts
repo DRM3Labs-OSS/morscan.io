@@ -43,8 +43,9 @@ ${await accessDoorsMarkdown(env)}
 ## Getting a Key
 Connect a wallet at ${baseUrl()}/console - signing a challenge message is the
 whole registration and issues your personal key immediately. Fully headless
-works too (no browser): GET /console/wallet/challenge, sign the returned
-message with EIP-191 personal_sign, POST the result to /console/wallet/verify -
+works too (no browser): GET /console/wallet/challenge?wallet=0x<your address>,
+sign the returned Sign-In with Ethereum message with EIP-191 personal_sign,
+POST the result to /console/wallet/verify -
 the 3-step recipe with examples is in ${baseUrl()}/auth.md. Staking MOR on the
 MorScan builder subnet raises that same key's capacity. Pass the key via the
 X-Morscan-Key header on all /mor/v1/* requests.

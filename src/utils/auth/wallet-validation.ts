@@ -101,9 +101,11 @@ export async function validateWalletAuth(
 			if (existing) {
 				return { valid: false, error: "Nonce already used" };
 			}
-			// Store nonce with 10s TTL (covers the 5s timestamp window + clock skew margin)
-			// Fire-and-forget - best-effort, don't block the response
-			env.NONCE_CACHE.put(nonceKey, "1", { expirationTtl: 10 });
+			// Store nonce with 10s TTL (covers the 5s timestamp window + clock skew margin).
+			// Awaited so the write has landed before the request is served; KV is still
+			// eventually consistent across isolates, so the timestamp window stays the
+			// primary gate.
+			await env.NONCE_CACHE.put(nonceKey, "1", { expirationTtl: 10 });
 		}
 	}
 

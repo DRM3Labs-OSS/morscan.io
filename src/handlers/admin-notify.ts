@@ -10,10 +10,11 @@
  * side-fetch /api/admin/notify and render the waitlist. Emails are PII: never public.
  *
  * Gating reuses the existing admin identity (the `admin` api_keys row or any id in
- * MORSCAN_ADMIN_KEY_IDS), the SAME gate as /admin/alerts. The key arrives via the
- * `X-Morscan-Key` header OR a `?key=` query param (a browser cannot set a custom
- * header on navigation); for the HTML page the validated key is injected so its
- * fetch to the JSON API carries the header.
+ * MORSCAN_ADMIN_KEY_IDS), the SAME gate as /admin/alerts. The key is accepted ONLY
+ * as the `X-Morscan-Key` header, never as a query param (a URL credential lands in
+ * access logs, history and Referer headers). The HTML page carries no data and no
+ * key: it asks the operator for the key, keeps it in the tab's sessionStorage, and
+ * sends it as the header on its fetch to the JSON API.
  */
 
 import type { Env } from "../types";
@@ -29,16 +30,29 @@ const HTML_HEADERS = {
 const DEFAULT_LIMIT = 200;
 const MAX_LIMIT = 1000;
 
-/** Read the admin key from header or query and confirm it is an admin identity. */
-async function adminAuthed(
-	request: Request,
-	url: URL,
-	env: Env,
-): Promise<{ ok: boolean; key: string }> {
-	const key = request.headers.get("X-Morscan-Key") || url.searchParams.get("key") || "";
-	if (!key) return { ok: false, key: "" };
+/** Confirm the `X-Morscan-Key` header carries an admin identity. Header only. */
+async function adminAuthed(request: Request, env: Env): Promise<boolean> {
+	const key = request.headers.get("X-Morscan-Key") || "";
+	if (!key) return false;
 	const auth = await validateKey(key, env);
-	return { ok: isAdminAuth(auth, env), key };
+	return isAdminAuth(auth, env);
+}
+
+/**
+ * The admin key is never read from the URL: a query credential lands in edge
+ * access logs, browser history, proxy logs and the Referer of any outbound
+ * navigation. A request that carries one is refused before the key is looked
+ * at, so the habit does not silently keep working.
+ */
+function refuseKeyInUrl(url: URL): Response | null {
+	if (!url.searchParams.has("key")) return null;
+	return new Response(
+		JSON.stringify({
+			error:
+				"The admin key is not accepted in the URL. Send it as the X-Morscan-Key header, or open the page without ?key= and enter it there.",
+		}),
+		{ status: 400, headers: JSON_HEADERS },
+	);
 }
 
 function unauthorized(): Response {
@@ -55,14 +69,6 @@ function clampInt(raw: string | null, dflt: number, min: number, max: number): n
 	return Math.max(min, Math.min(max, n));
 }
 
-function escapeJs(s: string): string {
-	return s
-		.replace(/\\/g, "\\\\")
-		.replace(/'/g, "\\'")
-		.replace(/</g, "\\x3c")
-		.replace(/\r?\n/g, "");
-}
-
 export async function handleAdminNotifyRoutes(
 	path: string,
 	request: Request,
@@ -71,8 +77,9 @@ export async function handleAdminNotifyRoutes(
 ): Promise<Response | null> {
 	// JSON: the launch-list captures, newest first, with paging.
 	if (path === "/api/admin/notify" && request.method === "GET") {
-		const gate = await adminAuthed(request, url, env);
-		if (!gate.ok) return unauthorized();
+		const refused = refuseKeyInUrl(url);
+		if (refused) return refused;
+		if (!(await adminAuthed(request, env))) return unauthorized();
 
 		const limit = clampInt(url.searchParams.get("limit"), DEFAULT_LIMIT, 1, MAX_LIMIT);
 		const offset = clampInt(
@@ -112,16 +119,18 @@ export async function handleAdminNotifyRoutes(
 	}
 
 	// HTML: a small operator view of the same list (MorScan-side convenience).
+	// The shell holds no data and no key; the emails come from the header-gated
+	// JSON door above.
 	if (path === "/admin/notify" && request.method === "GET") {
-		const gate = await adminAuthed(request, url, env);
-		if (!gate.ok) return unauthorized();
-		return new Response(renderNotifyPage(gate.key), { headers: HTML_HEADERS });
+		const refused = refuseKeyInUrl(url);
+		if (refused) return refused;
+		return new Response(renderNotifyPage(), { headers: HTML_HEADERS });
 	}
 
 	return null;
 }
 
-function renderNotifyPage(adminKey: string): string {
+function renderNotifyPage(): string {
 	return `<!doctype html>
 <html lang="en">
 <head>
@@ -152,6 +161,9 @@ function renderNotifyPage(adminKey: string): string {
   td.src { color: var(--muted); }
   .empty { color: var(--muted); padding: 28px 0; text-align: center; }
   .table-scroll { overflow-x: auto; border: 1px solid var(--border); border-radius: 8px; background: var(--panel); }
+  .keybar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 16px; }
+  .keybar input { font-family: var(--mono); font-size: 13px; background: var(--panel); color: var(--text); border: 1px solid var(--border); border-radius: 6px; padding: 8px 10px; min-width: 320px; }
+  .keybar .hint { color: var(--muted); font-size: 12px; }
 </style>
 </head>
 <body>
@@ -160,6 +172,12 @@ function renderNotifyPage(adminKey: string): string {
     <h1>MorScan Waitlist</h1>
     <span class="sub">Emails captured by the coming-soon page (POST /notify). Admin-only; these are private.</span>
   </header>
+  <form class="keybar" id="keyform" autocomplete="off">
+    <input type="password" id="key" placeholder="Admin key (X-Morscan-Key)" aria-label="Admin key">
+    <button type="submit">Use key</button>
+    <button type="button" id="forget">Forget</button>
+    <span class="hint">Held in this tab only; sent as a header, never in the URL.</span>
+  </form>
   <div class="bar">
     <button id="refresh">Refresh</button>
     <span class="count" id="count"></span>
@@ -174,9 +192,20 @@ function renderNotifyPage(adminKey: string): string {
   </div>
 </div>
 <script>
-  const KEY = '${escapeJs(adminKey)}';
-  const H = { 'X-Morscan-Key': KEY };
+  const STORE = 'morscan_admin_key';
+  let KEY = '';
+  try { KEY = sessionStorage.getItem(STORE) || ''; } catch (e) {}
+  const H = () => ({ 'X-Morscan-Key': KEY });
   const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+  function needKey() {
+    document.getElementById('rows').innerHTML = '<tr><td colspan="3" class="empty">Enter the admin key above to load the list.</td></tr>';
+    document.getElementById('count').textContent = '';
+  }
+  function setKey(k) {
+    KEY = k || '';
+    try { if (KEY) sessionStorage.setItem(STORE, KEY); else sessionStorage.removeItem(STORE); } catch (e) {}
+  }
 
   function renderRows(captures) {
     const tb = document.getElementById('rows');
@@ -191,8 +220,10 @@ function renderNotifyPage(adminKey: string): string {
   }
 
   async function load() {
+    if (!KEY) { needKey(); return; }
     try {
-      const r = await fetch('/api/admin/notify', { headers: H });
+      const r = await fetch('/api/admin/notify', { headers: H() });
+      if (r.status === 401) { setKey(''); needKey(); document.getElementById('count').textContent = 'That key is not an admin key.'; return; }
       const d = await r.json();
       document.getElementById('count').textContent = (d.total || 0) + ' total';
       renderRows(d.captures);
@@ -201,6 +232,13 @@ function renderNotifyPage(adminKey: string): string {
     }
   }
 
+  document.getElementById('keyform').addEventListener('submit', (ev) => {
+    ev.preventDefault();
+    const el = document.getElementById('key');
+    setKey(el.value.trim()); el.value = '';
+    load();
+  });
+  document.getElementById('forget').addEventListener('click', () => { setKey(''); needKey(); });
   document.getElementById('refresh').addEventListener('click', load);
   load();
 </script>

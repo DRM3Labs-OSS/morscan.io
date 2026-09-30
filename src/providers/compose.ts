@@ -264,7 +264,7 @@ export function createMorscanApp(options: MorscanAppOptions = {}): MorscanApp {
 					// Header only, never ?key=: a URL credential lands in access logs, browser
 					// history and Referer headers. Every caller of this API surface (the DRM3
 					// admin console, operator curl) can set a header; the browser-viewed admin
-					// pages (alerts, notify) keep their own documented query fallback.
+					// pages (alerts, notify) are keyless shells whose fetches set the same header.
 					const adminKey = request.headers.get("X-Morscan-Key") || "";
 					if (adminKey) {
 						const adminAuth = await validateKey(adminKey, env);
@@ -277,13 +277,17 @@ export function createMorscanApp(options: MorscanAppOptions = {}): MorscanApp {
 
 				return handle404();
 			} catch (e: unknown) {
+				// The exception text names tables, columns, bind counts and upstream
+				// status lines: it belongs in the log, not on a public origin. The
+				// caller gets a request id that finds the log line.
 				const msg = e instanceof Error ? e.message : String(e);
 				const stack = e instanceof Error ? e.stack : undefined;
-				console.error("Request error:", msg, stack);
+				const requestId = request.headers.get("cf-ray") || crypto.randomUUID();
+				console.error(`Request error [${requestId}] ${url.pathname}:`, msg, stack);
 				return new Response(
 					JSON.stringify({
 						error: "Internal server error",
-						detail: msg,
+						requestId,
 						path: url.pathname,
 					}),
 					{ status: 500, headers: HEADERS },

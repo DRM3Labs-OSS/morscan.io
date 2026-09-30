@@ -117,8 +117,9 @@
     } catch (e) {}
 
     // ── Wallet connect: (injected OR WalletConnect) -> challenge -> personal_sign -> verify ──
-    // The server verifies a plain EIP-191 personal_sign of the challenge; it does
-    // not care about transport. So the same challenge/verify flow runs whether the
+    // The server verifies an EIP-191 personal_sign of an EIP-4361 (Sign-In with
+    // Ethereum) message minted for THIS host and THIS wallet; it does not care
+    // about transport. So the same challenge/verify flow runs whether the
     // signature comes from an injected provider (window.ethereum: desktop
     // extension or in-wallet browser) or from a WalletConnect session (mobile
     // browser deep-links to the wallet app; desktop shows a QR modal).
@@ -189,7 +190,7 @@
     // Shared challenge -> personal_sign -> verify, given any EIP-1193 provider.
     function signChallengeAndVerify(provider, addr) {
       var challenge = null;
-      return fetch('/console/wallet/challenge').then(function(r){ return r.json(); }).then(function(ch){
+      return fetch('/console/wallet/challenge?wallet=' + encodeURIComponent(addr)).then(function(r){ return r.json(); }).then(function(ch){
         challenge = ch;
         if (!ch || !ch.nonce) throw new Error((ch && ch.error) || 'Could not get a challenge');
         setConnectMsg('Sign the verification message in your wallet...', true);

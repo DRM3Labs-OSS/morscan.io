@@ -423,15 +423,20 @@ export async function handleApiRoutes(
 		if (path === "/mor/v1/disputes") return await handleDisputes(env);
 		if (path.match(/^\/mor\/v1\/reputation\/0x[0-9a-fA-F]{40}$/))
 			return await handleProviderReputation(env, path.split("/").pop() || "");
-		// BQ admin: status + backfill (Phase 1 of D1->BQ tier migration).
-		if (path === "/mor/v1/bq/status") return await analytics.bqStatus(env, HEADERS);
-		if (path === "/mor/v1/bq/backfill" && request.method === "POST") {
+		// BQ admin: status + backfill (Phase 1 of D1->BQ tier migration). Both
+		// admin-gated: status names the project, the dataset and whether a
+		// service-account key is loaded, which is operator detail, not explorer data.
+		if (
+			path === "/mor/v1/bq/status" ||
+			(path === "/mor/v1/bq/backfill" && request.method === "POST")
+		) {
 			if (!admin.isAdmin(auth, env)) {
 				return new Response(JSON.stringify({ error: "admin key required" }), {
 					status: 403,
 					headers: HEADERS,
 				});
 			}
+			if (path === "/mor/v1/bq/status") return await analytics.bqStatus(env, HEADERS);
 			return await analytics.bqBackfill(request, env, HEADERS);
 		}
 		if (path === "/mor/v1/upgrades") {

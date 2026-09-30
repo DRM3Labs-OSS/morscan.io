@@ -112,7 +112,7 @@ export function handleOauthProtectedResource(): Response {
 			also_accepted: "Authorization: Bearer <key>",
 			registration: `${b}/console`,
 			registration_method:
-				"Sign a one-time challenge message with an EVM wallet (EIP-191 personal_sign). No email, no signup, no payment. Works fully headless over plain HTTP: GET /console/wallet/challenge, sign the returned message, POST { wallet, signature, nonce } to /console/wallet/verify - the response includes the API key. Humans can do the same via the /console UI (WalletConnect or injected wallet). See /auth.md for the recipe.",
+				"Sign a one-time Sign-In with Ethereum (EIP-4361) message with an EVM wallet (EIP-191 personal_sign). No email, no signup, no payment. Works fully headless over plain HTTP: GET /console/wallet/challenge?wallet=0x<your address>, sign the returned message with that wallet, POST { wallet, signature, nonce } to /console/wallet/verify - the response includes the API key. Humans can do the same via the /console UI (WalletConnect or injected wallet). See /auth.md for the recipe.",
 			docs: [`${b}/auth.md`, `${b}/llms.txt`],
 		},
 	};
@@ -140,7 +140,7 @@ export function handleOauthAuthServer(): Response {
 		agent_auth: {
 			register_uri: `${b}/console/wallet/challenge`,
 			registration_flow:
-				"GET /console/wallet/challenge -> sign the returned message with EIP-191 personal_sign -> POST { wallet, signature, nonce } to /console/wallet/verify. The response includes the API key. No email, no signup, no payment.",
+				"GET /console/wallet/challenge?wallet=0x<your address> -> sign the returned message (EIP-4361, bound to this host and that wallet) with EIP-191 personal_sign -> POST { wallet, signature, nonce } to /console/wallet/verify. The response includes the API key. No email, no signup, no payment.",
 			identity_types_supported: ["evm_wallet"],
 			credential_types_supported: ["api_key", "x402_payment"],
 			credential_header: "X-Morscan-Key",
@@ -179,12 +179,14 @@ payment. There are two ways in; both mint the same key (format
 
 The mint endpoints are plain HTTP. Three steps:
 
-1. \`GET ${baseUrl()}/console/wallet/challenge\` returns
-   \`{ "nonce": "...", "message": "..." }\`. The nonce is single-use and
-   expires in 5 minutes.
-2. Sign the returned \`message\` string with EIP-191 \`personal_sign\` using
-   your EVM private key. The signature is the standard 65-byte \`r||s||v\` hex
-   (v = 27 or 28).
+1. \`GET ${baseUrl()}/console/wallet/challenge?wallet=0x<your address>\` returns
+   \`{ "nonce": "...", "message": "...", "wallet": "0x..." }\`. The message is
+   a Sign-In with Ethereum (EIP-4361) message naming this host, your wallet,
+   the nonce and a 5-minute window; the nonce is single-use and is bound to
+   that wallet.
+2. Sign the returned \`message\` string, byte for byte, with EIP-191
+   \`personal_sign\` using that wallet's private key. The signature is the
+   standard 65-byte \`r||s||v\` hex (v = 27 or 28).
 3. \`POST ${baseUrl()}/console/wallet/verify\` with JSON
    \`{ "wallet": "0x...", "signature": "0x...", "nonce": "..." }\`. On first
    connect the response includes your \`key\` (\`mor_...\`) plus your \`caps\`
@@ -193,8 +195,8 @@ The mint endpoints are plain HTTP. Three steps:
    \`GET /console/wallet/status\` using that cookie.
 
 \`\`\`bash
-# 1. challenge
-CHAL=$(curl -s ${baseUrl()}/console/wallet/challenge)
+# 1. challenge (minted for your wallet on this host)
+CHAL=$(curl -s "${baseUrl()}/console/wallet/challenge?wallet=$WALLET")
 NONCE=$(echo "$CHAL" | jq -r .nonce)
 MSG=$(echo "$CHAL" | jq -r .message)
 # 2. sign $MSG with your wallet key (any EVM lib), e.g. in JS:

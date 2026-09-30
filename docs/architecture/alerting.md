@@ -88,8 +88,9 @@ Fire a real alert through every configured channel:
 POST /api/admin/alerts/test
 ```
 
-Admin-gated (same gate as `/admin/alerts`; the admin key arrives via the console
-session). It sends an `info` / `test` alert and returns each channel's send
+Admin-gated (same gate as `/admin/alerts`; the admin key arrives as the
+`X-Morscan-Key` header, never as a query param). It sends an `info` / `test`
+alert and returns each channel's send
 result, so you can confirm Telegram / Slack / Discord / webhook are actually
 reachable before you rely on them.
 

@@ -230,8 +230,10 @@ not every tick), records the alert to `/admin/alerts`, then best-effort fans
 out to whichever channels you configured. A failing or unset channel never
 blocks the others or the sync loop.
 
-Open `https://<your-worker>/admin/alerts?key=<your-admin-key>` and click
-**Send test alert** to verify your wiring end to end.
+Open `https://<your-worker>/admin/alerts`, enter your admin key in the field at
+the top (it is held in that browser tab only and sent as the `X-Morscan-Key`
+header; the key is never accepted in the URL), and click **Send test alert** to
+verify your wiring end to end.
 
 ## Troubleshooting
 

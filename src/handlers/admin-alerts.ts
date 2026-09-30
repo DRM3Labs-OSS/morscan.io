@@ -7,10 +7,12 @@
  *                                    channel (admin-key gated)
  *
  * Gating reuses the existing admin identity: the `admin` api_keys row (or any
- * id in MORSCAN_ADMIN_KEY_IDS), same as /sync/* and /mor/v1/bq/*. The page
- * accepts the key via the `X-Morscan-Key` header OR a `?key=` query param (a
- * browser cannot set a custom header on navigation); the validated key is then
- * injected into the page so its fetches to the JSON API carry the header.
+ * id in MORSCAN_ADMIN_KEY_IDS), same as /sync/* and /mor/v1/bq/*. The key is
+ * accepted ONLY as the `X-Morscan-Key` header, never as a query param (a URL
+ * credential lands in access logs, history and Referer headers). The HTML page
+ * itself carries no data and no key: it is a shell that asks the operator for
+ * the key, keeps it in the tab's sessionStorage, and sends it as the header on
+ * its fetches to the JSON API.
  */
 
 import type { Env } from "../types";
@@ -24,16 +26,29 @@ const HTML_HEADERS = {
 };
 const JSON_HEADERS = { "Content-Type": "application/json", "Cache-Control": "no-store" };
 
-/** Read the admin key from header or query and confirm it is an admin identity. */
-async function adminAuthed(
-	request: Request,
-	url: URL,
-	env: Env,
-): Promise<{ ok: boolean; key: string }> {
-	const key = request.headers.get("X-Morscan-Key") || url.searchParams.get("key") || "";
-	if (!key) return { ok: false, key: "" };
+/** Confirm the `X-Morscan-Key` header carries an admin identity. Header only. */
+async function adminAuthed(request: Request, env: Env): Promise<boolean> {
+	const key = request.headers.get("X-Morscan-Key") || "";
+	if (!key) return false;
 	const auth = await validateKey(key, env);
-	return { ok: isAdminAuth(auth, env), key };
+	return isAdminAuth(auth, env);
+}
+
+/**
+ * The admin key is never read from the URL: a query credential lands in edge
+ * access logs, browser history, proxy logs and the Referer of any outbound
+ * navigation. A request that carries one is refused before the key is looked
+ * at, so the habit does not silently keep working.
+ */
+function refuseKeyInUrl(url: URL): Response | null {
+	if (!url.searchParams.has("key")) return null;
+	return new Response(
+		JSON.stringify({
+			error:
+				"The admin key is not accepted in the URL. Send it as the X-Morscan-Key header, or open the page without ?key= and enter it there.",
+		}),
+		{ status: 400, headers: JSON_HEADERS },
+	);
 }
 
 function unauthorized(): Response {
@@ -41,14 +56,6 @@ function unauthorized(): Response {
 		status: 401,
 		headers: JSON_HEADERS,
 	});
-}
-
-function escapeJs(s: string): string {
-	return s
-		.replace(/\\/g, "\\\\")
-		.replace(/'/g, "\\'")
-		.replace(/</g, "\\x3c")
-		.replace(/\r?\n/g, "");
 }
 
 export async function handleAdminAlertsRoutes(
@@ -59,8 +66,9 @@ export async function handleAdminAlertsRoutes(
 ): Promise<Response | null> {
 	// JSON: recent alerts
 	if (path === "/api/admin/alerts" && request.method === "GET") {
-		const gate = await adminAuthed(request, url, env);
-		if (!gate.ok) return unauthorized();
+		const refused = refuseKeyInUrl(url);
+		if (refused) return refused;
+		if (!(await adminAuthed(request, env))) return unauthorized();
 		try {
 			const rows = await selectRecentAlerts(env.DB);
 			return new Response(
@@ -81,8 +89,9 @@ export async function handleAdminAlertsRoutes(
 
 	// JSON: fire a test alert through every configured channel
 	if (path === "/api/admin/alerts/test" && request.method === "POST") {
-		const gate = await adminAuthed(request, url, env);
-		if (!gate.ok) return unauthorized();
+		const refused = refuseKeyInUrl(url);
+		if (refused) return refused;
+		if (!(await adminAuthed(request, env))) return unauthorized();
 		const result = await notifyAlert(
 			env,
 			{
@@ -97,17 +106,18 @@ export async function handleAdminAlertsRoutes(
 		});
 	}
 
-	// HTML: the admin alert area
+	// HTML: the admin alert area. The shell holds no data and no key; every
+	// number on it comes from the header-gated JSON door above.
 	if (path === "/admin/alerts" && request.method === "GET") {
-		const gate = await adminAuthed(request, url, env);
-		if (!gate.ok) return unauthorized();
-		return new Response(renderAlertsPage(gate.key), { headers: HTML_HEADERS });
+		const refused = refuseKeyInUrl(url);
+		if (refused) return refused;
+		return new Response(renderAlertsPage(), { headers: HTML_HEADERS });
 	}
 
 	return null;
 }
 
-function renderAlertsPage(adminKey: string): string {
+function renderAlertsPage(): string {
 	return `<!doctype html>
 <html lang="en">
 <head>
@@ -149,6 +159,9 @@ function renderAlertsPage(adminKey: string): string {
   .resolved { color: var(--green); }
   .empty { color: var(--muted); padding: 28px 0; text-align: center; }
   .table-scroll { overflow-x: auto; border: 1px solid var(--border); border-radius: 8px; background: var(--panel); }
+  .keybar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 16px; }
+  .keybar input { font-family: var(--mono); font-size: 13px; background: var(--panel); color: var(--text); border: 1px solid var(--border); border-radius: 6px; padding: 8px 10px; min-width: 320px; }
+  .keybar .hint { color: var(--muted); font-size: 12px; }
 </style>
 </head>
 <body>
@@ -157,6 +170,13 @@ function renderAlertsPage(adminKey: string): string {
     <h1>MorScan Alerts</h1>
     <span class="sub">Operational alert log. Records here always; fans out to the channels you configure via env vars.</span>
   </header>
+
+  <form class="keybar" id="keyform" autocomplete="off">
+    <input type="password" id="key" placeholder="Admin key (X-Morscan-Key)" aria-label="Admin key">
+    <button type="submit">Use key</button>
+    <button type="button" id="forget">Forget</button>
+    <span class="hint">Held in this tab only; sent as a header, never in the URL.</span>
+  </form>
 
   <div class="bar">
     <button id="test">Send test alert</button>
@@ -176,10 +196,21 @@ function renderAlertsPage(adminKey: string): string {
 </div>
 
 <script>
-  const KEY = '${escapeJs(adminKey)}';
-  const H = { 'X-Morscan-Key': KEY };
+  const STORE = 'morscan_admin_key';
+  let KEY = '';
+  try { KEY = sessionStorage.getItem(STORE) || ''; } catch (e) {}
+  const H = () => ({ 'X-Morscan-Key': KEY });
   const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
   const fmt = (ts) => { try { return new Date(Number(ts)).toISOString().replace('T',' ').replace(/\\..+/,''); } catch { return String(ts); } };
+
+  function needKey() {
+    document.getElementById('rows').innerHTML = '<tr><td colspan="5" class="empty">Enter the admin key above to load the alert log.</td></tr>';
+    document.getElementById('result').textContent = '';
+  }
+  function setKey(k) {
+    KEY = k || '';
+    try { if (KEY) sessionStorage.setItem(STORE, KEY); else sessionStorage.removeItem(STORE); } catch (e) {}
+  }
 
   function renderChips(ch) {
     const names = { telegram: 'Telegram', slack: 'Slack', discord: 'Discord', webhook: 'Webhook' };
@@ -206,8 +237,10 @@ function renderAlertsPage(adminKey: string): string {
   }
 
   async function load() {
+    if (!KEY) { needKey(); return; }
     try {
-      const r = await fetch('/api/admin/alerts', { headers: H });
+      const r = await fetch('/api/admin/alerts', { headers: H() });
+      if (r.status === 401) { setKey(''); needKey(); document.getElementById('result').textContent = 'That key is not an admin key.'; return; }
       const d = await r.json();
       renderChips(d.channels);
       renderRows(d.alerts);
@@ -219,9 +252,11 @@ function renderAlertsPage(adminKey: string): string {
   async function sendTest() {
     const btn = document.getElementById('test');
     const out = document.getElementById('result');
+    if (!KEY) { needKey(); return; }
     btn.disabled = true; out.textContent = 'Firing test alert...';
     try {
-      const r = await fetch('/api/admin/alerts/test', { method: 'POST', headers: H });
+      const r = await fetch('/api/admin/alerts/test', { method: 'POST', headers: H() });
+      if (r.status === 401) { setKey(''); needKey(); out.textContent = 'That key is not an admin key.'; return; }
       const d = await r.json();
       const chans = (d.channels || []);
       if (!chans.length) out.textContent = 'Recorded to the alert log. No external channels configured - set ALERT_* env vars to get paged.';
@@ -234,6 +269,13 @@ function renderAlertsPage(adminKey: string): string {
     }
   }
 
+  document.getElementById('keyform').addEventListener('submit', (ev) => {
+    ev.preventDefault();
+    const el = document.getElementById('key');
+    setKey(el.value.trim()); el.value = '';
+    load();
+  });
+  document.getElementById('forget').addEventListener('click', () => { setKey(''); needKey(); });
   document.getElementById('test').addEventListener('click', sendTest);
   document.getElementById('refresh').addEventListener('click', load);
   load();

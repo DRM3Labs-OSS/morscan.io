@@ -19,7 +19,8 @@ BigQuery outage never touches D1 sync.
    `BIGQUERY_DATASET_ID` in `wrangler.toml`.
 4. Push the service account JSON key:
    `npx wrangler secret put BIGQUERY_SERVICE_ACCOUNT_KEY`.
-5. Deploy, then verify with `GET /mor/v1/bq/status`, which returns
+5. Deploy, then verify with `GET /mor/v1/bq/status` (admin key, same gate as
+   the backfill), which returns
    `{ enabled, hasServiceAccountKey, projectId, datasetId }`.
 
 Flip `BIGQUERY_ENABLED` back to `"false"` to pause all dual-write.

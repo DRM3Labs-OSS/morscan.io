@@ -67,6 +67,22 @@ export function eip191Digest(message: string): Uint8Array {
 	return keccak256(buf);
 }
 
+/**
+ * EIP-55 mixed-case checksum encoding of an address. EIP-4361 (Sign-In with
+ * Ethereum) messages carry the address in this form, and wallets that parse
+ * the message expect it.
+ */
+export function toChecksumAddress(address: string): string {
+	const lower = address.toLowerCase().replace(/^0x/, "");
+	const hash = bytesToHex(keccak256(new TextEncoder().encode(lower)));
+	let out = "0x";
+	for (let i = 0; i < lower.length; i++) {
+		const c = lower[i];
+		out += parseInt(hash[i], 16) >= 8 ? c.toUpperCase() : c;
+	}
+	return out;
+}
+
 /** Decode a hex string (with or without 0x prefix) to bytes. */
 export function hexToBytes(hex: string): Uint8Array {
 	const h = hex.startsWith("0x") ? hex.slice(2) : hex;

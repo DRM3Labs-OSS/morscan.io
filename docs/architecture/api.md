@@ -115,7 +115,7 @@ See [`builder-plane.md`](builder-plane.md).
 
 | Endpoint | Description |
 |----------|-------------|
-| `GET /mor/v1/bq/status` | BigQuery dual-write status |
+| `GET /mor/v1/bq/status` | BigQuery dual-write status (admin key) |
 | `POST /mor/v1/bq/backfill` | BigQuery backfill (admin key) |
 
 ## Console & session (`src/routes/auth/`)
@@ -123,7 +123,7 @@ See [`builder-plane.md`](builder-plane.md).
 | Endpoint | Description |
 |----------|-------------|
 | `GET /console` | Wallet-first sign-in + API-key management page |
-| `GET /console/wallet/challenge` | Mint a single-use sign-in nonce |
+| `GET /console/wallet/challenge?wallet=0x..` | Mint a single-use Sign-In with Ethereum (EIP-4361) message bound to this host and that wallet |
 | `POST /console/wallet/verify` | Verify the signed challenge; creates the session and a free API key |
 | `GET /console/wallet/status`, `POST /console/wallet/disconnect` | Session probe / sign-out |
 | `POST /console/key`, `POST /console/key/revoke` | Create/rotate or delete the identity's key |
