@@ -58,7 +58,7 @@ flowchart TD
 - [`alerting.md`](alerting.md) - operational alerts: deduped stall/RPC detection, the `alerts` table plus `/admin/alerts`, and the optional Telegram/Slack/Discord/webhook fan-out.
 
 ### Contributing
-- [`../../AGENTS.md`](../../AGENTS.md) - the repo as built: layout, gates, conventions.
+- [`../../CONTRIBUTING.md`](../../CONTRIBUTING.md) - how to contribute: issues, PRs, gates.
 
 ### Provenance
 - [`provenance.md`](provenance.md) - per-row receipts, Merkle chaining, service attestation, the `/.well-known/morscan-keys.json` key-discovery endpoint, and verification.
