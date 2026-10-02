@@ -4,6 +4,25 @@ Releases are tagged vX.Y.Z on GitHub.
 
 ## Unreleased
 
+## v2.50.10 - 2026-10-02 - key and sign-in POSTs need this origin
+
+Security fixes from the fleet gap audit of 2026-10-02.
+
+- Cookie-authenticated POSTs (`/console/key`, `/console/key/revoke`,
+  `/console/wallet/verify`, `/console/wallet/disconnect`, `/login`) now refuse
+  a request whose `Sec-Fetch-Site` is anything but `same-origin`, or whose
+  `Origin` is not this origin, with 403 before the handler runs. The session
+  cookie is SameSite=Lax, which let a script on a sibling `*.morscan.io` host
+  rotate or delete a signed-in user's API key. Callers that send neither
+  header (curl, agents on the `/auth.md` recipe) are unchanged.
+- An SSO launch token (`/sso/callback?token=`) is now single use through an
+  atomic D1 claim (`INSERT OR IGNORE` into `sso_jti_seen`, created on first
+  use). Before, the guard was a get-then-put on KV, which a concurrent or
+  cross-PoP replay could pass inside the token's 60 seconds, and with no
+  `NONCE_CACHE` binding there was no guard at all. A D1 failure now refuses
+  the sign-in instead of letting it through. `NONCE_CACHE` no longer plays a
+  part in SSO.
+
 ## v2.50.9 - 2026-09-30 - the sign-in message names the site
 
 Security fixes from the fleet code audit of 2026-09-30. No API shape changes

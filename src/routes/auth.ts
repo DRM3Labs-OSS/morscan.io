@@ -11,6 +11,7 @@
  */
 
 import type { Env } from "../types";
+import { isSameOriginPost, JSON_NO_STORE } from "./auth/helpers";
 import { handleSsoRoutes } from "./auth/sso";
 import { handleWalletRoutes } from "./auth/wallet";
 import { handleConsoleRoutes } from "./auth/console";
@@ -23,6 +24,19 @@ export async function handleAuthRoutes(
 	request: Request,
 	env: Env,
 ): Promise<Response | null> {
+	// Cookie-authenticated POSTs (key create/rotate/revoke, wallet verify and
+	// disconnect, API-key login) must come from this origin: SameSite=Lax alone
+	// lets a sibling *.morscan.io host ride the session cookie.
+	if (
+		method === "POST" &&
+		(path === "/login" || path.startsWith("/console/")) &&
+		!isSameOriginPost(request, url)
+	) {
+		return new Response(JSON.stringify({ error: "Cross-origin request refused" }), {
+			status: 403,
+			headers: JSON_NO_STORE,
+		});
+	}
 	// Order matters only for readability; the path/method guards are disjoint.
 	// Wallet routes are checked before console so /console/wallet/* never falls
 	// through to the /console page handler.

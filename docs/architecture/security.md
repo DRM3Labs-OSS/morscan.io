@@ -1,6 +1,6 @@
 # Security Model
 
-> **Status: LIVE** - 2026-09-07. Describes the auth model and hardening as deployed.
+> **Status: LIVE** - 2026-10-02. Describes the auth model and hardening as deployed.
 
 MorScan authenticates three kinds of caller:
 
@@ -68,6 +68,16 @@ timing-safe key comparison. See [`rate-limiting.md`](rate-limiting.md).
 - The JWT is signed with `MORSCAN_JWT_SECRET` (a Worker secret, **required** -
   session creation fails without it; no default = no auth bypass).
 - Cookie: HttpOnly, Secure, SameSite=Lax, 24h expiry.
+- Same-origin POSTs: SameSite=Lax still sends the cookie from a sibling
+  `*.morscan.io` host, so every cookie-authenticated POST (`/console/*`,
+  `/login`) is refused with 403 when `Sec-Fetch-Site` is present and not
+  `same-origin`, or when `Origin` is present and not this origin
+  (`isSameOriginPost`, `src/routes/auth/helpers.ts`). A caller with neither
+  header is not a browser and passes.
+- SSO launch tokens (`GET /sso/callback?token=`) are single use: the token's
+  `jti` is claimed with `INSERT OR IGNORE` into the D1 table `sso_jti_seen`
+  (`claimSsoJti`, `src/db/auth.ts`), which is atomic across PoPs and races.
+  A replay, or a D1 error, gets no session.
 - Open-redirect protection: `safeRedirect()` only accepts relative-path return
   URLs (must start with `/`, must not start with `//`).
 

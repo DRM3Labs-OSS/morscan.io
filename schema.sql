@@ -164,3 +164,9 @@ CREATE TABLE IF NOT EXISTS x402_payments (
   UNIQUE(payer, nonce)
 );
 CREATE INDEX IF NOT EXISTS idx_x402_payments_payer_status ON x402_payments(payer, status);
+
+-- SSO launch-token single use (src/db/auth.ts claimSsoJti): one row per
+-- accepted /sso/callback token id, kept until a minute past the token's exp.
+-- INSERT OR IGNORE on the primary key is the atomic replay gate. Also created
+-- at runtime on first use, so existing databases need no migration.
+CREATE TABLE IF NOT EXISTS sso_jti_seen (jti TEXT PRIMARY KEY, exp INTEGER NOT NULL);

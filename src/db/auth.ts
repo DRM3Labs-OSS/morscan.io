@@ -339,3 +339,38 @@ export async function listWalletKeysWithStakes(
 		.all<WalletKeyStakeRow>();
 	return r.results ?? [];
 }
+
+// ─── SSO launch-token single use ───
+
+/** Seen launch-token ids, kept until the token's own expiry has passed. */
+const SSO_JTI_DDL =
+	"CREATE TABLE IF NOT EXISTS sso_jti_seen (jti TEXT PRIMARY KEY, exp INTEGER NOT NULL)";
+
+/**
+ * Claim an SSO launch token's jti. D1 is single-writer, so INSERT OR IGNORE on
+ * the primary key is atomic: exactly one caller sees `changes === 1`, every
+ * replay (same PoP, another PoP, or a concurrent race) sees 0. The table is
+ * created on first use, and rows whose token expired more than a minute ago are
+ * swept in the same batch. Returns true only for the first claim; a D1 error
+ * returns false (fail closed: no proof of single use, no session).
+ */
+export async function claimSsoJti(
+	db: D1Database,
+	jti: string,
+	exp: number,
+): Promise<boolean> {
+	try {
+		const now = Math.floor(Date.now() / 1000);
+		const results = await db.batch([
+			db.prepare(SSO_JTI_DDL),
+			db.prepare("DELETE FROM sso_jti_seen WHERE exp < ?").bind(now - 60),
+			db
+				.prepare("INSERT OR IGNORE INTO sso_jti_seen (jti, exp) VALUES (?, ?)")
+				.bind(jti, exp),
+		]);
+		return (results[2]?.meta?.changes ?? 0) === 1;
+	} catch (e) {
+		console.error("sso jti claim failed:", e instanceof Error ? e.message : String(e));
+		return false;
+	}
+}

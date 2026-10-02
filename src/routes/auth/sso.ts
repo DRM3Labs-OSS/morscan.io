@@ -4,6 +4,7 @@
 
 import type { Env } from "../../types";
 import { verifyLaunchToken } from "../../utils/sso-launch";
+import { claimSsoJti } from "../../db/auth";
 import { jwtSecret } from "../../utils/auth";
 import { signJwt, sessionCookie } from "../../utils/jwt";
 
@@ -33,13 +34,14 @@ export async function handleSsoRoutes(
 		if (!appKey || !token) return toSignIn();
 		const claims = await verifyLaunchToken(appKey, token, appId);
 		if (!claims) return toSignIn();
-		// Single-use: reject a replayed jti within its lifetime (KV seen-set, TTL
-		// safely past the 60s token life). If KV is unavailable, the tight TTL and
-		// one-time URL remain the guard.
-		if (env.NONCE_CACHE) {
-			const seenKey = `sso_jti:${claims.jti}`;
-			if (await env.NONCE_CACHE.get(seenKey)) return toSignIn();
-			await env.NONCE_CACHE.put(seenKey, "1", { expirationTtl: 120 });
+		// Single-use: the jti is claimed atomically in D1 (INSERT OR IGNORE on
+		// its primary key). A replay, from any PoP or racing the first use, gets
+		// no session; a D1 failure also gets none (fail closed).
+		if (
+			typeof claims.jti !== "string" ||
+			!(await claimSsoJti(env.DB, claims.jti, claims.exp))
+		) {
+			return toSignIn();
 		}
 		let dest = "/console";
 		try {

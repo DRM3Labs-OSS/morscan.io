@@ -97,7 +97,7 @@ setup is in [getting-started.md](getting-started.md#3-create-the-database-and-ca
 |---------|-----|---------|
 | `DB` (D1) | R | The hot store: providers, bids, sessions, models, holders, economics, receipts, keys. |
 | `SYNC_COORDINATOR` (Durable Object) | R | Owns the single 5-second `eth_getLogs` sync loop. |
-| `NONCE_CACHE` (KV) | O | Best-effort wallet-sig / SSO replay dedup. Falls back to tight TTLs if absent. |
+| `NONCE_CACHE` (KV) | O | Best-effort wallet-sig replay dedup. Falls back to tight TTLs if absent. SSO single use is in D1, not here. |
 | `MORSCAN_CACHE` (KV) | O | API response cache to reduce D1 reads. |
 | `SNAPSHOT_BUCKET` (R2) | O | Signed marketplace CDN snapshot target. Writer no-ops without it. |
 | `RL_STANDARD` / `RL_STRICT` / `RL_LOW` (Rate limiters) | O | Durable rate limits. Fall back to per-isolate counters if absent. |

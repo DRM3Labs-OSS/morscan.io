@@ -67,3 +67,22 @@ function fmtCap(n: number): string {
 export function capsLine(caps: Caps): string {
 	return `${fmtCap(caps.burst)}/min &middot; ${fmtCap(caps.daily)}/day &middot; ${fmtCap(caps.monthly)}/mo`;
 }
+
+/**
+ * Same-origin gate for the cookie-authenticated sign-in and key POSTs
+ * (/console/*, /login). The session cookie is SameSite=Lax, which stops a
+ * cross-site form but not a sibling host on the same site (any *.morscan.io),
+ * so a POST must also prove it came from this origin. A browser always sends
+ * Sec-Fetch-Site (modern) or Origin (every browser on a POST); either one is
+ * checked when present, and a request that carries a value other than this
+ * origin is refused. A request with neither header is a non-browser caller
+ * (curl, an agent), which never holds a victim's cookie, so it passes.
+ * Returns true when the request may proceed.
+ */
+export function isSameOriginPost(request: Request, url: URL): boolean {
+	const site = request.headers.get("Sec-Fetch-Site");
+	if (site !== null) return site === "same-origin";
+	const origin = request.headers.get("Origin");
+	if (origin !== null) return origin === url.origin;
+	return true;
+}
