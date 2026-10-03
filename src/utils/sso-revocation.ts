@@ -5,7 +5,10 @@
  * The hub lists banned accounts at <SSO_HUB_URL>/api/sso/revocations; this gate
  * reads that list (cached REVOCATION_TTL_MS), and both the launch verify and every
  * read of an IdP (`user:`) session ask it. A banned account is refused inside the
- * cache window instead of at its session's expiry.
+ * cache window instead of at its session's expiry. A cutoff (a password reset or a
+ * "sign out everywhere" on the hub) refuses only what was issued before it: the
+ * launch token's `iat` at the callback, the session's `iat` on every read. The
+ * fresh sign-in after the cutoff is admitted.
  *
  * Every read proves this app to the hub: `X-DRM3-App: <SSO_APP_ID>` and a short
  * Bearer proof signed with SSO_APP_KEY (the key never leaves the worker).
@@ -49,11 +52,18 @@ export function revocationGate(env: Env): RevocationGate {
 	return memo.gate;
 }
 
-/** True iff a session keyId names an IdP account the hub has revoked. */
-export async function sessionRevoked(env: Env, keyId: string): Promise<boolean> {
+/**
+ * True iff a session keyId names an IdP account the hub has revoked: banned, or
+ * with a cutoff later than `iat` (the session's issue time, unix seconds).
+ */
+export async function sessionRevoked(
+	env: Env,
+	keyId: string,
+	iat: number,
+): Promise<boolean> {
 	if (!keyId.startsWith("user:")) return false;
 	try {
-		return await revocationGate(env).isRevoked(keyId.slice("user:".length));
+		return await revocationGate(env).isRevoked(keyId.slice("user:".length), iat);
 	} catch {
 		return false;
 	}

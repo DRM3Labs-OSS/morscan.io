@@ -4,6 +4,26 @@ Releases are tagged vX.Y.Z on GitHub.
 
 ## Unreleased
 
+## v2.50.12 - 2026-10-02 - a reset on the hub ends older sessions
+
+- The hub's revocation list can now carry a cutoff for an account as well as a
+  ban. A launch token or an IdP (`user:`) session issued before the cutoff is
+  refused; the sign-in after it is admitted. A password reset or a "sign out
+  everywhere" on the hub now ends MorScan sessions minted before it.
+- The vendored verifier (`src/vendor/drm3-sdk-sso.ts`) is re-synced to the
+  SDK's 0.6.0 gate, which reads both list shapes and checks the token's issue
+  time against the cutoff. A malformed cutoff is skipped, never read as a ban.
+
+## v2.50.11 - 2026-10-02 - SSO tokens name their audience, banned accounts are refused
+
+- `/sso/callback` requires the launch token's `aud` to be `SSO_APP_ID` and its
+  `iss` to be the hub host. A token addressed to another app, to none, or from
+  another issuer gets no session.
+- The token's subject is checked against the hub's revocation list, read with
+  this app's proof and cached 30 seconds. IdP (`user:`) sessions are checked on
+  every read, so a ban ends a live session inside that window. The list failing
+  to answer revokes nobody.
+
 ## v2.50.10 - 2026-10-02 - key and sign-in POSTs need this origin
 
 Security fixes from the fleet gap audit of 2026-10-02.

@@ -30,12 +30,13 @@ export function jwtSecret(env: Env): string {
 /**
  * Verify a session cookie: signature and expiry, then, for an IdP (`user:`)
  * session, the hub's revocation feed. A banned account's session is refused
- * inside the feed's cache window, not at the cookie's 24-hour expiry.
+ * inside the feed's cache window, not at the cookie's 24-hour expiry, and so is
+ * a session issued before the account's cutoff (a reset on the hub).
  */
 export async function verifySession(token: string, env: Env): Promise<JwtPayload | null> {
 	const payload = await verifyJwt(token, jwtSecret(env));
 	if (!payload) return null;
-	if (await sessionRevoked(env, payload.keyId)) return null;
+	if (await sessionRevoked(env, payload.keyId, payload.iat)) return null;
 	return payload;
 }
 

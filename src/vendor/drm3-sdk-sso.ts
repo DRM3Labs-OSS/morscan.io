@@ -1,8 +1,9 @@
 /**
- * VENDORED: @drm3/sdk/sso at v0.5.2 (source commit
- * f63a52013fd140936e58ca39fe2e6372dff71a12): src/sso/jwt.ts (verifySsoToken, mintSsoToken,
+ * VENDORED: @drm3/sdk/sso at v0.6.0 (source commit
+ * d4447b2209f2facf290c815b75a545ddf0d8d845): src/sso/jwt.ts (verifySsoToken, mintSsoToken,
  * audienceOf), src/sso/launch.ts (verifyLaunchToken) and src/sso/revocation.ts
- * (createRevocationGate, mintRevocationProof, verifyActiveSsoToken), joined into one file and
+ * (parseRevocationFeed, createRevocationGate, mintRevocationProof, verifyActiveSsoToken),
+ * joined into one file and
  * formatted to this repo's style. Logic unchanged.
  *
  * Vendored rather than a dependency so a fresh clone of this repo builds with no private
@@ -188,12 +189,56 @@ export async function verifyLaunchToken(
 // the revoked subjects; the gate caches the list per `ttlMs` (one small fetch per isolate per
 // window, an O(1) lookup per request). FAIL-OPEN by design: when the feed is unreachable it keeps
 // the last list it read, or an empty one, so an outage never locks every user out.
+//
+// TWO KINDS OF ENTRY (0.6.0). A BAN refuses every token for the subject. A CUTOFF ({ sub, before })
+// refuses only the tokens issued before `before` (unix seconds): a password reset or a "sign out
+// everywhere" ends the tokens already minted, and the fresh sign-in after it (issued at or after
+// `before`) is honoured. Cutoffs travel in their own field, `cutoffs`, which a 0.5.x gate never
+// reads. This gate reads both fields and both shapes, so it also reads an old feed.
+
+/** One feed entry. No `before` is a ban; a numeric `before` is a cutoff. */
+export interface RevocationEntry {
+	sub: string;
+	/** unix seconds: a token for `sub` whose `iat` is below this is refused. Absent = always refused. */
+	before?: number;
+}
 
 export interface RevocationFeed {
-	/** user.id (= sub) values currently revoked. */
-	revoked: string[];
+	/** Banned subjects (user.id = sub). Plain strings; a 0.6.0 gate also accepts RevocationEntry here. */
+	revoked: Array<string | RevocationEntry>;
+	/** Cutoffs (0.6.0). Ignored by 0.5.x gates. An entry here without `before` is read as a ban. */
+	cutoffs?: RevocationEntry[];
 	/** unix seconds the hub computed this list (informational). */
 	asOf: number;
+}
+
+/** What the gate holds for one subject: Infinity = banned, a number = the cutoff. */
+type Table = Map<string, number>;
+
+/** Parse either feed shape into one table. Junk entries are skipped, never thrown on. A ban beats
+ *  a cutoff; of two cutoffs the later one wins. Pure. */
+export function parseRevocationFeed(data: unknown): Table {
+	const table: Table = new Map();
+	const put = (e: unknown) => {
+		const sub =
+			typeof e === "string"
+				? e
+				: e && typeof e === "object"
+					? (e as RevocationEntry).sub
+					: undefined;
+		if (typeof sub !== "string" || !sub) return;
+		const before = typeof e === "object" && e ? (e as RevocationEntry).before : undefined;
+		// No `before` is a ban. A `before` that is not a finite number is a malformed cutoff:
+		// skipped, like any junk entry (a bad cutoff must not become a ban of fresh sign-ins).
+		if (before !== undefined && !(typeof before === "number" && Number.isFinite(before)))
+			return;
+		const limit = before ?? Number.POSITIVE_INFINITY;
+		if (limit > (table.get(sub) ?? Number.NEGATIVE_INFINITY)) table.set(sub, limit);
+	};
+	const d = (data || {}) as Partial<RevocationFeed>;
+	if (Array.isArray(d.revoked)) for (const e of d.revoked) put(e);
+	if (Array.isArray(d.cutoffs)) for (const e of d.cutoffs) put(e);
+	return table;
 }
 
 /** The audience an app's revocation-feed proof is addressed to. Nothing else accepts it. */
@@ -214,8 +259,10 @@ export async function mintRevocationProof(
 }
 
 export interface RevocationGate {
-	/** True iff `sub` is currently revoked. Refreshes the cached list when stale. */
-	isRevoked(sub: string): Promise<boolean>;
+	/** True iff a token for `sub` issued at `iat` (unix seconds) is revoked: the subject is banned,
+	 *  or it has a cutoff and `iat` is below it. Without `iat` only a ban counts (a cutoff cannot be
+	 *  judged without the issue time), so pass the token's `iat`. Refreshes the list when stale. */
+	isRevoked(sub: string, iat?: number): Promise<boolean>;
 }
 
 /** Build a cached gate over the hub's revocation feed. */
@@ -234,7 +281,7 @@ export function createRevocationGate(opts: {
 	const timeoutMs = opts.timeoutMs ?? 3_000;
 	const doFetch = opts.fetchImpl ?? fetch;
 	const now = opts.now ?? Date.now;
-	let cache: Set<string> | null = null;
+	let cache: Table | null = null;
 	let fetchedAt = 0;
 	let inflight: Promise<void> | null = null;
 
@@ -250,18 +297,17 @@ export function createRevocationGate(opts: {
 				headers,
 			});
 			if (!res.ok) throw new Error(`revocation feed ${res.status}`);
-			const data = (await res.json()) as RevocationFeed;
-			cache = new Set(data.revoked || []);
+			cache = parseRevocationFeed(await res.json());
 		} catch {
-			// Fail-open: keep the last-known set; if we never had one, nothing is revoked.
-			if (cache === null) cache = new Set();
+			// Fail-open: keep the last-known table; if we never had one, nothing is revoked.
+			if (cache === null) cache = new Map();
 		} finally {
 			fetchedAt = now();
 		}
 	}
 
 	return {
-		async isRevoked(sub: string): Promise<boolean> {
+		async isRevoked(sub: string, iat?: number): Promise<boolean> {
 			if (cache === null || now() - fetchedAt >= ttlMs) {
 				if (!inflight)
 					inflight = refresh().finally(() => {
@@ -269,12 +315,16 @@ export function createRevocationGate(opts: {
 					});
 				await inflight;
 			}
-			return cache?.has(sub) ?? false;
+			const limit = cache?.get(sub);
+			if (limit === undefined) return false;
+			if (limit === Number.POSITIVE_INFINITY) return true;
+			return typeof iat === "number" && iat < limit;
 		},
 	};
 }
 
-/** Verify a token AND confirm its subject is not revoked. Returns claims or null. Never throws. */
+/** Verify a token AND confirm it is not revoked (subject banned, or issued before its cutoff).
+ *  Returns claims or null. Never throws. */
 export async function verifyActiveSsoToken(
 	secret: string,
 	token: string,
@@ -283,6 +333,6 @@ export async function verifyActiveSsoToken(
 ): Promise<SsoClaims | null> {
 	const claims = await verifySsoToken(secret, token, opts);
 	if (!claims) return null;
-	if (await gate.isRevoked(claims.sub)) return null;
+	if (await gate.isRevoked(claims.sub, claims.iat)) return null;
 	return claims;
 }

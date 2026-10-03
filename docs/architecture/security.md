@@ -84,7 +84,9 @@ timing-safe key comparison. See [`rate-limiting.md`](rate-limiting.md).
 - The hub's revocation list (`src/utils/sso-revocation.ts`) is checked at the
   callback and on every read of an IdP (`user:`) session, cached 30 seconds per
   isolate. A banned account gets no new session and loses the one it has inside
-  that window. Each read is proved with the app key. If the list cannot be read
+  that window. A cutoff on the list (an account reset on the hub) refuses only
+  the launch tokens and sessions issued before it; the sign-in after the reset
+  is admitted. Each read is proved with the app key. If the list cannot be read
   the check fails open (the last list read, or none), so a hub outage signs
   nobody out.
 - Open-redirect protection: `safeRedirect()` only accepts relative-path return

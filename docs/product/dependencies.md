@@ -144,8 +144,10 @@ it verifies a short-lived, audience-bound, single-use token offline against
 its `aud` and the hub as its `iss`. The one call to the IdP is its revocation
 list, `<SSO_HUB_URL>/api/sso/revocations`, read at most once per 30 seconds per
 isolate and proved with your app key (`src/utils/sso-revocation.ts`): a listed
-account gets no new session and its existing IdP session stops working. If the
-list cannot be read, nobody is treated as revoked.
+account gets no new session and its existing IdP session stops working. An
+account listed with a cutoff (a reset on the hub) loses the tokens and sessions
+issued before the cutoff and keeps the ones issued after it. If the list cannot
+be read, nobody is treated as revoked.
 
 | Var | Default | Effect when unset |
 |-----|---------|-------------------|

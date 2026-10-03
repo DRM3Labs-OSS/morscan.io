@@ -9,6 +9,8 @@
  *    IdP session already issued to it stops reading as signed in.
  * 3. Every feed read proves this app (X-DRM3-App + a Bearer signed with the app
  *    key, addressed to the feed). The feed failing to answer revokes nobody.
+ * 4. A cutoff ({ sub, before }) refuses a launch token or session issued before
+ *    `before` and admits one issued at or after it (sdk/sso 0.6.0 semantics).
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -88,15 +90,29 @@ async function callback(env: Env, token: string) {
 
 type FeedCall = { url: string; headers: Record<string, string> };
 let feedCalls: FeedCall[] = [];
-function serveFeed(revoked: string[] | "down") {
+type Cutoff = { sub: string; before?: number };
+function serveFeed(revoked: string[] | "down", cutoffs?: Cutoff[]) {
 	vi.stubGlobal("fetch", async (input: RequestInfo | URL, init?: RequestInit) => {
 		feedCalls.push({
 			url: String(input),
 			headers: (init?.headers || {}) as Record<string, string>,
 		});
 		if (revoked === "down") throw new Error("connect ECONNREFUSED");
-		return Response.json({ revoked, asOf: 0 });
+		return Response.json(cutoffs ? { revoked, cutoffs, asOf: 0 } : { revoked, asOf: 0 });
 	});
+}
+
+const nowSec = () => Math.floor(Date.now() / 1000);
+
+/** A session cookie for `sub` whose iat is `iat` (signJwt stamps the clock). */
+async function sessionAt(sub: string, iat: number): Promise<string> {
+	vi.useFakeTimers({ toFake: ["Date"] });
+	vi.setSystemTime(iat * 1000);
+	try {
+		return await signJwt({ keyId: `user:${sub}`, name: "R" }, JWT_SECRET);
+	} finally {
+		vi.useRealTimers();
+	}
 }
 
 beforeEach(() => {
@@ -105,6 +121,7 @@ beforeEach(() => {
 	serveFeed([]);
 });
 afterEach(() => {
+	vi.useRealTimers();
 	vi.unstubAllGlobals();
 });
 
@@ -193,6 +210,51 @@ describe("revocation feed", () => {
 	it("fails open when the feed is unreachable", async () => {
 		serveFeed("down");
 		const r = await callback(makeEnv(), await launch({}, "u_banned"));
+		expect(r.cookie).toContain("morscan_session=");
+	});
+});
+
+describe("revocation cutoffs", () => {
+	it("refuses a launch token issued before the cutoff, admits one after", async () => {
+		// The account reset 100s from now: a token minted now predates it.
+		serveFeed([], [{ sub: "u_reset", before: nowSec() + 100 }]);
+		const before = await callback(makeEnv(), await launch({}, "u_reset"));
+		expect(before.status).toBe(302);
+		expect(before.cookie).toBe("");
+		// The reset was 100s ago: a token minted now is the fresh sign-in.
+		resetRevocationGate();
+		serveFeed([], [{ sub: "u_reset", before: nowSec() - 100 }]);
+		const after = await callback(makeEnv(), await launch({}, "u_reset"));
+		expect(after.cookie).toContain("morscan_session=");
+	});
+
+	it("refuses a session issued before the cutoff, admits one after", async () => {
+		const cutoff = nowSec() - 60;
+		serveFeed([], [{ sub: "u_reset", before: cutoff }]);
+		const env = makeEnv();
+		const read = (cookie: string) =>
+			sessionPayload(
+				new Request("https://morscan.io/api/me", {
+					headers: { Cookie: `morscan_session=${cookie}` },
+				}),
+				env,
+			);
+		expect(await read(await sessionAt("u_reset", cutoff - 1))).toBeNull();
+		expect(await read(await sessionAt("u_reset", cutoff))).not.toBeNull();
+		expect(await read(await sessionAt("u_reset", cutoff + 30))).not.toBeNull();
+		// A cutoff on one account leaves every other account alone.
+		expect(await read(await sessionAt("u_alice", cutoff - 1))).not.toBeNull();
+	});
+
+	it("a ban beats a cutoff, and a cutoff without `before` is a ban", async () => {
+		serveFeed(["u_banned"], [{ sub: "u_banned", before: nowSec() - 100 }, { sub: "u_x" }]);
+		expect((await callback(makeEnv(), await launch({}, "u_banned"))).cookie).toBe("");
+		expect((await callback(makeEnv(), await launch({}, "u_x"))).cookie).toBe("");
+	});
+
+	it("skips a malformed cutoff instead of banning the account", async () => {
+		serveFeed([], [{ sub: "u_reset", before: "soon" as unknown as number }]);
+		const r = await callback(makeEnv(), await launch({}, "u_reset"));
 		expect(r.cookie).toContain("morscan_session=");
 	});
 });
