@@ -8,70 +8,59 @@
  * host-scoped session. A token is valid at exactly one app; no app can replay or
  * forge a token for another.
  *
- * Ported from @drm3/sdk/sso (verifyLaunchToken); self-contained so a fresh clone
- * builds with no private deps. Configure via SSO_APP_KEY + SSO_APP_ID +
- * SSO_LAUNCH_URL; leave unset to disable the IdP sign-in path entirely.
+ * The token must name this app twice: `app` (the launch protocol) and `aud` (RFC
+ * 7519), and its `iss` must be the hub. A token that names another audience, no
+ * audience, or another issuer is refused. Its subject is then checked against the
+ * hub's revocation feed (utils/sso-revocation.ts), so a banned account gets no
+ * session. The verifiers are vendored from the SDK (src/vendor/drm3-sdk-sso.ts).
+ * Configure via SSO_APP_KEY + SSO_APP_ID + SSO_HUB_URL (+ SSO_ISSUER to override
+ * the hub host as the issuer); leave SSO_APP_KEY unset to disable IdP sign-in.
  */
 
-export interface LaunchClaims {
-	sub: string; // IdP user id
-	email?: string;
-	name?: string;
-	app: string; // the EXACT app this token is valid for (audience binding)
-	jti: string; // single-use id
-	iat: number;
-	exp: number;
-}
+import type { Env } from "../types";
+import {
+	type LaunchClaims,
+	type RevocationGate,
+	verifyActiveSsoToken,
+	verifyLaunchToken,
+} from "../vendor/drm3-sdk-sso";
 
-const enc = new TextEncoder();
-const dec = new TextDecoder();
+export type { LaunchClaims };
 
-function b64urlDecode(s: string): Uint8Array {
-	let t = s.replace(/-/g, "+").replace(/_/g, "/");
-	while (t.length % 4) t += "=";
-	const bin = atob(t);
-	const out = new Uint8Array(bin.length);
-	for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
-	return out;
-}
-
-async function hmacKey(secret: string, usage: ("sign" | "verify")[]): Promise<CryptoKey> {
-	return crypto.subtle.importKey(
-		"raw",
-		enc.encode(secret),
-		{ name: "HMAC", hash: "SHA-256" },
-		false,
-		usage,
-	);
+/** The issuer a launch token must name: SSO_ISSUER, else the host of SSO_HUB_URL. */
+export function ssoIssuer(env: Env): string | null {
+	if (env.SSO_ISSUER) return env.SSO_ISSUER;
+	if (!env.SSO_HUB_URL) return null;
+	try {
+		return new URL(env.SSO_HUB_URL).hostname || null;
+	} catch {
+		return null;
+	}
 }
 
 /**
- * Verify a launch token with this app's derived key. Returns the claims only if
- * the signature is valid, the token is unexpired, and its `app` claim equals
- * `appId`. Never throws.
+ * Verify a launch token: signature under this app's key, unexpired, `app` and `aud`
+ * both equal to `appId`, `iss` equal to `issuer`, and a subject the revocation gate
+ * does not list. Returns the claims or null. Never throws.
  */
-export async function verifyLaunchToken(
+export async function verifyActiveLaunchToken(
 	appKey: string,
 	token: string,
 	appId: string,
+	issuer: string | null,
+	gate: RevocationGate,
 ): Promise<LaunchClaims | null> {
 	try {
-		if (!appId) return null;
-		const parts = token.split(".");
-		if (parts.length !== 3) return null;
-		const data = `${parts[0]}.${parts[1]}`;
-		const valid = await crypto.subtle.verify(
-			"HMAC",
-			await hmacKey(appKey, ["verify"]),
-			b64urlDecode(parts[2]) as BufferSource,
-			enc.encode(data),
-		);
-		if (!valid) return null;
-		const claims = JSON.parse(dec.decode(b64urlDecode(parts[1]))) as LaunchClaims;
-		if (!claims.sub || !claims.app || !claims.jti || !claims.exp) return null;
-		if (claims.app !== appId) return null;
-		if (claims.exp < Math.floor(Date.now() / 1000)) return null;
-		return claims;
+		if (!issuer) return null;
+		const launch = await verifyLaunchToken(appKey, token, appId);
+		if (!launch) return null;
+		const active = await verifyActiveSsoToken(appKey, token, gate, {
+			aud: appId,
+			iss: issuer,
+			requireAud: true,
+		});
+		if (!active || active.sub !== launch.sub) return null;
+		return launch;
 	} catch {
 		return null;
 	}

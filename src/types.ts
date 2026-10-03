@@ -34,6 +34,7 @@ export interface Env {
 	SSO_APP_KEY?: string; // This app's derived IdP launch key (wrangler secret); unset = IdP sign-in disabled
 	SSO_APP_ID?: string; // Audience id for launch tokens (default: morscan)
 	SSO_HUB_URL?: string; // IdP hub origin for sign-in bounce; unset = local console fallback
+	SSO_ISSUER?: string; // Issuer a launch token must name (default: the host of SSO_HUB_URL)
 	SSO_LAUNCH_URL?: string; // Full launch URL for the "Sign in with <IdP>" button; unset hides it
 	IDP_NAME?: string; // Display name of the IdP on the sign-in button
 	MORSCAN_WALLETCONNECT_PROJECT_ID?: string; // WalletConnect Cloud project id for mobile deep-link connect. A REAL 32-char id from cloud.reown.com is needed for the relay to accept pairings.

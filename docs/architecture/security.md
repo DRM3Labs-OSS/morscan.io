@@ -1,6 +1,6 @@
 # Security Model
 
-> **Status: LIVE** - 2026-10-02. Describes the auth model and hardening as deployed.
+> **Status: LIVE** - 2026-10-03. Describes the auth model and hardening as deployed.
 
 MorScan authenticates three kinds of caller:
 
@@ -78,6 +78,15 @@ timing-safe key comparison. See [`rate-limiting.md`](rate-limiting.md).
   `jti` is claimed with `INSERT OR IGNORE` into the D1 table `sso_jti_seen`
   (`claimSsoJti`, `src/db/auth.ts`), which is atomic across PoPs and races.
   A replay, or a D1 error, gets no session.
+- An SSO launch token must name this app twice, as `app` and as `aud`, and the
+  hub as `iss` (`src/utils/sso-launch.ts`). A token addressed to another app, to
+  no app, or from another issuer gets no session.
+- The hub's revocation list (`src/utils/sso-revocation.ts`) is checked at the
+  callback and on every read of an IdP (`user:`) session, cached 30 seconds per
+  isolate. A banned account gets no new session and loses the one it has inside
+  that window. Each read is proved with the app key. If the list cannot be read
+  the check fails open (the last list read, or none), so a hub outage signs
+  nobody out.
 - Open-redirect protection: `safeRedirect()` only accepts relative-path return
   URLs (must start with `/`, must not start with `//`).
 

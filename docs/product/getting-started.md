@@ -1,6 +1,6 @@
 # Getting Started
 
-> **Status: LIVE** - 2026-09-07. The setup path for the code as it ships today.
+> **Status: LIVE** - 2026-10-03. The setup path for the code as it ships today.
 
 This is the copy-paste path from a fresh clone to a running MorScan explorer,
 both locally and deployed. It takes about 10 minutes.
@@ -91,7 +91,8 @@ indexing a different deployment.
 | `COMING_SOON_HOSTS` | no | Comma-separated hostnames that serve a static coming-soon page instead of the UI (`/health` + brand assets stay live). |
 | `REGISTER_URL` | no | Where the signup / upgrade link on the access-tier cards points. Default `/about`. |
 | `SSO_APP_ID` | no | Audience id for IdP launch tokens. Default `morscan`. |
-| `SSO_HUB_URL` | no | IdP hub origin the sign-in button bounces through. |
+| `SSO_HUB_URL` | no | IdP hub origin the sign-in button bounces through; also the issuer a launch token must name and the source of the revocation list. |
+| `SSO_ISSUER` | no | Overrides the issuer a launch token must name. Default: the host of `SSO_HUB_URL`. |
 | `SSO_LAUNCH_URL` | no | Full launch URL for the "Sign in with <IdP>" button. Unset hides the button. |
 | `IDP_NAME` | no | Display name of the IdP on the sign-in button. |
 | `SNAPSHOT_PUBLIC_HOST` | no | Public host fronting the optional R2 snapshot bucket. |

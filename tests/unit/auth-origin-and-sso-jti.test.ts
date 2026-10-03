@@ -14,10 +14,11 @@
  *    (fail closed). NONCE_CACHE plays no part.
  */
 
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { handleAuthRoutes } from "../../src/routes/auth";
 import { signJwt } from "../../src/utils/jwt";
 import type { Env } from "../../src/types";
+import { resetRevocationGate } from "../../src/utils/sso-revocation";
 
 const JWT_SECRET = "test-secret-not-live";
 const APP_KEY = "test-sso-app-key-not-live";
@@ -153,7 +154,15 @@ async function launchToken(jti: string): Promise<string> {
 	const now = Math.floor(Date.now() / 1000);
 	const head = b64url(JSON.stringify({ alg: "HS256", typ: "JWT" }));
 	const body = b64url(
-		JSON.stringify({ sub: "u_test", app: "morscan", jti, iat: now, exp: now + 60 }),
+		JSON.stringify({
+			sub: "u_test",
+			app: "morscan",
+			aud: "morscan",
+			iss: "idp.example.com",
+			jti,
+			iat: now,
+			exp: now + 60,
+		}),
 	);
 	const key = await crypto.subtle.importKey(
 		"raw",
@@ -175,6 +184,12 @@ async function callback(env: Env, token: string) {
 }
 
 describe("SSO launch token is single use", () => {
+	// The callback also reads the hub's revocation feed; answer it locally (nothing revoked).
+	beforeEach(() => {
+		resetRevocationGate();
+		vi.stubGlobal("fetch", async () => Response.json({ revoked: [], asOf: 0 }));
+	});
+
 	it("first use signs in; a replay gets no session", async () => {
 		const env = makeEnv();
 		const token = await launchToken("jti-replay");

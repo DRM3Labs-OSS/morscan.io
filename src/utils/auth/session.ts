@@ -4,7 +4,8 @@
 
 import type { Env } from "../../types";
 import { baseUrl } from "../../config";
-import { verifyJwt, getSessionToken } from "../jwt";
+import { verifyJwt, getSessionToken, type JwtPayload } from "../jwt";
+import { sessionRevoked } from "../sso-revocation";
 
 const HEADERS = {
 	"Content-Type": "application/json",
@@ -26,6 +27,18 @@ export function jwtSecret(env: Env): string {
 	return env.MORSCAN_JWT_SECRET;
 }
 
+/**
+ * Verify a session cookie: signature and expiry, then, for an IdP (`user:`)
+ * session, the hub's revocation feed. A banned account's session is refused
+ * inside the feed's cache window, not at the cookie's 24-hour expiry.
+ */
+export async function verifySession(token: string, env: Env): Promise<JwtPayload | null> {
+	const payload = await verifyJwt(token, jwtSecret(env));
+	if (!payload) return null;
+	if (await sessionRevoked(env, payload.keyId)) return null;
+	return payload;
+}
+
 // Check JWT session cookie for UI routes
 export async function requireUiAuth(
 	request: Request,
@@ -33,7 +46,7 @@ export async function requireUiAuth(
 ): Promise<Response | null> {
 	const token = getSessionToken(request);
 	if (token) {
-		const payload = await verifyJwt(token, jwtSecret(env));
+		const payload = await verifySession(token, env);
 		if (payload) return null;
 	}
 	const url = new URL(request.url);
@@ -61,6 +74,6 @@ export async function sessionPayload(
 ): Promise<{ keyId: string; name?: string } | null> {
 	const token = getSessionToken(request);
 	if (!token) return null;
-	const payload = await verifyJwt(token, jwtSecret(env));
+	const payload = await verifySession(token, env);
 	return payload ? { keyId: payload.keyId, name: payload.name } : null;
 }

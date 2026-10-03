@@ -1,6 +1,6 @@
 # Dependency transparency
 
-> **Status: LIVE** - 2026-09-07. The dependency inventory of the code as it ships today.
+> **Status: LIVE** - 2026-10-03. The dependency inventory of the code as it ships today.
 
 MorScan is built to be forked. This document is the complete, audited list of
 everything the running Worker touches outside its own code: every external
@@ -86,7 +86,7 @@ Cloudflare and your RPC.
 | Morpheus Dashboard Goldsky API (`dashboard.mor.org`) | O | `src/sync/builder-discovery.ts` | Supplements builder-subnet metadata (staker counts, names) that raw RPC cannot give. | Morpheus-ecosystem endpoint, not DRM3. Degrades gracefully: on any error the sync skips that chain and keeps on-chain data. |
 | Alert channels: Telegram, Slack, Discord, generic webhook | O | `src/alerts/index.ts` | Operational paging on sync stalls / RPC failure. | Each is a separate `ALERT_*` var. Unset = that channel is skipped. Alerts always land in `/admin/alerts` regardless. |
 | BigQuery (`*.googleapis.com`) | O | `src/utils/bigquery/client.ts` | Optional analytics dual-write archive. | `BIGQUERY_ENABLED=false` by default. Enable with project/dataset + a service-account key secret. |
-| IdP hub (`SSO_HUB_URL`) | O | `src/routes/auth/sso.ts` | SSO sign-in bounce, only if you configure an IdP. | Unset = no contact; wallet-only. |
+| IdP hub (`SSO_HUB_URL`) | O | `src/routes/auth/sso.ts`, `src/utils/sso-revocation.ts` | SSO sign-in bounce and the revocation list (cached 30s), only if you configure an IdP. | Unset = no contact; wallet-only. |
 
 ### Cloudflare primitives (bindings you create)
 
@@ -140,14 +140,20 @@ these are required, and none break a non-DRM3 clone.
 MorScan can accept single-sign-on launch tokens from an identity provider you
 configure. There is no default provider; the interface is generic:
 it verifies a short-lived, audience-bound, single-use token offline against
-**your** app key. There is no call home; verification is local (`src/utils/sso-launch.ts`).
+**your** app key (`src/utils/sso-launch.ts`). The token must name this app as
+its `aud` and the hub as its `iss`. The one call to the IdP is its revocation
+list, `<SSO_HUB_URL>/api/sso/revocations`, read at most once per 30 seconds per
+isolate and proved with your app key (`src/utils/sso-revocation.ts`): a listed
+account gets no new session and its existing IdP session stops working. If the
+list cannot be read, nobody is treated as revoked.
 
 | Var | Default | Effect when unset |
 |-----|---------|-------------------|
 | `SSO_APP_KEY` (secret) | unset | The whole IdP path is disabled. |
 | `SSO_LAUNCH_URL` | unset | The "Sign in with <IdP>" button is hidden. |
 | `SSO_APP_ID` | `morscan` | Token audience id. |
-| `SSO_HUB_URL` | `https://idp.example.com` | IdP hub; unset = local /console fallback. 302 target on a failed callback. |
+| `SSO_HUB_URL` | `https://idp.example.com` | IdP hub; unset = local /console fallback. 302 target on a failed callback. Its host is the issuer a token must name, and it serves the revocation list. |
+| `SSO_ISSUER` | the host of `SSO_HUB_URL` | The `iss` a launch token must carry. |
 | `IDP_NAME` | `DRM3` | The name on the sign-in button. |
 | `REGISTER_URL` | `/about` (or `/api/playground`) | Where the signup link points. |
 

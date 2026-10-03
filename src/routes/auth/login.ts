@@ -10,12 +10,12 @@ import {
 	validateKey,
 	jwtSecret,
 } from "../../utils/auth";
+import { verifySession } from "../../utils/auth/session";
 import {
 	signJwt,
 	sessionCookie,
 	clearSessionCookie,
 	getSessionToken,
-	verifyJwt,
 } from "../../utils/jwt";
 import { safeRedirect } from "../../providers/compose";
 
@@ -75,7 +75,7 @@ export async function handleLoginRoutes(
 	if (path === "/login") {
 		const token = getSessionToken(request);
 		if (token) {
-			const payload = await verifyJwt(token, jwtSecret(env));
+			const payload = await verifySession(token, env);
 			if (payload) {
 				const returnTo = safeRedirect(url.searchParams.get("return"));
 				return new Response(null, {

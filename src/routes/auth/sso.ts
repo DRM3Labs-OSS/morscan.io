@@ -3,7 +3,8 @@
  */
 
 import type { Env } from "../../types";
-import { verifyLaunchToken } from "../../utils/sso-launch";
+import { ssoIssuer, verifyActiveLaunchToken } from "../../utils/sso-launch";
+import { revocationGate } from "../../utils/sso-revocation";
 import { claimSsoJti } from "../../db/auth";
 import { jwtSecret } from "../../utils/auth";
 import { signJwt, sessionCookie } from "../../utils/jwt";
@@ -17,7 +18,8 @@ export async function handleSsoRoutes(
 ): Promise<Response | null> {
 	// GET /sso/callback - the per-app IdP launch handshake. The hub 302s here
 	// with a short-lived, audience-bound, single-use token signed with THIS
-	// app's derived key (SSO_APP_KEY). Verify failure must NOT bounce back into
+	// app's derived key (SSO_APP_KEY). It must name this app as `aud`, the hub as
+	// `iss`, and a subject the hub has not revoked. Verify failure must NOT bounce back into
 	// the launch flow (that loops) - send to the plain sign-in instead.
 	if (path === "/sso/callback" && method === "GET") {
 		const token = url.searchParams.get("token") || "";
@@ -32,7 +34,13 @@ export async function handleSsoRoutes(
 				headers: { Location: signInUrl, "Cache-Control": "no-store" },
 			});
 		if (!appKey || !token) return toSignIn();
-		const claims = await verifyLaunchToken(appKey, token, appId);
+		const claims = await verifyActiveLaunchToken(
+			appKey,
+			token,
+			appId,
+			ssoIssuer(env),
+			revocationGate(env),
+		);
 		if (!claims) return toSignIn();
 		// Single-use: the jti is claimed atomically in D1 (INSERT OR IGNORE on
 		// its primary key). A replay, from any PoP or racing the first use, gets
