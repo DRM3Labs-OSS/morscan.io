@@ -110,6 +110,7 @@ indexing a different deployment.
 | `MORSCAN_MNEMONIC` | no | A real BIP39 mnemonic (12/24 words) for Ed25519 provenance/snapshot signing. Signing and snapshots no-op when unset. **Not** random hex. |
 | `MORSCAN_DEMO_KEY` | no | Full-access demo key embedded in the UI's "Use Demo Key" button. |
 | `SSO_APP_KEY` | no | This app's derived IdP launch key, for optional single-sign-on. Unset = IdP sign-in disabled (wallet + API-key sign-in are unaffected). |
+| `OPS_READ_KEY` | no | Operator read key for `/health`. A request carrying it in `X-DRM3-Ops-Key` gets the full body (build identity, indexer cursors); everyone else gets the fields `public-health.allow` lists. Unset reveals the full body to nobody. |
 | `ALCHEMY_FALLBACK_URL` | no | Alchemy RPC URL used by the sync projector as a last-resort fallback. |
 | `BIGQUERY_SERVICE_ACCOUNT_KEY` | no | Base64 service-account JSON. Only if BigQuery is enabled. |
 | `ALERT_TELEGRAM_BOT_TOKEN` | no | Telegram bot token from @BotFather. Needs `ALERT_TELEGRAM_CHAT_ID` too. See "Alerting" below. |

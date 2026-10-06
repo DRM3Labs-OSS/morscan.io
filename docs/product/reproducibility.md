@@ -144,11 +144,14 @@ data verify against it.** Code being open changes nothing about that guarantee.
 
 ### Honest freshness at `/health`
 
-`/health` reports sync state without spin. It reads the REAL current block from
-RPC (`getCurrentBlock`, `src/utils/rpc.ts`) rather than estimating from wall
-clock, so lag can never be masked by an estimate. The endpoint exposes
-`syncedBlock`, `currentBlock`, `blocksBehind`, and `lastSyncTs` so a monitor can
-judge staleness itself. A stalled sync surfaces here within about a minute, and
+`/health` reports sync state without spin. The sync tick persists the REAL chain
+head it saw (`current_block`), and `/health` reads that rather than estimating
+from wall clock, so lag can never be masked by an estimate. The endpoint exposes
+`syncedBlock`, `currentBlock`, `blocksBehind`, `lastSyncTimestamp` and
+`lastSyncAgeSeconds` to every reader, with no key, so a monitor can judge
+staleness itself. The explorer's own freshness is public by design; the build
+identity and the indexer's internal cursors are served only to the operator
+read key (`public-health.allow` at the repo root is the list). A stalled sync surfaces here within about a minute, and
 the cron watchdog reschedules it (see
 [architecture/sync.md](../architecture/sync.md)).
 

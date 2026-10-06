@@ -4,6 +4,28 @@ Releases are tagged vX.Y.Z on GitHub.
 
 ## Unreleased
 
+## v2.51.0 - 2026-10-06 - /health serves the public its listed fields
+
+- `GET /health` has one body and two audiences. A request carrying the
+  operator read key in `X-DRM3-Ops-Key` (the `OPS_READ_KEY` secret, compared
+  in constant time; unset reveals to nobody) gets the full body. Everyone else
+  gets the fields `public-health.allow` at the repo root names, each with its
+  reason on the line above: default-deny, so a field added to the handler is
+  private until it is written down there.
+- Public, because an explorer's own freshness is a claim it already makes on
+  its about and terms pages: the chain head, the synced block, the exact block
+  gap, the age of the last sync, the archive coverage and ETA, and the
+  per-contract cursors beside the contract addresses and the diamond upgrade
+  summary. The site's sync bar and syncing banner keep every field they read.
+- Operator-only: the build fingerprint, the event cursor internals, the index
+  start setting, and the duplicates of listed fields (`service`,
+  `morscanVersion`, `lastSyncTs`, the `extended` twins of top-level fields).
+- The full reading is still cached 3s under an internal key; every answer now
+  leaves through one exit that projects it per caller, sent `no-store` with
+  `Vary: X-DRM3-Ops-Key`. The gate is vendored from the DRM3 health contract
+  (`src/vendor/public-health.ts`); the consumer `wrangler.toml` gains
+  `**/*.allow` in its Text rule.
+
 ## v2.50.12 - 2026-10-02 - a reset on the hub ends older sessions
 
 - The hub's revocation list can now carry a cutoff for an account as well as a

@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { defineConfig } from "vitest/config";
 
 // Unit tests only. Scoped to tests/unit so we never collide with the Playwright
@@ -21,6 +22,9 @@ export default defineConfig({
 				// Data modules as buffers. Tests never render these; they only
 				// need the imports to RESOLVE.
 				if (/\.(mustache|html|txt)$/.test(id)) return "export default \"\";";
+				// public-health.allow is a Text module too, but a test that reaches the
+				// health handler must see the REAL list, or the gate under test is empty.
+				if (id.endsWith(".allow")) return `export default ${JSON.stringify(readFileSync(id, "utf8"))};`;
 				if (/\.(png|ttf|woff2)$/.test(id)) return "export default new ArrayBuffer(0);";
 			},
 		},

@@ -10,3 +10,9 @@ declare module "*.txt" {
 	const content: string;
 	export default content;
 }
+
+// public-health.allow rides the bundle as text (wrangler.toml, the Text rule for **/*.allow).
+declare module "*.allow" {
+	const text: string;
+	export default text;
+}

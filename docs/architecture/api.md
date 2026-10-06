@@ -22,7 +22,7 @@ full route set is below. See [`security.md`](security.md).
 
 | Endpoint | Description |
 |----------|-------------|
-| `GET /health` | Sync status, block heights, provider/bid/session counts, diamond-upgrade summary (3s edge cache) |
+| `GET /health` | Sync status, block heights and gap to the chain head, archive coverage, provider/bid/session counts, diamond-upgrade summary. The public body is the fields `public-health.allow` (repo root) names; a request carrying the operator read key in `X-DRM3-Ops-Key` gets the full body. Both answers are `no-store`; the full reading is cached 3s behind the projection. |
 | `GET /teaser` | Public teaser stats for the landing surfaces (rate-limited 30/min per IP) |
 | `GET /mor/v1/price` | MOR/USD + ETH/USD, read on-chain (Base DEX pool + Chainlink feed); CoinGecko is a last-resort fallback (60s edge cache) |
 | `GET /chart.svg` | Pre-rendered 90-day MOR price chart (SVG) |

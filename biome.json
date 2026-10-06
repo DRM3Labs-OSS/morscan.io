@@ -5,7 +5,8 @@
       "src/**/*.ts",
       "!src/**/*.test.ts",
       "!src/build-info.ts",
-      "!src/providers/deploy-overrides.ts"
+      "!src/providers/deploy-overrides.ts",
+      "!src/vendor/public-health.ts"
     ]
   },
   "formatter": {

@@ -40,7 +40,7 @@ Two-tier cache in front of D1. Source: `src/utils/cache.ts` (`withKvCache`,
 | `/mor/v1/reputation` | CF Cache API | 60s | `v1:reputation` | |
 | `/mor/v1/holders` | CF Cache API | 5m | `v1:holders:<page>` | Per page. |
 | `/mor/v1/sessions/daily` | KV | 10m | `v1:sessions:daily` | |
-| `/health` | CF Cache API | 3s | `health:v1` | Eliminates a 6x COUNT + 4x first() D1 fan-out on every probe. |
+| `/health` | CF Cache API | 3s | `health:v1` | Eliminates a 6x COUNT + 4x first() D1 fan-out on every probe. The FULL reading is what is cached; every answer is projected per caller on the way out (`public-health.allow`) and sent `no-store`. |
 
 KV freshness is checked against an embedded `cachedAt` timestamp to support
 sub-60s effective TTLs under KV's 60s `expirationTtl` floor. Every cached

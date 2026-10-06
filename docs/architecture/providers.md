@@ -154,10 +154,11 @@ bundles `src/` directly.
 What a consuming repo must replicate (verified working from a dependent repo,
 wrangler 4.107):
 
-1. **Module rules.** The core imports `.html`, `.mustache`, `.txt` (Text),
-   `.png`, `.ttf` (Data) and `.wasm` (CompiledWasm) assets from its `src/`.
-   The consumer's `wrangler.toml` needs the same three `[[rules]]` blocks
-   (globs like `**/*.html` match inside `node_modules/`), and
+1. **Module rules.** The core imports `.html`, `.mustache`, `.txt` and
+   `.allow` (Text; `public-health.allow` at the core's root is the public
+   field list for `/health`), `.png`, `.ttf` (Data) and `.wasm`
+   (CompiledWasm) assets. The consumer's `wrangler.toml` needs the same three
+   `[[rules]]` blocks (globs like `**/*.html` match inside `node_modules/`), and
    `base_dir = "."` pins the module root to the repo root so those modules
    resolve with stable in-tree names.
 2. **The build stamp.** `src/build-info.ts` is GENERATED here (gitignored),

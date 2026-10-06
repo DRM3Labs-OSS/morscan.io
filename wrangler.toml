@@ -21,7 +21,7 @@ fallthrough = false
 
 [[rules]]
 type = "Text"
-globs = ["**/*.html", "**/*.mustache", "**/*.txt"]
+globs = ["**/*.html", "**/*.mustache", "**/*.txt", "**/*.allow"]
 
 [[rules]]
 type = "Data"

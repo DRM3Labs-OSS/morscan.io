@@ -1,0 +1,137 @@
+# public-health.allow - morscan.io (sku morscan)
+# door: https://morscan.io/health
+# DEFAULT-DENY. A /health field reaches a reader without the operator read key ONLY if it is
+# listed below, with its reason on the line directly above. Everything else is served only to a
+# request carrying this door's key in X-DRM3-Ops-Key (src/handlers/health-audience.ts). A field
+# added to the handler tomorrow is private until it is written down here.
+#
+# MorScan is a chain explorer, and an explorer's own freshness is public: the block it has read
+# up to, how far behind the chain head it is, the age of that reading, and how far the archive
+# backfill has reached. The about and terms pages promise the exact block gap at this address,
+# and the site's sync bar reads it from here. Those numbers are listed below, each with its why.
+#
+# NOT PUBLIC: a build fingerprint and indexer internals are operator-only. One path per fact, so
+# a duplicate of a listed field is not listed again.
+
+# status word only; it carries a stall, a lag or a read failure as one of ok, degraded, error.
+status
+# envelope: the public product id this door answers for.
+sku
+# envelope: the public product name, the same one the site shows.
+product
+# the running release, also served at /version; a confidence signal, never the build fingerprint.
+version
+# envelope: when this body was generated. Carries no internal state.
+timestamp
+
+# the explorer's freshness: the chain head the sync last saw. Public chain data.
+currentBlock
+# the explorer's freshness: the block the index has read up to. The sync bar prints it.
+syncedBlock
+# the explorer's freshness: the exact block gap to the chain head that the about and terms pages promise.
+blocksBehind
+# the explorer's freshness: when the index last advanced. The sync bar prints the age from it.
+lastSyncTimestamp
+# the explorer's freshness: the age of that reading in seconds, derived from the field above.
+lastSyncAgeSeconds
+# the explorer's freshness as a flag: the reading is older than the stall threshold. A boolean.
+syncStale
+# the explorer's freshness: when the staking factor and the economics figures were last refreshed.
+economicsUpdatedAt
+
+# OUR aggregate: providers registered on the Morpheus marketplace, exact. On-chain count.
+providers
+# OUR aggregate: sessions open on the marketplace now, exact. On-chain count.
+activeSessions
+# OUR aggregate: bids on the marketplace, exact. On-chain count.
+bids
+# protocol staking factor derived from chain state; network data, never our money.
+stakingFactor
+
+# data-quality word (consistent or partial) for claimable figures. A state, no number.
+accounting_signal
+# data-quality flag: the claimable list is whole or not. A boolean, no number.
+claimable_list_consistent
+
+# archive state flag at the top level: deep history is still filling or done. The site banner reads it.
+backfillIndexing
+# archive state flag: the same, inside the coverage block.
+coverage.indexing
+# archive progress: how far the deepest backfill has reached, in percent. The syncing banner prints it.
+coverage.pct
+# archive progress: the measured backfill rate the ETA is computed from. A reading, not a ceiling.
+coverage.blocksPerSec
+# archive progress: seconds until the deepest backfill reaches its start block, from the measured rate.
+coverage.etaSeconds
+# archive progress: the same ETA as text, the way the page would print it.
+coverage.eta
+
+# public chain block the builder archive starts from (the contract deploy block).
+coverage.datasets.builder.fromBlock
+# archive progress: the block the builder backfill has scanned back to. Public chain data.
+coverage.datasets.builder.scannedTo
+# archive progress: how far the builder backfill has reached, in percent. The banner prints it.
+coverage.datasets.builder.pct
+# state flag: the builder archive reaches back to its start block. A boolean.
+coverage.datasets.builder.complete
+# public chain block the sessions archive starts from (the contract deploy block).
+coverage.datasets.sessions.fromBlock
+# archive progress: the block the sessions backfill has scanned back to. Public chain data.
+coverage.datasets.sessions.scannedTo
+# archive progress: how far the sessions backfill has reached, in percent. The banner prints it.
+coverage.datasets.sessions.pct
+# state flag: the sessions archive reaches back to its start block. A boolean.
+coverage.datasets.sessions.complete
+# public chain block the holders archive starts from (the token deploy block).
+coverage.datasets.holders.fromBlock
+# archive progress: the block the holders backfill has scanned back to. Public chain data.
+coverage.datasets.holders.scannedTo
+# archive progress: how far the holders backfill has reached, in percent. The banner prints it.
+coverage.datasets.holders.pct
+# state flag: the holders archive reaches back to its start block. A boolean.
+coverage.datasets.holders.complete
+
+# on-chain: the Morpheus diamond contract address on Base. Public by definition.
+extended.contracts.diamond.address
+# on-chain: the block the diamond was deployed in. Verifiable by anyone.
+extended.contracts.diamond.deployBlock
+# the explorer's freshness per contract: the block the diamond index has read up to.
+extended.contracts.diamond.syncedBlock
+# the explorer's freshness per contract: the diamond index's gap to the chain head.
+extended.contracts.diamond.blocksBehind
+# plain-English label for what the public diamond contract does. A concept, no plumbing.
+extended.contracts.diamond.purpose
+# on-chain: count of diamond upgrades we have indexed, exact.
+extended.contracts.diamond.upgrades.totalSeen
+# on-chain: block of the latest diamond upgrade.
+extended.contracts.diamond.upgrades.last.block
+# on-chain: transaction hash of the latest diamond upgrade. Verifiable by anyone.
+extended.contracts.diamond.upgrades.last.txHash
+# on-chain: facets changed in the latest diamond upgrade.
+extended.contracts.diamond.upgrades.last.facetCount
+# on-chain: block time of the latest diamond upgrade.
+extended.contracts.diamond.upgrades.last.timestamp
+
+# on-chain: the Morpheus builder contract address on Base. Public by definition.
+extended.contracts.builder.address
+# on-chain: the block the builder contract was deployed in. Verifiable by anyone.
+extended.contracts.builder.deployBlock
+# the explorer's freshness per contract: the block the builder index has read up to. The builder pages print it.
+extended.contracts.builder.syncedBlock
+# the explorer's freshness per contract: the builder index's gap to the chain head. The builder pages print it.
+extended.contracts.builder.blocksBehind
+# status word for the builder index (ok, degraded, error).
+extended.contracts.builder.status
+# plain-English label for what the public builder contract does. A concept, no plumbing.
+extended.contracts.builder.purpose
+
+# on-chain: the MOR token contract address on Base. Public by definition.
+extended.contracts.mor_token.address
+# on-chain: the block the MOR token was deployed in. Verifiable by anyone.
+extended.contracts.mor_token.deployBlock
+# the explorer's freshness per contract: the block the token transfer index has read up to.
+extended.contracts.mor_token.syncedBlock
+# the explorer's freshness per contract: the token transfer index's gap to the chain head.
+extended.contracts.mor_token.blocksBehind
+# plain-English label for what we index from the public token contract. A concept.
+extended.contracts.mor_token.purpose

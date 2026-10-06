@@ -5,9 +5,20 @@
  * The SyncCoordinator writes currentBlock to sync_state on every tick;
  * we just read what it wrote. This keeps health fast and eliminates
  * the hung-RPC failure mode that caused "Stale" badges in the UI.
+ *
+ * One body, two audiences. The full reading goes only to a request carrying this door's
+ * operator read key (X-DRM3-Ops-Key). Everyone else gets the fields public-health.allow
+ * names at the repo root and nothing more: default-deny, so a field added below is private
+ * until it is written down there with a reason. The full reading is cached for 3s under an
+ * internal cache key (never the public URL) and leaves through ONE exit, handleHealth(),
+ * which projects it per caller. Both answers are no-store and Vary on the key header, so a
+ * full body can never sit in a shared cache.
  */
 
+import allowText from "../../public-health.allow";
+import { withCfCache } from "../utils/cache";
 import { buildHealth } from "../utils/health-contract";
+import { audienceBody } from "./health-audience";
 import type { Env } from "../types";
 import { MORSCAN_VERSION } from "../version";
 import { BUILD_INFO } from "../build-info";
@@ -32,7 +43,38 @@ import { selectLastBuilderEventBlock } from "../db/explorer-builder";
 
 const MOR_TOKEN_ADDRESS = "0x7431aDa8a591C955a994a21710752EF9b882b8e3";
 
-export async function handleHealth(env: Env, headers: Record<string, string>) {
+/** The one exit for GET /health: the cached full reading, projected for this caller. */
+export async function handleHealth(
+	request: Request,
+	env: Env,
+	headers: Record<string, string>,
+): Promise<Response> {
+	const cached = await withCfCache("health:v1", 3, () =>
+		fullHealthResponse(env, headers),
+	);
+	const text = await cached.text();
+	let full: Record<string, unknown> = {};
+	try {
+		const parsed: unknown = JSON.parse(text);
+		if (parsed !== null && typeof parsed === "object" && !Array.isArray(parsed)) {
+			full = parsed as Record<string, unknown>;
+		}
+	} catch {
+		/* an unreadable reading serves nothing: default-deny */
+	}
+	const out = new Headers(headers);
+	out.set("Cache-Control", "no-store");
+	out.set("Vary", "X-DRM3-Ops-Key");
+	const cacheMark = cached.headers.get("X-Cache");
+	if (cacheMark) out.set("X-Cache", cacheMark);
+	return new Response(JSON.stringify(audienceBody(request, env, full, allowText)), {
+		status: cached.status,
+		headers: out,
+	});
+}
+
+/** The full reading, for the operator. Every field the status board and the site read. */
+async function fullHealthResponse(env: Env, headers: Record<string, string>) {
 	let lastBlock = 0;
 	let currentBlock = 0;
 	let startBlock = 42400000;

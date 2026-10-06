@@ -104,10 +104,11 @@ export async function handlePublicRoutes(
 		);
 	}
 
-	// Health & Status (no key required)
-	// 3s cache TTL - sync bar polls every 5s, needs fresh data
+	// Health & Status (no key required for the public fields; the operator read key
+	// reveals the whole body). The handler owns the 3s cache of the full reading and
+	// the one exit that projects it per caller (src/handlers/health.ts).
 	if (path === "/health") {
-		return await withCfCache("health:v1", 3, () => handleHealth(env, HEADERS));
+		return await handleHealth(request, env, HEADERS);
 	}
 
 	// Build identity: which commit + provenance version is actually running.

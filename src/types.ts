@@ -85,6 +85,7 @@ export interface Env {
 	// regardless of these. Set any subset to also fan out to that channel. Values
 	// are secrets - set via `wrangler secret put`, never committed to a toml.
 	MORSCAN_ADMIN_KEY_IDS?: string; // Comma-separated api_key ids granted admin (beyond the `admin` row)
+	OPS_READ_KEY?: string; // Operator read key for /health: a request carrying it in X-DRM3-Ops-Key gets the full body; unset reveals to nobody (public-health.allow)
 	D1_DAILY_READ_BUDGET?: string; // Approx D1 rows-read/day before heavy uncached endpoints shed to 503 (Free-plan backstop; default 4_000_000, under the 5M free limit). See src/utils/d1-budget.ts
 	ALERT_SYNC_STALL_SECONDS?: string; // Stall threshold in seconds (default 120)
 	ALERT_TELEGRAM_BOT_TOKEN?: string; // @BotFather bot token; needs ALERT_TELEGRAM_CHAT_ID too
