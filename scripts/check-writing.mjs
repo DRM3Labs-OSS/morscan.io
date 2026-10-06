@@ -15,9 +15,11 @@ const TELLS = [
     re: /(and that matters\b|that'?s the part everyone misses|which is (exactly )?the point|here'?s why that'?s huge)/i,
   },
   // Prose em dashes only: a letter/digit on BOTH sides (one optional space). A standalone empty-
-  // value glyph in a numeric table ('—', >—<, `${x || '—'} MOR`) is a deliberate
-  // convention, distinct from a minus sign, and is NOT prose, so it is left alone.
-  { name: "em-dash", re: /\w[ ]?—[ ]?\w/ },
+  // value glyph in a numeric table (the U+2014 glyph alone in a string, between > and <, or as the
+  // `|| '...'` fallback before " MOR") is a deliberate convention, distinct from a minus sign, and
+  // is NOT prose, so it is left alone. The glyph is written as the \u2014 escape here so this file
+  // passes the tree-wide dash grep in CI; the regex still matches the literal character.
+  { name: "em-dash", re: /\w[ ]?\u2014[ ]?\w/ },
   { name: "em-dash-escape", re: /\w[ ]?\\u2014[ ]?\w/ },
   { name: "tell-vocab", re: /\b(delve|tapestry|testament to|pivotal|supercharge|in a world where|seamless|effortless)\b/i },
 ];
