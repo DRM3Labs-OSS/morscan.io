@@ -7,6 +7,8 @@
  * handlers; behavior is byte-identical.
  */
 
+import { ID_LIST, idList } from "./explorer-core";
+
 // ─── Row shapes ───
 
 export interface SessionCountRow {
@@ -264,7 +266,6 @@ export async function getSessionSummaryByModelIds(
 	modelIds: string[],
 ): Promise<Record<string, unknown> | null> {
 	if (!modelIds.length) return null;
-	const placeholders = modelIds.map(() => "?").join(",");
 	return db
 		.prepare(`
       SELECT
@@ -278,9 +279,9 @@ export async function getSessionSummaryByModelIds(
         AVG(CASE WHEN closed_at > 0 AND opened_at > 0 THEN (CASE WHEN ends_at > 0 AND ends_at < closed_at THEN ends_at ELSE closed_at END) - opened_at END) as avg_duration_secs,
         MIN(opened_at) as first_session,
         MAX(opened_at) as last_session
-      FROM sessions WHERE model_id IN (${placeholders})
+      FROM sessions WHERE model_id IN ${ID_LIST}
     `)
-		.bind(now, ...modelIds)
+		.bind(now, idList(modelIds))
 		.first<Record<string, unknown>>();
 }
 
@@ -290,16 +291,15 @@ export async function getRecentSessionsByModelIds(
 	modelIds: string[],
 ): Promise<Record<string, unknown>[]> {
 	if (!modelIds.length) return [];
-	const placeholders = modelIds.map(() => "?").join(",");
 	const r = await db
 		.prepare(`
       SELECT s.id, s.user_address, s.provider, s.model_id, s.stake, s.opened_at, s.ends_at,
              s.closed_at, s.closeout_type, s.is_active, p.endpoint as provider_endpoint
       FROM sessions s LEFT JOIN providers p ON s.provider = p.address
-      WHERE s.model_id IN (${placeholders})
+      WHERE s.model_id IN ${ID_LIST}
       ORDER BY s.opened_at DESC LIMIT 50
     `)
-		.bind(...modelIds)
+		.bind(idList(modelIds))
 		.all<Record<string, unknown>>();
 	return r.results ?? [];
 }
@@ -310,17 +310,16 @@ export async function getBidSessionCountsByModelIds(
 	modelIds: string[],
 ): Promise<Record<string, unknown>[]> {
 	if (!modelIds.length) return [];
-	const placeholders = modelIds.map(() => "?").join(",");
 	const r = await db
 		.prepare(`
       SELECT bid_id, SUM(CASE WHEN is_active = 1 THEN 1 ELSE 0 END) as active_count,
              SUM(CASE WHEN closeout_type = 0 AND closed_at > 0 THEN 1 ELSE 0 END) as success_count,
              SUM(CASE WHEN closeout_type = 1 THEN 1 ELSE 0 END) as dispute_count,
              COUNT(*) as total_count
-      FROM sessions WHERE model_id IN (${placeholders})
+      FROM sessions WHERE model_id IN ${ID_LIST}
       GROUP BY bid_id
     `)
-		.bind(...modelIds)
+		.bind(idList(modelIds))
 		.all<Record<string, unknown>>();
 	return r.results ?? [];
 }
@@ -332,7 +331,6 @@ export async function getProviderStatsByModelIds(
 	modelIds: string[],
 ): Promise<Record<string, unknown>[]> {
 	if (!modelIds.length) return [];
-	const placeholders = modelIds.map(() => "?").join(",");
 	const r = await db
 		.prepare(`
       SELECT ps.provider,
@@ -343,11 +341,11 @@ export async function getProviderStatsByModelIds(
              AVG(ps.avg_duration_secs) as avg_duration_secs,
              p.endpoint as provider_endpoint
       FROM provider_stats ps LEFT JOIN providers p ON ps.provider = p.address
-      WHERE ps.model_id IN (${placeholders})
+      WHERE ps.model_id IN ${ID_LIST}
       GROUP BY ps.provider
       ORDER BY total_sessions DESC
     `)
-		.bind(...modelIds)
+		.bind(idList(modelIds))
 		.all<Record<string, unknown>>();
 	return r.results ?? [];
 }
@@ -360,14 +358,13 @@ export async function getDailySessionsByModelIds(
 	since: number,
 ): Promise<Record<string, unknown>[]> {
 	if (!modelIds.length) return [];
-	const placeholders = modelIds.map(() => "?").join(",");
 	const r = await db
 		.prepare(`
       SELECT date(opened_at, 'unixepoch') as day, COUNT(*) as sessions
-      FROM sessions WHERE model_id IN (${placeholders}) AND opened_at > ?
+      FROM sessions WHERE model_id IN ${ID_LIST} AND opened_at > ?
       GROUP BY day ORDER BY day
     `)
-		.bind(...modelIds, since)
+		.bind(idList(modelIds), since)
 		.all<Record<string, unknown>>();
 	return r.results ?? [];
 }
@@ -379,17 +376,16 @@ export async function getProviderUnionCountByModelIds(
 	modelIds: string[],
 ): Promise<number> {
 	if (!modelIds.length) return 0;
-	const placeholders = modelIds.map(() => "?").join(",");
 	const row = await db
 		.prepare(`
       SELECT COUNT(*) as n FROM (
-        SELECT DISTINCT provider FROM sessions WHERE model_id IN (${placeholders})
+        SELECT DISTINCT provider FROM sessions WHERE model_id IN ${ID_LIST}
         UNION
         SELECT DISTINCT provider FROM bids
-          WHERE model_id IN (${placeholders}) AND (deleted_at = 0 OR deleted_at IS NULL)
+          WHERE model_id IN ${ID_LIST} AND (deleted_at = 0 OR deleted_at IS NULL)
       )
     `)
-		.bind(...modelIds, ...modelIds)
+		.bind(idList(modelIds), idList(modelIds))
 		.first<Record<string, unknown>>();
 	return Number(row?.n) || 0;
 }
@@ -400,7 +396,6 @@ export async function getSessionAggByModelIds(
 	modelIds: string[],
 ): Promise<Record<string, unknown>[]> {
 	if (!modelIds.length) return [];
-	const placeholders = modelIds.map(() => "?").join(",");
 	const r = await db
 		.prepare(`
       SELECT model_id, COUNT(*) as total_sessions,
@@ -408,10 +403,10 @@ export async function getSessionAggByModelIds(
              COUNT(DISTINCT provider) as provider_count,
              COUNT(DISTINCT user_address) as unique_users,
              MAX(opened_at) as last_session
-      FROM sessions WHERE model_id IN (${placeholders})
+      FROM sessions WHERE model_id IN ${ID_LIST}
       GROUP BY model_id
     `)
-		.bind(...modelIds)
+		.bind(idList(modelIds))
 		.all<Record<string, unknown>>();
 	return r.results ?? [];
 }

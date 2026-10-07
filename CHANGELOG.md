@@ -4,6 +4,19 @@ Releases are tagged vX.Y.Z on GitHub.
 
 ## Unreleased
 
+## v2.51.1 - 2026-10-07 - model pages for a family of many listings
+
+- Every `/compute/models/<slug>` page in the Qwen family (54 canonical models,
+  `qwq-32b` among them) answered 500 while the other 319 rendered. The family
+  rollups on the model page pass every listing id of the family to one
+  statement, and the provider-union count passed the list twice; the Qwen
+  family carries 68 on-chain listings, past the 100 parameters a statement
+  can bind. The id list now travels as one bound JSON value that the statement
+  unpacks (`ID_LIST` and `idList` in the data layer), so the size of a family
+  no longer sets a cap on its page. Unit test: a 68-listing family renders
+  through the slug page, the detail aggregate and a database stand-in that
+  enforces the cap.
+
 ## v2.51.0 - 2026-10-06 - /health serves the public its listed fields
 
 - `GET /health` has one body and two audiences. A request carrying the

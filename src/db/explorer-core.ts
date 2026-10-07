@@ -689,6 +689,17 @@ export function selectWalletSessionDurationStats(
 		.first<WalletDurationStatsRow>();
 }
 
+// ─── Id lists ───
+
+/** Match a column against a list of ids bound as ONE parameter: write
+ * `WHERE model_id IN ${ID_LIST}` and bind `idList(ids)` in its place. A
+ * statement binds at most 100 parameters; spelled as `?,?,?` the list itself
+ * is the cap, and a statement that names the list twice halves it. A canonical
+ * model's family runs to dozens of on-chain listings (the Qwen family passed
+ * 60), so the id list travels as one JSON value and json_each unpacks it. */
+export const ID_LIST = "(SELECT value FROM json_each(?))";
+export const idList = (ids: string[]): string => JSON.stringify(ids);
+
 // ─── Capacity introspection ───
 
 // Key caps + usage counters: use getApiKeyCaps / listUsageCounters from auth.ts (canonical).

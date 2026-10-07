@@ -7,6 +7,8 @@
  * Notify list / provenance / key-history reads live in ops.ts.
  */
 
+import { ID_LIST, idList } from "./explorer-core";
+
 // ─── Row shapes ───
 
 export interface SyncStateValueRow {
@@ -424,15 +426,14 @@ export async function getActiveBidCountsByModelIds(
 	modelIds: string[],
 ): Promise<Record<string, unknown>[]> {
 	if (!modelIds.length) return [];
-	const placeholders = modelIds.map(() => "?").join(",");
 	const r = await db
 		.prepare(`
       SELECT model_id, COUNT(*) as bid_count, COUNT(DISTINCT provider) as provider_count
-      FROM bids WHERE model_id IN (${placeholders})
+      FROM bids WHERE model_id IN ${ID_LIST}
         AND (deleted_at = 0 OR deleted_at IS NULL)
       GROUP BY model_id
     `)
-		.bind(...modelIds)
+		.bind(idList(modelIds))
 		.all<Record<string, unknown>>();
 	return r.results ?? [];
 }
@@ -444,15 +445,14 @@ export async function getActiveBidsWithProvidersByModelIds(
 	modelIds: string[],
 ): Promise<Record<string, unknown>[]> {
 	if (!modelIds.length) return [];
-	const placeholders = modelIds.map(() => "?").join(",");
 	const r = await db
 		.prepare(`
       SELECT b.*, p.endpoint as provider_endpoint, p.stake as provider_stake
       FROM bids b LEFT JOIN providers p ON b.provider = p.address
-      WHERE b.model_id IN (${placeholders}) AND (b.deleted_at = 0 OR b.deleted_at IS NULL)
+      WHERE b.model_id IN ${ID_LIST} AND (b.deleted_at = 0 OR b.deleted_at IS NULL)
       ORDER BY CAST(b.price_per_second AS REAL) ASC
     `)
-		.bind(...modelIds)
+		.bind(idList(modelIds))
 		.all<Record<string, unknown>>();
 	return r.results ?? [];
 }
@@ -462,10 +462,9 @@ export async function getModelNamesByIds(
 	db: D1Database,
 	modelIds: string[],
 ): Promise<ModelIdNameRow[]> {
-	const placeholders = modelIds.map(() => "?").join(",");
 	const r = await db
-		.prepare(`SELECT model_id, name FROM models WHERE model_id IN (${placeholders})`)
-		.bind(...modelIds.map((id) => id.toLowerCase()))
+		.prepare(`SELECT model_id, name FROM models WHERE model_id IN ${ID_LIST}`)
+		.bind(idList(modelIds.map((id) => id.toLowerCase())))
 		.all<ModelIdNameRow>();
 	return r.results ?? [];
 }
