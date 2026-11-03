@@ -47,6 +47,8 @@ import { buildAndCacheFatboy } from "../handlers/fatboy";
 import { writeMarketplaceSnapshot } from "../utils/snapshot-store";
 import { handleSnapshotPrune } from "../handlers/snapshot-prune";
 import { validateApiKey, validateKey } from "../utils/auth";
+import { logRequest, trackable } from "../utils/usage-track";
+import { pruneUsageLog } from "../db/usage-log";
 import { installProviders, getProviders, type Providers } from "./index";
 import { handleAuthRoutes } from "../routes/auth";
 import { handleUiRoutes } from "../routes/ui";
@@ -166,6 +168,13 @@ export function createMorscanApp(options: MorscanAppOptions = {}): MorscanApp {
 			if (request.method === "OPTIONS") {
 				return new Response(null, { headers: HEADERS });
 			}
+
+			// First-party usage instrument (src/utils/usage-track.ts). One row per
+			// non-asset request, off the response path and self-silencing, so it can
+			// never add latency to or fail a render. This is the ONLY place the
+			// operator sees the traffic the per-key usage_counters never see: human
+			// page reads (serving key), anonymous and machine API callers, crawlers.
+			if (trackable(path)) ctx.waitUntil(logRequest(env, request, path));
 
 			// Staging is retired. The apex (morscan.io) is the single live, indexable
 			// origin; staging.morscan.io permanently redirects to it (same path +
@@ -338,6 +347,21 @@ export function createMorscanApp(options: MorscanAppOptions = {}): MorscanApp {
 							if (n) console.log(`[provenance-prune] deleted ${n} receipts >30d`);
 						}),
 						"provenancePrune",
+					),
+				);
+				// Usage-log prune: keep the first-party request instrument to a rolling
+				// window (USAGE_LOG_RETENTION_DAYS, default 14). Bounds the table so the
+				// instrument is cheap to run; rows outside the window have served their
+				// purpose (the read is always recent traffic).
+				ctx.waitUntil(
+					safe(
+						pruneUsageLog(
+							env.DB,
+							parseInt(env.USAGE_LOG_RETENTION_DAYS || "14", 10) || 14,
+						).then((n) => {
+							if (n) console.log(`[usage-log-prune] deleted ${n} rows`);
+						}),
+						"usageLogPrune",
 					),
 				);
 				// Description-gap check: freshly registered models arrive without a

@@ -42,6 +42,9 @@ export interface Env {
 	SNAPSHOT_SIGNER_KEY_ID?: string; // Key id advertised in the signed CDN snapshot envelope
 	SYNC_COORDINATOR: DurableObjectNamespace;
 	MORSCAN_DEMO_KEY: string; // UI serving key, embedded in explorer pages so page scripts can fetch /mor/v1 data (wrangler SECRET; per-IP limits still apply)
+	// First-party usage instrument (src/utils/usage-track.ts, src/db/usage-log.ts).
+	USAGE_LOG_SAMPLE?: string; // Sample divisor for high-volume human-ish traffic (serving key + browser page GETs); machine/keyed/x402/crawler rows are always logged. Default "1" = log every request.
+	USAGE_LOG_RETENTION_DAYS?: string; // Rolling window the daily cron prunes usage_log to. Default 14.
 	MORSCAN_JWT_SECRET?: string; // UI session HMAC secret (random; wrangler secret). Independent of the mnemonic.
 	MORSCAN_MNEMONIC?: string; // BIP39 mnemonic - provenance signing ONLY (morscan/cache, morscan/signer). NOT used for JWT.
 	PROVENANCE_ENABLED?: string; // "false" = run unsigned: no receipt fields, /version reports provenance "disabled", the provenance WASM is never initialized. Default (unset/"true") = sign when MORSCAN_MNEMONIC is set.

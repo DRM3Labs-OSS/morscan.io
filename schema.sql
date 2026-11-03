@@ -170,3 +170,28 @@ CREATE INDEX IF NOT EXISTS idx_x402_payments_payer_status ON x402_payments(payer
 -- INSERT OR IGNORE on the primary key is the atomic replay gate. Also created
 -- at runtime on first use, so existing databases need no migration.
 CREATE TABLE IF NOT EXISTS sso_jti_seen (jti TEXT PRIMARY KEY, exp INTEGER NOT NULL);
+
+-- usage_log: the first-party request instrument (src/db/usage-log.ts +
+-- src/utils/usage-track.ts). One row per non-asset request, written
+-- fire-and-forget OFF the response path and pruned to a rolling window by the
+-- daily cron. This is the ONLY place the operator sees the traffic the per-key
+-- usage_counters never see: human page reads (the serving key), anonymous and
+-- machine API callers, and crawlers. NO raw IP and NO raw key are stored:
+-- credential is a class tag only ('demo' | 'key:<sha256-prefix>' | 'x402' |
+-- NULL for anonymous); country/colo are Cloudflare's coarse edge geo. weight =
+-- the sample divisor in force when the row was written (1 = every request
+-- logged), so a read recovers true-ish volume with SUM(weight). Created at
+-- runtime on first use, so an existing database needs no migration. Disclosed
+-- in the privacy policy as a bounded server-side usage log that sets no cookie.
+CREATE TABLE IF NOT EXISTS usage_log (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  ts INTEGER NOT NULL,
+  path TEXT NOT NULL,
+  method TEXT,
+  credential TEXT,
+  country TEXT,
+  colo TEXT,
+  ua TEXT,
+  weight INTEGER NOT NULL DEFAULT 1
+);
+CREATE INDEX IF NOT EXISTS idx_usage_log_ts ON usage_log (ts);
