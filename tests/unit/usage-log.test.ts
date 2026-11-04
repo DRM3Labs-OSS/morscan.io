@@ -69,6 +69,9 @@ describe("credentialClass", () => {
 		const c = await credentialClass(req({ Authorization: `Bearer ${USER_KEY}` }), env());
 		expect(c).toMatch(/^key:[0-9a-f]{12}$/);
 	});
+	it("classifies wallet-signature SDK callers (not anonymous)", async () => {
+		expect(await credentialClass(req({ "X-Morscan-Wallet": "0xabc" }), env())).toBe("wallet");
+	});
 	it("classifies x402 and anonymous from headers alone", async () => {
 		expect(await credentialClass(req({ "X-PAYMENT": "eyJ..." }), env())).toBe("x402");
 		expect(await credentialClass(req({}), env())).toBeNull();

@@ -22,6 +22,7 @@
 import type { Env } from "../types";
 import { baseUrl } from "../config";
 import { bumpAnonDay } from "../db/anon-counters";
+import { validateApiKey } from "./auth";
 
 // Zero-value marketing/SEO scrapers. Specific on purpose: NOT a broad bot
 // catch-all (that would hit search engines and agent crawlers we want). Mirrors
@@ -36,11 +37,12 @@ export function isDeniedCrawler(ua: string | null): boolean {
 }
 
 /**
- * A request is credentialed (and so skips the keyless gate entirely) if it
- * presents ANY recognized credential header: an API key, a bearer token, an SDK
- * wallet signature, or an x402 payment. We do not validate it here - presence is
- * enough to route past the gate, and an invalid credential is handled (401) by
- * the normal auth path. Denied crawlers never carry one.
+ * A request is credentialed (and so skips the ANON DAY CAP) if it presents ANY
+ * recognized credential header: an API key, a bearer token, an SDK wallet
+ * signature, or an x402 payment. Presence is enough here because the cap only
+ * meters anonymous volume and an invalid credential is handled (401) downstream.
+ * The CRAWLER block does NOT trust mere presence - it validates the key - so a
+ * scraper cannot defeat it with a junk header (see keylessGate).
  */
 export function hasCredentialHeader(req: Request): boolean {
 	return !!(
@@ -57,12 +59,34 @@ export function anonDayCap(env: Env): number {
 	return Number.isFinite(n) && n > 0 ? n : 0;
 }
 
-/** A short, non-reversible tag for an IP, so the day counter stores no raw address. */
-async function hashIp(ip: string): Promise<string> {
-	const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(ip));
+/**
+ * A short tag for an IP, so the day counter stores no raw address. Salted with a
+ * per-deployment secret (the JWT secret, already present) so the truncated hash
+ * is not a rainbow-table lookup over the small IPv4 space if the table ever leaks.
+ */
+async function hashIp(env: Env, ip: string): Promise<string> {
+	const salt = env.MORSCAN_JWT_SECRET || "";
+	const buf = await crypto.subtle.digest(
+		"SHA-256",
+		new TextEncoder().encode(`${salt}|${ip}`),
+	);
 	return Array.from(new Uint8Array(buf).slice(0, 8), (b) =>
 		b.toString(16).padStart(2, "0"),
 	).join("");
+}
+
+/**
+ * Paths the anon day cap meters: keyless /mor/v1 data endpoints, EXCLUDING the
+ * documented-free endpoints (price and capacity never cost a call), so arming
+ * the cap never 429s a caller on a free endpoint.
+ */
+function isDayCapped(path: string): boolean {
+	if (!path.startsWith("/mor/v1/")) return false;
+	return (
+		path !== "/mor/v1/price" &&
+		path !== "/mor/v1/price/chart" &&
+		path !== "/mor/v1/capacity"
+	);
 }
 
 const GATE_HEADERS = {
@@ -107,26 +131,38 @@ export async function keylessGate(
 	req: Request,
 	path: string,
 ): Promise<Response | null> {
-	// A key, wallet signature, or payment always beats a user-agent.
-	if (hasCredentialHeader(req)) return null;
-
-	// 1. Crawler denylist (pages + API). Health probes are exempt so a monitor
-	// is never caught even if it ever matched.
+	// 1. Crawler denylist (pages + API; /health exempt). A denied crawler is
+	// refused UNLESS it carries a VALID api key - presence of a header is not
+	// enough, or a scraper would bypass the block with a junk key. On a page
+	// (which carries no legitimate key) that means always refused; on /mor/v1 a
+	// valid key beats the user-agent. validateApiKey is a D1 read only when a key
+	// is actually presented, and this whole branch runs only for a denied-crawler
+	// UA, never on normal traffic.
 	if (
 		path !== "/health" &&
 		path !== "/healthz" &&
 		isDeniedCrawler(req.headers.get("user-agent"))
-	)
+	) {
+		if (path.startsWith("/mor/v1/")) {
+			const auth = await validateApiKey(req, env);
+			if (auth.valid) return null;
+		}
 		return crawlerBlockResponse();
+	}
 
-	// 2. Anonymous per-IP day cap (keyless /mor/v1 only; off unless configured).
+	// A valid-looking credential (key, wallet signature, or payment) skips the
+	// anonymous cap; an invalid one is handled 401 downstream.
+	if (hasCredentialHeader(req)) return null;
+
+	// 2. Anonymous per-IP day cap (keyless metered /mor/v1 only, free endpoints
+	// excluded; off unless configured).
 	const cap = anonDayCap(env);
-	if (cap > 0 && path.startsWith("/mor/v1/")) {
+	if (cap > 0 && isDayCapped(path)) {
 		try {
 			const ip = req.headers.get("CF-Connecting-IP") || "unknown";
 			const { used, retryAfter } = await bumpAnonDay(
 				env.DB,
-				await hashIp(ip),
+				await hashIp(env, ip),
 				Math.floor(Date.now() / 1000),
 			);
 			if (used > cap) return anonCapResponse(retryAfter);

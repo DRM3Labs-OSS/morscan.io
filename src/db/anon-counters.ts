@@ -4,7 +4,7 @@
  * A single durable ceiling for keyless API callers, separate from the per-key
  * usage_counters (which only exist for keyed callers). The IP is hashed into
  * the bucket so the raw address is never stored in D1; the row is a daily
- * staircase (`<ip-hash>|YYYY-MM-DD`) with its own reset_at, pruned by the daily
+ * staircase (`<ip-hash>|<utc-day-start-seconds>`) with its own reset_at, pruned by the daily
  * cron. Created at runtime on first use, so an existing database needs no
  * migration. OFF by default (ANON_DAY_CAP unset or 0) - the mechanism is armed
  * and the number is set once the usage_log read shows the real anon volume.

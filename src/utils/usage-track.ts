@@ -65,6 +65,10 @@ export async function credentialClass(req: Request, env: Env): Promise<string | 
 		if (env.MORSCAN_DEMO_KEY && key === env.MORSCAN_DEMO_KEY) return "demo";
 		return keyTag(key);
 	}
+	// SDK callers authenticate with a wallet signature and no key; without this
+	// they would log as anonymous and skew the human/machine split (a signed
+	// machine counted as anon). Tag the class without touching the signature.
+	if (req.headers.get("X-Morscan-Wallet")) return "wallet";
 	if (req.headers.get("X-PAYMENT")) return "x402";
 	return null;
 }

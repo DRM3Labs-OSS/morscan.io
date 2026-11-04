@@ -99,15 +99,26 @@ describe("anonDayCap", () => {
 	});
 });
 
+const DEMO_KEY = "mor_demodemodemodemodemodemodemo0000";
+
 describe("keylessGate", () => {
-	it("never blocks a credentialed request, even a denied-crawler UA", async () => {
-		const env = {} as Env;
-		const r = req({ "X-Morscan-Key": "mor_live", "user-agent": "AhrefsBot/7.0" });
-		expect(await keylessGate(env, r, "/models")).toBeNull();
-	});
 	it("403s a keyless denied crawler", async () => {
 		const res = await keylessGate({} as Env, req({ "user-agent": "AhrefsBot/7.0" }), "/models");
 		expect(res?.status).toBe(403);
+	});
+	it("a denied crawler cannot bypass the PAGE block with a junk key header", async () => {
+		// Pages carry no legitimate key; presence of a header must not defeat the block.
+		const r = req({ "X-Morscan-Key": "junk", "user-agent": "AhrefsBot/7.0" });
+		expect((await keylessGate({} as Env, r, "/models"))?.status).toBe(403);
+	});
+	it("a denied crawler with an INVALID key is still blocked on /mor/v1", async () => {
+		const r = apiReq({ "X-Morscan-Key": "junk", "user-agent": "AhrefsBot/7.0" });
+		expect((await keylessGate({} as Env, r, "/mor/v1/providers"))?.status).toBe(403);
+	});
+	it("a VALID key beats the user-agent on /mor/v1 (demo key, no D1)", async () => {
+		const env = { MORSCAN_DEMO_KEY: DEMO_KEY } as unknown as Env;
+		const r = apiReq({ "X-Morscan-Key": DEMO_KEY, "user-agent": "AhrefsBot/7.0" });
+		expect(await keylessGate(env, r, "/mor/v1/providers")).toBeNull();
 	});
 	it("lets a keyless search engine through", async () => {
 		expect(await keylessGate({} as Env, req({ "user-agent": "Googlebot/2.1" }), "/models")).toBeNull();
@@ -135,5 +146,13 @@ describe("keylessGate", () => {
 		// Two page hits past a cap of 1 still pass (pages are not capped).
 		expect(await keylessGate(env, req(h), "/models")).toBeNull();
 		expect(await keylessGate(env, req(h), "/analytics/overview")).toBeNull();
+	});
+	it("the armed cap does NOT charge the free endpoints (price/capacity)", async () => {
+		const env = { ANON_DAY_CAP: "1", DB: fakeDb() } as unknown as Env;
+		const h = { "user-agent": "python-requests/2.31", "CF-Connecting-IP": "203.0.113.9" };
+		// Repeated free-endpoint hits past a cap of 1 never 429 (never counted).
+		for (let i = 0; i < 3; i++)
+			expect(await keylessGate(env, apiReq(h, "/mor/v1/price"), "/mor/v1/price")).toBeNull();
+		expect(await keylessGate(env, apiReq(h, "/mor/v1/capacity"), "/mor/v1/capacity")).toBeNull();
 	});
 });
