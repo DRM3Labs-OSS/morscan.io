@@ -195,3 +195,14 @@ CREATE TABLE IF NOT EXISTS usage_log (
   weight INTEGER NOT NULL DEFAULT 1
 );
 CREATE INDEX IF NOT EXISTS idx_usage_log_ts ON usage_log (ts);
+
+-- anon_counters: the keyless (anonymous) per-IP day ceiling (src/db/anon-counters.ts
+-- + src/utils/keyless-gate.ts). bucket is '<ip-hash>|<utc-day-start>' so the raw IP
+-- is never stored; reset_at is the next 00:00 UTC. A daily staircase, pruned by the
+-- daily cron. Created at runtime on first use. The ceiling is OFF unless ANON_DAY_CAP
+-- is set above 0, so this table stays empty until the cap is armed from the read.
+CREATE TABLE IF NOT EXISTS anon_counters (
+  bucket TEXT PRIMARY KEY,
+  n INTEGER NOT NULL,
+  reset_at INTEGER NOT NULL
+);

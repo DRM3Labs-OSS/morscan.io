@@ -45,6 +45,7 @@ export interface Env {
 	// First-party usage instrument (src/utils/usage-track.ts, src/db/usage-log.ts).
 	USAGE_LOG_SAMPLE?: string; // Sample divisor for high-volume human-ish traffic (serving key + browser page GETs); machine/keyed/x402/crawler rows are always logged. Default "1" = log every request.
 	USAGE_LOG_RETENTION_DAYS?: string; // Rolling window the daily cron prunes usage_log to. Default 14.
+	ANON_DAY_CAP?: string; // Keyless per-IP /mor/v1 requests per UTC day (src/utils/keyless-gate.ts). 0 or unset = OFF (armed, no ceiling). Set from the usage_log read, not guessed.
 	MORSCAN_JWT_SECRET?: string; // UI session HMAC secret (random; wrangler secret). Independent of the mnemonic.
 	MORSCAN_MNEMONIC?: string; // BIP39 mnemonic - provenance signing ONLY (morscan/cache, morscan/signer). NOT used for JWT.
 	PROVENANCE_ENABLED?: string; // "false" = run unsigned: no receipt fields, /version reports provenance "disabled", the provenance WASM is never initialized. Default (unset/"true") = sign when MORSCAN_MNEMONIC is set.

@@ -49,6 +49,8 @@ import { handleSnapshotPrune } from "../handlers/snapshot-prune";
 import { validateApiKey, validateKey } from "../utils/auth";
 import { logRequest, trackable } from "../utils/usage-track";
 import { pruneUsageLog } from "../db/usage-log";
+import { keylessGate } from "../utils/keyless-gate";
+import { pruneAnonCounters } from "../db/anon-counters";
 import { installProviders, getProviders, type Providers } from "./index";
 import { handleAuthRoutes } from "../routes/auth";
 import { handleUiRoutes } from "../routes/ui";
@@ -175,6 +177,12 @@ export function createMorscanApp(options: MorscanAppOptions = {}): MorscanApp {
 			// operator sees the traffic the per-key usage_counters never see: human
 			// page reads (serving key), anonymous and machine API callers, crawlers.
 			if (trackable(path)) ctx.waitUntil(logRequest(env, request, path));
+
+			// Keyless gate (src/utils/keyless-gate.ts): refuse zero-value marketing
+			// crawlers and, when armed, cap anonymous per-IP /mor/v1 volume. No-op for
+			// any credentialed caller; a key, wallet signature or payment always wins.
+			const gated = await keylessGate(env, request, path);
+			if (gated) return gated;
 
 			// Staging is retired. The apex (morscan.io) is the single live, indexable
 			// origin; staging.morscan.io permanently redirects to it (same path +
@@ -362,6 +370,16 @@ export function createMorscanApp(options: MorscanAppOptions = {}): MorscanApp {
 							if (n) console.log(`[usage-log-prune] deleted ${n} rows`);
 						}),
 						"usageLogPrune",
+					),
+				);
+				// Anon per-IP day-counter prune (keyless-gate ceiling; a no-op table when
+				// the cap is off). Drops expired day buckets so the table stays bounded.
+				ctx.waitUntil(
+					safe(
+						pruneAnonCounters(env.DB).then((n) => {
+							if (n) console.log(`[anon-counter-prune] deleted ${n} rows`);
+						}),
+						"anonCounterPrune",
 					),
 				);
 				// Description-gap check: freshly registered models arrive without a
