@@ -39,7 +39,12 @@ import {
 	selectSyncStateIn4,
 } from "../db/explorer-core";
 import { countDiamondUpgrades } from "../db/explorer-market";
+import { readBlockTimeMs, DEFAULT_BLOCK_TIME_MS, lagSeconds } from "../sync/chain-clock";
+import { classifyHealth } from "./health-status";
 import { selectLastBuilderEventBlock } from "../db/explorer-builder";
+
+/** /sync/status reads "synced" within this many seconds of the head (10s reorg margin + a tick). */
+const SYNCED_LAG_SECONDS = 30;
 
 const MOR_TOKEN_ADDRESS = "0x7431aDa8a591C955a994a21710752EF9b882b8e3";
 
@@ -95,6 +100,7 @@ async function fullHealthResponse(env: Env, headers: Record<string, string>) {
 		timestamp: number;
 	} | null = null;
 	let diamondUpgradeCount = 0;
+	let blockTimeMs = DEFAULT_BLOCK_TIME_MS;
 
 	try {
 		const HEALTH_TIMEOUT = 3000;
@@ -114,6 +120,7 @@ async function fullHealthResponse(env: Env, headers: Record<string, string>) {
 			selectLastEventBlock(env.DB),
 			selectLatestDiamondUpgrade(env.DB).catch(() => null),
 			countDiamondUpgrades(env.DB).catch(() => null),
+			readBlockTimeMs(env.DB),
 		]);
 		const timeout = new Promise<never>((_, reject) =>
 			setTimeout(() => reject(new Error("Health D1 queries timed out")), HEALTH_TIMEOUT),
@@ -126,7 +133,9 @@ async function fullHealthResponse(env: Env, headers: Record<string, string>) {
 			eventCursorRow,
 			lastUpgradeRow,
 			upgradeCountRow,
+			measuredBlockTimeMs,
 		] = await Promise.race([queries, timeout]);
+		blockTimeMs = measuredBlockTimeMs;
 
 		const syncMap = new Map<string, string>();
 		for (const row of syncRows) {
@@ -213,45 +222,28 @@ async function fullHealthResponse(env: Env, headers: Record<string, string>) {
 	const eventCursorAgeSeconds = lastSyncEpoch ? nowSeconds - lastSyncEpoch : null;
 	const cursorBlocksBehind =
 		eventCursorBlock > 0 ? currentBlock - eventCursorBlock : null;
-	const eventCursorStuck =
-		eventCursorAgeSeconds !== null &&
-		eventCursorAgeSeconds > 120 &&
-		cursorBlocksBehind !== null &&
-		cursorBlocksBehind > 30;
-
-	// Pure wall-clock staleness. This is the ONLY reliable stall signal, because
-	// both current_block AND last_block are written by the sync tick itself - when
-	// sync dies they freeze together and blocksBehind stays ~0, making a dead sync
-	// look healthy. lastSyncTs keeps aging against the wall clock, so age is the
-	// truth. >120s => degraded, >300s => error. If lastSyncTs is missing, treat as
-	// stale (we cannot prove freshness).
-	const lastSyncAgeSeconds = lastSyncEpoch ? nowSeconds - lastSyncEpoch : null;
-	const syncStale = lastSyncAgeSeconds === null || lastSyncAgeSeconds > 120;
-	const syncVeryStale = lastSyncAgeSeconds === null || lastSyncAgeSeconds > 300;
-
-	// Builder freshness - mirror the compute status levels so builder drift is
-	// observable (the 23-min gap must never hide behind a green badge again).
-	// ok < 100 blocks behind, degraded 100-500, error > 500. null = not configured.
+	const lastSyncAgeSeconds = eventCursorAgeSeconds;
+	// null = builder not configured.
 	const builderBlocksBehind =
 		builderBlock > 0 && currentBlock > 0 ? currentBlock - builderBlock : null;
-	const builderStatus: "ok" | "degraded" | "error" | null =
-		builderBlocksBehind === null
-			? null
-			: builderBlocksBehind >= 500
-				? "error"
-				: builderBlocksBehind >= 100
-					? "degraded"
-					: "ok";
 
-	const status = syncError
-		? "error"
-		: syncVeryStale || blocksBehind >= 500 || builderStatus === "error"
-			? "error"
-			: syncStale || eventCursorStuck || builderStatus === "degraded"
-				? "degraded"
-				: blocksBehind >= 50
-					? "degraded"
-					: "ok";
+	// All lag rules are in seconds of chain time (see ./health-status).
+	const verdict = classifyHealth({
+		syncError,
+		blockTimeMs,
+		lastSyncAgeSeconds,
+		blocksBehind,
+		builderBlocksBehind,
+		cursorBlocksBehind,
+	});
+	const {
+		status,
+		syncStale,
+		eventCursorStuck,
+		builderStatus,
+		lagSeconds,
+		builderLagSeconds,
+	} = verdict;
 
 	const contracts = {
 		diamond: {
@@ -259,6 +251,7 @@ async function fullHealthResponse(env: Env, headers: Record<string, string>) {
 			deployBlock: DIAMOND_DEPLOY_BLOCK,
 			syncedBlock: lastBlock,
 			blocksBehind,
+			lagSeconds,
 			purpose: "Session staking, provider registry, marketplace, model registry",
 			upgrades: {
 				totalSeen: diamondUpgradeCount,
@@ -270,6 +263,7 @@ async function fullHealthResponse(env: Env, headers: Record<string, string>) {
 			deployBlock: BUILDER_DEPLOY_BLOCK,
 			syncedBlock: builderBlock,
 			blocksBehind: builderBlocksBehind,
+			lagSeconds: builderLagSeconds,
 			status: builderStatus,
 			purpose: "Builder subnet staking and rewards",
 		},
@@ -278,6 +272,7 @@ async function fullHealthResponse(env: Env, headers: Record<string, string>) {
 			deployBlock: MOR_DEPLOY_BLOCK,
 			syncedBlock: lastBlock,
 			blocksBehind,
+			lagSeconds,
 			purpose:
 				"MOR ERC-20 token - holder tracking via Transfer events (backfilled from deploy)",
 		},
@@ -302,6 +297,8 @@ async function fullHealthResponse(env: Env, headers: Record<string, string>) {
 		claimable_list_consistent: !eventCursorStuck,
 		accounting_signal: eventCursorStuck ? "partial" : "consistent",
 		blocksBehind,
+		lagSeconds, // the same gap in seconds of chain time (what the status rules use)
+		blockTimeMs, // measured Base block time the conversion used
 		coverage, // per-dataset historical from-block + % + ETA (syncing banner reads this)
 		backfillIndexing, // true while any dataset is still catching up to its deploy floor
 	};
@@ -361,6 +358,8 @@ export async function handleSyncStatus(env: Env, headers: Record<string, string>
 	const lastBlock = parseInt(m.get("last_block") || "0", 10);
 	const currentBlock = parseInt(m.get("current_block") || "0", 10) || lastBlock;
 	const blocksBehind = currentBlock - lastBlock;
+	// Synced = within the reorg margin plus one tick of the head, in chain time.
+	const lag = lagSeconds(blocksBehind, await readBlockTimeMs(env.DB)) ?? 0;
 
 	return new Response(
 		JSON.stringify({
@@ -369,7 +368,8 @@ export async function handleSyncStatus(env: Env, headers: Record<string, string>
 			version: MORSCAN_VERSION,
 			...buildMeta(lastBlock, currentBlock),
 			lastSyncTimestamp: m.get("last_sync_ts") || null,
-			status: blocksBehind <= 1 ? "synced" : "syncing",
+			lagSeconds: lag,
+			status: lag <= SYNCED_LAG_SECONDS ? "synced" : "syncing",
 		}),
 		{ headers },
 	);

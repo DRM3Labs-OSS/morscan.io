@@ -250,7 +250,7 @@ function renderContract(c: ContractInfo): string {
         <a id="contract-read" href="${esc(basescanUrl)}#readContract" target="_blank">Read</a>
         <a id="contract-write" href="${esc(basescanUrl)}#writeContract" target="_blank">Write</a>
       </div>
-      <span class="cb-sync"><span class="sync-label">Block</span><span class="sync-val" id="sync-chain">-</span><span class="sync-badge" id="sync-badge">-</span><span class="sync-note">${BASE_ICON_SVG} Base L2 &middot; ~2s blocks</span></span>
+      <span class="cb-sync"><span class="sync-label">Block</span><span class="sync-val" id="sync-chain">-</span><span class="sync-badge" id="sync-badge">-</span><span class="sync-note">${BASE_ICON_SVG} Base L2</span></span>
     </div>`;
 }
 

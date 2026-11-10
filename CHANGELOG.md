@@ -4,6 +4,33 @@ Releases are tagged vX.Y.Z on GitHub.
 
 ## Unreleased
 
+## v2.54.0 - 2026-11-10 - freshness judged in seconds, not blocks
+
+- Base moved from ~2s blocks to ~200ms blocks on 2026-11-05 (around block
+  53,556,121). Every freshness rule was written in blocks, so each became 10x
+  stricter overnight: the 50-block "degraded" line that meant ~100s of lag
+  started firing at ~10s, and `/health` flapped between ok and degraded on a
+  healthy index.
+- New chain clock (`src/sync/chain-clock.ts`). The sync tick now reads the head
+  with `eth_getBlockByNumber(latest)` (number and timestamp in the one call that
+  used to fetch the number alone) and measures the real block time over spans
+  of at least 60s of chain time. A future cadence change is picked up in about
+  two minutes, with no deploy.
+- `/health` status rules are now seconds of chain time (`src/handlers/health-status.ts`),
+  set to the same real-time meaning the old block counts had at 2s blocks:
+  index lag degraded at 100s and error at 1000s; builder lag degraded at 200s
+  and error at 1000s; a stuck event cursor at 60s. Wall-clock stall detection
+  is unchanged.
+- `/health` gains `lagSeconds` and `blockTimeMs` at the top level and
+  `lagSeconds` on each contract record, all public (`public-health.allow`).
+  `blocksBehind` is unchanged. `/sync/status` reads "synced" within 30s.
+- Reorg margins are now time-based: 10s for the event sync (was 5 blocks) and
+  40s for the builder sync (was 20 blocks), converted with the measured block
+  time. At 200ms blocks these had shrunk to ~1s and ~4s.
+- The builder page sync badge and the catching-up banner read `lagSeconds`
+  instead of multiplying blocks by 2s. The header no longer prints a block
+  cadence, and the about and agent pages describe the gap in seconds.
+
 ## v2.51.1 - 2026-10-07 - model pages for a family of many listings
 
 - Every `/compute/models/<slug>` page in the Qwen family (54 canonical models,

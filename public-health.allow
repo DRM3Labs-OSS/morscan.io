@@ -30,6 +30,10 @@ currentBlock
 syncedBlock
 # the explorer's freshness: the exact block gap to the chain head that the about and terms pages promise.
 blocksBehind
+# the explorer's freshness: the same gap in seconds of chain time, the unit the status word is judged in. The sync banner reads it.
+lagSeconds
+# the measured Base block time that converts the block gap to seconds. Public chain cadence.
+blockTimeMs
 # the explorer's freshness: when the index last advanced. The sync bar prints the age from it.
 lastSyncTimestamp
 # the explorer's freshness: the age of that reading in seconds, derived from the field above.
@@ -99,6 +103,8 @@ extended.contracts.diamond.deployBlock
 extended.contracts.diamond.syncedBlock
 # the explorer's freshness per contract: the diamond index's gap to the chain head.
 extended.contracts.diamond.blocksBehind
+# the explorer's freshness per contract: the diamond index's gap in seconds of chain time.
+extended.contracts.diamond.lagSeconds
 # plain-English label for what the public diamond contract does. A concept, no plumbing.
 extended.contracts.diamond.purpose
 # on-chain: count of diamond upgrades we have indexed, exact.
@@ -120,6 +126,8 @@ extended.contracts.builder.deployBlock
 extended.contracts.builder.syncedBlock
 # the explorer's freshness per contract: the builder index's gap to the chain head. The builder pages print it.
 extended.contracts.builder.blocksBehind
+# the explorer's freshness per contract: the builder index's gap in seconds of chain time. The builder pages print it.
+extended.contracts.builder.lagSeconds
 # status word for the builder index (ok, degraded, error).
 extended.contracts.builder.status
 # plain-English label for what the public builder contract does. A concept, no plumbing.
@@ -133,5 +141,7 @@ extended.contracts.mor_token.deployBlock
 extended.contracts.mor_token.syncedBlock
 # the explorer's freshness per contract: the token transfer index's gap to the chain head.
 extended.contracts.mor_token.blocksBehind
+# the explorer's freshness per contract: the token transfer index's gap in seconds of chain time.
+extended.contracts.mor_token.lagSeconds
 # plain-English label for what we index from the public token contract. A concept.
 extended.contracts.mor_token.purpose

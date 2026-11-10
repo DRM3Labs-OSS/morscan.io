@@ -142,9 +142,9 @@ settles on public smart contracts.
 
 ## How it stays current
 
-MorScan indexes Morpheus contract events as they land. Base produces a block
-about every 2 seconds, so the index normally runs only a few blocks behind the
-chain head. ${b}/health reports the exact gap at any moment.
+MorScan indexes Morpheus contract events as they land, normally within a few
+seconds of the chain head. ${b}/health reports the exact gap at any moment, in
+blocks and in seconds.
 
 ## Provenance
 

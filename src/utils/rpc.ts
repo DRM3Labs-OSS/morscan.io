@@ -5,6 +5,7 @@
 import { getSyncStateValue } from "../db/ops";
 import type { Env } from "../types";
 import { MORSCAN_VERSION } from "../version";
+import { readBlockTimeMs } from "../sync/chain-clock";
 
 const FALLBACK_RPCS = [
 	// Wide-range, no-auth, reliable under load (proven for backfill getLogs too).
@@ -75,7 +76,10 @@ export async function getSyncState(env: Env): Promise<{
 			currentBlock > 0
 				? currentBlock
 				: lastBlock +
-					Math.floor((Date.now() / 1000 - new Date(lastSyncTs).getTime() / 1000) / 2);
+					Math.floor(
+						(Date.now() - new Date(lastSyncTs).getTime()) /
+							(await readBlockTimeMs(env.DB)),
+					);
 		return { lastBlock, currentBlock: chainHead, startBlock, lastSyncTs };
 	} catch {
 		const estimated = 42400000 + Math.floor((Date.now() / 1000 - 1700000000) / 2);

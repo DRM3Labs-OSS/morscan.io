@@ -521,12 +521,15 @@ Key fields (top level or under \`extended\`):
 
 - \`status\` - overall service state
 - \`syncedBlock\` / \`currentBlock\` - indexed block vs chain head on Base
-- \`blocksBehind\` - the sync gap (Base blocks are ~2s; under ~10 is live)
+- \`blocksBehind\` - the sync gap in blocks
+- \`lagSeconds\` - the same gap in seconds of chain time (under ~30s is live;
+  prefer this over \`blocksBehind\`, since Base block cadence can change)
+- \`blockTimeMs\` - the measured Base block time used for the conversion
 - \`lastSyncTimestamp\` - when the indexer last advanced
 - \`coverage.datasets\` - per-dataset deep-history backfill percentages
 - \`version\` - deployed MorScan version
 
-Use this before heavy queries: if \`blocksBehind\` is large or the last sync is
+Use this before heavy queries: if \`lagSeconds\` is large or the last sync is
 stale, recent rows may lag the chain. Poll politely (the page UI polls every
 5-25s; agents should not need more than that).
 `,

@@ -12,7 +12,12 @@
  * the single source of truth for the buffer and range constants.
  */
 
-// 2026-04-27: Reduced from 20 to 5. Base finalizes in ~2 blocks (~4s).
+// Reorg safety margin, in chain time. History: 20 blocks, then 5 (2026-04-27),
+// both sized for ~2s blocks. Since Base moved to ~200ms blocks (2026-11-05) a
+// block count no longer means a fixed amount of time, so the margin is now
+// seconds and converted with the measured block time (see ./chain-clock).
+export const CONFIRMATION_SECONDS = 10;
+// Block-count default for callers that do not pass a measured buffer.
 export const CONFIRMATION_BUFFER = 5;
 // Max block range per eth_getLogs call. Alchemy supports up to 100K.
 // Free RPCs vary. 50K is safe for all providers.
@@ -29,16 +34,19 @@ export interface SyncRange {
 /**
  * Plan the block range for one sync tick.
  *
- * Cold start (no cursor yet) begins CONFIRMATION_BUFFER blocks back from head.
- * Otherwise resume at lastEventBlock + 1. The range never crosses safeHead
+ * Cold start (no cursor yet) begins bufferBlocks back from head (default
+ * CONFIRMATION_BUFFER; the live sync passes the time-based buffer). Otherwise resume at lastEventBlock + 1. The range never crosses safeHead
  * (head minus the confirmation buffer) and is capped at MAX_LOG_RANGE blocks
  * per tick. When the cursor has caught up to safeHead, upToDate is true and the
  * caller does nothing this tick.
  */
-export function planSyncRange(lastEventBlock: number, currentBlock: number): SyncRange {
-	const fromBlock =
-		lastEventBlock > 0 ? lastEventBlock + 1 : currentBlock - CONFIRMATION_BUFFER;
-	const safeHead = currentBlock - CONFIRMATION_BUFFER;
+export function planSyncRange(
+	lastEventBlock: number,
+	currentBlock: number,
+	bufferBlocks: number = CONFIRMATION_BUFFER,
+): SyncRange {
+	const fromBlock = lastEventBlock > 0 ? lastEventBlock + 1 : currentBlock - bufferBlocks;
+	const safeHead = currentBlock - bufferBlocks;
 
 	if (fromBlock > safeHead) {
 		return { fromBlock, toBlock: safeHead, gap: 0, upToDate: true };

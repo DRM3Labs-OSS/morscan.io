@@ -94,3 +94,12 @@ describe("isStall - detection heuristic", () => {
 		expect(isStall(20, 0, 0, 20)).toBe(false);
 	});
 });
+
+describe("planSyncRange - a time-based buffer passed in blocks", () => {
+	it("holds back the given buffer (10s at 200ms = 50 blocks)", () => {
+		const r = planSyncRange(1000, 2000, 50);
+		expect(r.toBlock).toBe(1950);
+		expect(planSyncRange(0, 2000, 50).fromBlock).toBe(1950);
+		expect(planSyncRange(1960, 2000, 50).upToDate).toBe(true);
+	});
+});

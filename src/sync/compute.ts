@@ -43,7 +43,14 @@ import {
 	processMorTransfers,
 } from "./compute-events";
 import { processProviderDiscovery } from "./compute-discovery";
-import { hasSessionErrors, isStall, planSyncRange, shouldAdvanceCursor } from "./plan";
+import {
+	CONFIRMATION_SECONDS,
+	hasSessionErrors,
+	isStall,
+	planSyncRange,
+	shouldAdvanceCursor,
+} from "./plan";
+import { blocksForSeconds, recordHead } from "./chain-clock";
 import {
 	setSyncState,
 	setSyncStateStmt,
@@ -85,12 +92,27 @@ export async function sync(env: Env): Promise<SyncResult> {
 	const rpcUrl = env.RPC_URL;
 	const alchemy = env.ALCHEMY_FALLBACK_URL;
 
-	const currentBlock = parseInt(
-		(await rpc(rpcUrl, "eth_blockNumber", [], alchemy)) as string,
-		16,
-	);
+	// Head number AND timestamp in one call: the timestamp feeds the chain clock,
+	// which measures the real block time so freshness rules can be in seconds.
+	const head = (await rpc(
+		rpcUrl,
+		"eth_getBlockByNumber",
+		["latest", false],
+		alchemy,
+	)) as {
+		number: string;
+		timestamp: string;
+	};
+	const currentBlock = parseInt(head.number, 16);
+	if (!Number.isFinite(currentBlock) || currentBlock <= 0) {
+		throw new Error("eth_getBlockByNumber(latest) returned no block number");
+	}
 	// Persist chain head so /health can read it without RPC
 	await setSyncState(env.DB, "current_block", currentBlock.toString());
+	const blockTimeMs = await recordHead(env.DB, {
+		block: currentBlock,
+		timestamp: parseInt(head.timestamp, 16),
+	});
 
 	const lastRow = await getSyncStateValue(env.DB, "last_event_block");
 	const lastEventBlock = lastRow ? parseInt(lastRow.value, 10) : 0;
@@ -100,6 +122,7 @@ export async function sync(env: Env): Promise<SyncResult> {
 	const { fromBlock, toBlock, gap, upToDate } = planSyncRange(
 		lastEventBlock,
 		currentBlock,
+		blocksForSeconds(CONFIRMATION_SECONDS, blockTimeMs),
 	);
 
 	if (upToDate) {

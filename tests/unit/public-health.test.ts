@@ -29,6 +29,8 @@ const full: Record<string, unknown> = {
 	syncedBlock: 42_500_095,
 	startBlock: 42_400_000,
 	blocksBehind: 5,
+	lagSeconds: 1,
+	blockTimeMs: 200,
 	lastSyncTs: "2026-01-01T00:00:00.000Z",
 	timestamp: "2026-01-01T00:00:01.000Z",
 	morscanVersion: "9.9.9",
@@ -78,6 +80,7 @@ const full: Record<string, unknown> = {
 				deployBlock: 1,
 				syncedBlock: 42_500_095,
 				blocksBehind: 5,
+				lagSeconds: 1,
 				purpose: "Session staking",
 				upgrades: {
 					totalSeen: 2,
@@ -89,6 +92,7 @@ const full: Record<string, unknown> = {
 				deployBlock: 3,
 				syncedBlock: 42_500_000,
 				blocksBehind: 100,
+				lagSeconds: 20,
 				status: "degraded",
 				purpose: "Builder staking",
 			},
@@ -97,6 +101,7 @@ const full: Record<string, unknown> = {
 				deployBlock: 5,
 				syncedBlock: 42_500_095,
 				blocksBehind: 5,
+				lagSeconds: 1,
 				purpose: "MOR token transfers",
 			},
 		},
@@ -120,12 +125,14 @@ const PUBLIC_TOP_LEVEL = [
 	"activeSessions",
 	"backfillIndexing",
 	"bids",
+	"blockTimeMs",
 	"blocksBehind",
 	"claimable_list_consistent",
 	"coverage",
 	"currentBlock",
 	"economicsUpdatedAt",
 	"extended",
+	"lagSeconds",
 	"lastSyncAgeSeconds",
 	"lastSyncTimestamp",
 	"product",
@@ -161,6 +168,8 @@ describe("/health audience", () => {
 
 	it("no key: the explorer's own freshness is public", () => {
 		expect(pub.blocksBehind).toBe(5);
+		expect(pub.lagSeconds).toBe(1);
+		expect(pub.blockTimeMs).toBe(200);
 		expect(pub.currentBlock).toBe(42_500_100);
 		expect(pub.syncedBlock).toBe(42_500_095);
 		expect(pub.lastSyncTimestamp).toBe("2026-01-01T00:00:00.000Z");
@@ -170,6 +179,7 @@ describe("/health audience", () => {
 		const ext = pub.extended as Record<string, Record<string, Record<string, unknown>>>;
 		expect(ext.contracts.builder.syncedBlock).toBe(42_500_000);
 		expect(ext.contracts.builder.blocksBehind).toBe(100);
+		expect(ext.contracts.builder.lagSeconds).toBe(20);
 		expect(ext.contracts.diamond.upgrades).toEqual(
 			(full.extended as Record<string, Record<string, Record<string, unknown>>>).contracts
 				.diamond.upgrades,

@@ -10,6 +10,7 @@
 
 import { type Env, EVENTS } from "../types";
 import { getCurrentBlock } from "../utils/rpc";
+import { blocksForSeconds, readBlockTimeMs } from "./chain-clock";
 import { findWorkingRpc, type EventLog } from "./events-batch";
 import { getLogsWithFallback } from "../utils/rpc-fallback";
 import { writeBqSafe, builderStakeRow } from "../utils/bigquery";
@@ -42,7 +43,9 @@ interface BuilderSyncResult {
 	durationMs: number;
 }
 
-const CONFIRMATION_BUFFER = 20;
+// Reorg safety margin in chain time. Was 20 blocks (~40s at the old ~2s
+// cadence); kept at 40s now that blocks are measured, not assumed.
+const CONFIRMATION_SECONDS = 40;
 
 /** BuildersV4 proxy deploy block on Base - first SubnetCreated events start here */
 const BUILDER_DEPLOY_BLOCK = 24_381_796;
@@ -151,8 +154,10 @@ export async function syncBuilderEvents(
 		: BUILDER_DEPLOY_BLOCK - 1;
 
 	const currentBlock = await getCurrentBlock(env);
-	// Reorg safety: never index the last CONFIRMATION_BUFFER (~40s on Base) blocks.
-	const safeHead = currentBlock - CONFIRMATION_BUFFER;
+	// Reorg safety: never index the last CONFIRMATION_SECONDS of chain time,
+	// converted with the measured block time (the compute sync keeps it fresh).
+	const blockTimeMs = await readBlockTimeMs(env.DB);
+	const safeHead = currentBlock - blocksForSeconds(CONFIRMATION_SECONDS, blockTimeMs);
 	// Absolute ceiling on how far one invocation may progress.
 	const targetHead = Math.min(safeHead, startCursor + maxBlocks);
 

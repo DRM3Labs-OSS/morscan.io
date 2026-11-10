@@ -461,19 +461,21 @@
           // Builder pages show the BUILDER indexer's own cursor, never the
           // compute plane's clock. The compute tick can be 4s fresh while the
           // builder cursor sits minutes back - stamping that page "Live · 4s"
-          // told a staker their deposit did not exist. Freshness here is blocks
-          // behind the head (~2s Base blocks): under 30 blocks reads Live.
+          // told a staker their deposit did not exist. Freshness here is the
+          // builder index's lag in SECONDS of chain time (the server converts
+          // blocks with the measured block time; Base cadence has changed before).
+          // The index holds back a 40s reorg margin, so within 60s reads at head
+          // and under 2 minutes reads Live.
           if(plane === 'builder'){
             var b = ((h.contracts || (h.extended||{}).contracts || {}).builder) || {};
             if(b.syncedBlock){
               synced = b.syncedBlock;
-              var behind = (typeof b.blocksBehind === 'number') ? b.blocksBehind : null;
-              if(behind === null){ ago = ''; live = false; }
-              else if(behind <= 5){ ago = ' · at head'; live = true; }
+              var bs = (typeof b.lagSeconds === 'number') ? b.lagSeconds : null;
+              if(bs === null){ ago = ''; live = false; }
+              else if(bs <= 60){ ago = ' · at head'; live = true; }
               else {
-                var bs = behind * 2;
-                ago = ' · ~' + (bs < 60 ? bs + 's' : Math.floor(bs/60) + 'm') + ' behind';
-                live = behind < 30;
+                ago = ' · ~' + (bs < 120 ? bs + 's' : Math.floor(bs/60) + 'm') + ' behind';
+                live = bs < 120;
               }
             }
           }
@@ -541,8 +543,11 @@
       function render(h){
         var cov = h && h.coverage;
         var behind = (h && typeof h.blocksBehind === 'number') ? h.blocksBehind : null;
+        var lag = (h && typeof h.lagSeconds === 'number') ? h.lagSeconds : null;
         var indexing = !!(h && (h.backfillIndexing || (cov && cov.indexing)));
-        if (behind != null && behind > 500) {
+        // Catching up = 1000s+ of chain time behind (the server's error line), in
+        // seconds so it holds whatever Base's block cadence is.
+        if (behind != null && lag != null && lag >= 1000) {
           var bText = 'Catching up to the chain head &middot; <b>' + behind.toLocaleString() + '</b> blocks behind';
           if (renderCard('Syncing', bText)) { show(false); return; }
           elTag.textContent = 'Syncing';
