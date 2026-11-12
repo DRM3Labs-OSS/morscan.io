@@ -603,6 +603,57 @@ export async function handleOgCard(
 	return new Response(body, { status: 200, headers });
 }
 
+// ---- Cards from a composition ----------------------------------------------
+const WINGS_GRADIENT = `<linearGradient id="wings" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#eafbe7"/><stop offset="0.4" stop-color="#57b45c"/><stop offset="0.55" stop-color="#2f8f3f"/><stop offset="0.75" stop-color="#4aa551"/><stop offset="1" stop-color="#d8f2d2"/></linearGradient>`;
+
+/**
+ * The MorScan wings and wordmark as an SVG fragment, placed where the
+ * built-in cards place them (top left of a 1200x630 card). It carries its own
+ * gradient, so it drops into any card SVG.
+ */
+export function ogBrandSvg(): string {
+	return `<defs>${WINGS_GRADIENT}</defs><g transform="translate(90 62) scale(1.45)"><path d="${WINGS_PATH}" fill="url(#wings)"/></g><text x="238" y="107" font-family="IBM Plex Mono" font-size="30" font-weight="700" letter-spacing="10" fill="${WORDMARK}">MorScan</text>`;
+}
+
+export interface OgCardOptions {
+	/** Cache identity for this card, e.g. "section/page". */
+	key: string;
+	/** Seconds a rendered card is reused. Default one hour. */
+	ttl?: number;
+	ctx: ExecutionContext;
+	/** Builds the 1200x630 card SVG. Called only on a cache miss. */
+	svg: () => string | Promise<string>;
+}
+
+/**
+ * Rasterize a card SVG to PNG with the same engine, fonts (IBM Plex Mono
+ * regular and bold) and edge cache as the built-in share cards. Throws when
+ * rasterization fails, so the caller chooses the fallback.
+ */
+export async function renderOgCard(opts: OgCardOptions): Promise<Response> {
+	const ttl = opts.ttl ?? OG_TTL_SECONDS;
+	const bucket = Math.floor(Date.now() / (ttl * 1000));
+	const cacheReq = new Request(
+		`https://morscan-og.internal/${CACHE_VERSION}/x/${encodeURIComponent(opts.key)}/${bucket}`,
+	);
+	const cache = caches.default;
+	const hit = await cache.match(cacheReq);
+	if (hit) {
+		const h = new Headers(hit.headers);
+		h.set("X-Cache", "HIT");
+		return new Response(hit.body, { status: 200, headers: h });
+	}
+	await ensureWasm();
+	const body = renderPng(await opts.svg()).slice();
+	const headers = {
+		"Content-Type": "image/png",
+		"Cache-Control": `public, max-age=${ttl}, s-maxage=${ttl}`,
+		"X-Cache": "MISS",
+	};
+	opts.ctx.waitUntil(cache.put(cacheReq, new Response(body, { status: 200, headers })));
+	return new Response(body, { status: 200, headers });
+}
+
 // ---- Favicon / touch icons -------------------------------------------------
 // Google shows a site's favicon in search results from a crawlable, square
 // raster at a standard path (icon >= 48px, a multiple of 48). We rasterize the

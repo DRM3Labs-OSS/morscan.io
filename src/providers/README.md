@@ -65,7 +65,7 @@ Factory options (`MorscanAppOptions` in `compose.ts`):
 - `planes` - extra top-level nav sections (`{ key, label, href }`).
 - `publicRoutes` - extra public pages outside `/mor/v1` and `/admin`; reached
   only after every built-in route declined. Build pages with the kit at
-  `morscan/ui` (`renderPage`, `cachedPage`).
+  `morscan/ui` (`renderPage`, `cachedPage`, `renderOgCard`).
 - `apiRoutes` - extra `/mor/v1` endpoints (`known` + `handle`); the core runs
   every auth, rate and payment gate before the handler.
 - `composition` - deploy identity surfaced at `/version` (honesty marker).

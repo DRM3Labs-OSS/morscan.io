@@ -4,6 +4,16 @@ Releases are tagged vX.Y.Z on GitHub.
 
 ## Unreleased
 
+## v2.56.0 - 2026-11-12 - a section can render its own share card
+
+- The page kit (`morscan/ui`) exports `renderOgCard`: it rasterizes a
+  1200x630 card SVG to PNG with the same engine, fonts and edge cache as the
+  built-in share cards. `ogBrandSvg` returns the wings and wordmark as a
+  fragment to place on the card.
+- A composition serves the card from its own `publicRoutes` path and passes
+  the URL as `ogImage` to `renderPage`.
+- The reference build is unchanged.
+
 ## v2.55.0 - 2026-11-12 - a composition can add a section
 
 - New composition extensions (`src/providers/extensions.ts`), three optional

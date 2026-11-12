@@ -121,6 +121,9 @@ A page built by a composition uses the page kit, imported as `morscan/ui`
 ([`src/ui/kit.ts`](../../src/ui/kit.ts)): `renderPage(env, page)` renders it in
 the shared layout and header, and `cachedPage(url, ctx, env, handler, ttl)`
 puts it behind the same edge cache and market tape as a built-in page.
+`renderOgCard({ key, ctx, svg })` rasterizes a section's own 1200x630 share card
+with the built-in cards' engine, fonts and cache; serve it from a `publicRoutes`
+path and pass that URL as `ogImage`.
 
 ```ts
 import { createMorscanApp } from "morscan/app";

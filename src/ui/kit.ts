@@ -1,7 +1,8 @@
 /**
  * The page kit - what a composition needs to serve a page that looks and
  * behaves like a built-in one: the shared layout and header, the page cache
- * with the market tape, and the canonical HTML headers.
+ * with the market tape, the canonical HTML headers, and the share-card
+ * rasterizer (`renderOgCard`) for a section's own 1200x630 card.
  *
  * Imported as `morscan/ui`. A composition registers its section with
  * `planes` and its routes with `publicRoutes` (src/providers/extensions.ts),
@@ -18,6 +19,7 @@ import { seoHead, seoLede } from "../handlers/ui/seo";
 
 export { cachedPage } from "../routes/ui";
 export { HTML_HEADERS, morStat } from "../handlers/ui/shared";
+export { ogBrandSvg, renderOgCard, type OgCardOptions } from "../handlers/og-image";
 export { signResponse } from "../utils/provenance";
 export { signingMnemonic } from "../config";
 export type {
