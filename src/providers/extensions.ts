@@ -26,6 +26,28 @@ export interface ExtraPlane {
 	key: string;
 	label: string;
 	href: string;
+	/** Key of a built-in section to sit before. Omitted: after the last one. */
+	before?: string;
+}
+
+/** One documented endpoint an extension serves. */
+export interface CatalogEndpoint {
+	/** Full path, e.g. "/mor/v1/example/{id}". */
+	path: string;
+	/** A few words, shown in the list. */
+	summary: string;
+	/** One or two sentences on what comes back. */
+	detail?: string;
+	/** Query parameters, for the OpenAPI document. */
+	query?: Array<{ name: string; description: string; example?: string }>;
+}
+
+/** A named group of documented endpoints. */
+export interface CatalogGroup {
+	group: string;
+	/** Shared path prefix, shown beside the group name. */
+	base: string;
+	items: CatalogEndpoint[];
 }
 
 /** Extra public routes. Return null to fall through to the stock 404. */
@@ -41,6 +63,11 @@ export type PublicRoutes = (
 export interface ApiRoutes {
 	/** True for a path this extension serves. Unknown paths 404 before auth. */
 	known(path: string): boolean;
+	/**
+	 * What these endpoints are, for the places the core lists its API: the
+	 * OpenAPI document, llms.txt and the playground.
+	 */
+	catalog?: CatalogGroup[];
 	/** Runs only after the caller passed every gate. Null falls through to 404. */
 	handle(
 		path: string,
@@ -83,4 +110,22 @@ export function describeExtensions(): {
 		publicRoutes: !!active.publicRoutes,
 		apiRoutes: !!active.apiRoutes,
 	};
+}
+
+/** The documented endpoints of the installed extension, or none. */
+export function extensionCatalog(): CatalogGroup[] {
+	return active.apiRoutes?.catalog || [];
+}
+
+/** The built-in sections with each registered one placed by its `before`. */
+export function orderPlanes<T extends { key: string }>(
+	builtIn: T[],
+): Array<T | ExtraPlane> {
+	const out: Array<T | ExtraPlane> = [...builtIn];
+	for (const p of active.planes) {
+		const at = p.before ? out.findIndex((x) => x.key === p.before) : -1;
+		if (at < 0) out.push(p);
+		else out.splice(at, 0, p);
+	}
+	return out;
 }

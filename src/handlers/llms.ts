@@ -8,7 +8,7 @@
  * src/config.ts) so they reflect wherever the explorer is actually deployed.
  */
 
-import { getExtensions } from "../providers/extensions";
+import { extensionCatalog, getExtensions } from "../providers/extensions";
 import { baseUrl } from "../config";
 import { listModelSlugs } from "./model-detail";
 import { accessDoorsMarkdown } from "../providers/commerce/offers";
@@ -375,12 +375,28 @@ ${modelSlugs
 	.join("\n")}
 </urlset>`;
 
+/** Endpoints a composition registered, as an llms.txt section. Empty on the reference build. */
+function extensionSection(): string {
+	const groups = extensionCatalog();
+	if (!groups.length) return "";
+	return `\n## More Endpoints (X-Morscan-Key required)\n${groups
+		.map(
+			(g) =>
+				`\n### ${g.group}\n${g.items.map((e) => `- GET ${e.path} - ${e.detail || e.summary}`).join("\n")}`,
+		)
+		.join("\n")}\n`;
+}
+
 export async function handleLlmsTxt(env: Env): Promise<Response> {
-	return new Response(await llmsTxt(env), { headers: PLAIN_HEADERS });
+	return new Response((await llmsTxt(env)) + extensionSection(), {
+		headers: PLAIN_HEADERS,
+	});
 }
 
 export async function handleLlmsFullTxt(env: Env): Promise<Response> {
-	return new Response(await llmsFullTxt(env), { headers: PLAIN_HEADERS });
+	return new Response((await llmsFullTxt(env)) + extensionSection(), {
+		headers: PLAIN_HEADERS,
+	});
 }
 
 export function handleRobotsTxt(): Response {

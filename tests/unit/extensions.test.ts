@@ -12,6 +12,8 @@
  *  - an extension can never replace a built-in endpoint.
  */
 
+import { handleOpenApi } from "../../src/handlers/openapi";
+import { extraEndpointsScript } from "../../src/handlers/ui/extra-endpoints";
 import { afterEach, describe, expect, it } from "vitest";
 import {
 	describeExtensions,
@@ -68,6 +70,49 @@ describe("composition extensions", () => {
 			'<a href="/extra" class="active" aria-current="page">A&lt;b&gt;</a>',
 		);
 		expect(describeExtensions().planes).toEqual(["extra"]);
+	});
+
+	it("a plane with `before` sits ahead of that built-in section", () => {
+		installExtensions({
+			planes: [{ key: "extra", label: "Extra", href: "/extra", before: "api" }],
+		});
+		const html = header("compute");
+		expect(html.indexOf('href="/extra"')).toBeLessThan(
+			html.indexOf('href="/api/playground"'),
+		);
+		expect(html.indexOf('href="/extra"')).toBeGreaterThan(html.indexOf('href="/pools"'));
+	});
+
+	it("a catalog reaches the OpenAPI document and never replaces a built-in path", async () => {
+		installExtensions({
+			apiRoutes: {
+				known: () => false,
+				handle: async () => null,
+				catalog: [
+					{
+						group: "Extra",
+						base: "/mor/v1/extra",
+						items: [
+							{
+								path: "/mor/v1/extra/{id}",
+								summary: "One extra",
+								query: [{ name: "page", description: "Page number" }],
+							},
+							{ path: "/mor/v1/providers", summary: "Shadow" },
+						],
+					},
+				],
+			},
+		});
+		const spec = (await handleOpenApi({}, "https://x.test").json()) as {
+			paths: Record<string, { get: { summary: string; parameters: unknown[] } }>;
+		};
+		expect(spec.paths["/mor/v1/extra/{id}"].get.summary).toBe("One extra");
+		expect(spec.paths["/mor/v1/extra/{id}"].get.parameters).toHaveLength(2);
+		expect(spec.paths["/mor/v1/providers"].get.summary).not.toBe("Shadow");
+		expect(extraEndpointsScript()).toContain("/mor/v1/extra/{id}");
+		installExtensions();
+		expect(extraEndpointsScript()).toBe("");
 	});
 
 	it("a registered endpoint sits behind the core gate", async () => {

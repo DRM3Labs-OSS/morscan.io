@@ -4,6 +4,16 @@ Releases are tagged vX.Y.Z on GitHub.
 
 ## Unreleased
 
+## v2.57.0 - 2026-11-12 - a section chooses its place and documents its endpoints
+
+- A registered plane takes an optional `before`: the key of a built-in
+  section to sit ahead of in the header. Without it the plane goes last.
+- `apiRoutes` takes an optional `catalog`: named groups of documented
+  endpoints. They are added to `/openapi.json`, to `llms.txt` and
+  `llms-full.txt`, and to the API playground's endpoint list. A built-in
+  path is never replaced.
+- The reference build is unchanged.
+
 ## v2.56.0 - 2026-11-12 - a section can render its own share card
 
 - The page kit (`morscan/ui`) exports `renderOgCard`: it rasterizes a

@@ -2,6 +2,7 @@
  * UI Handlers - Builder plane pages
  */
 
+import { extraEndpointsScript } from "./extra-endpoints";
 import type { Env } from "../../types";
 import { baseUrl } from "../../config";
 import { render } from "../../ui/shell";
@@ -192,7 +193,9 @@ export async function handleBuilderApiPage(env: Env): Promise<Response> {
 		address: builderContract,
 	};
 
-	const { styles, content } = extractPage(apiHtml as string);
+	const page = extractPage(apiHtml as string);
+	const styles = page.styles;
+	const content = extraEndpointsScript() + page.content;
 	return new Response(
 		render({
 			title: "Morpheus Builder API - MorScan",

@@ -6,6 +6,7 @@ import { baseUrl } from "../config";
 import { freeCapsPhrase, stakeScalingPhrase } from "../providers/commerce/offers";
 import { schemas } from "./openapi-schemas";
 import { paths } from "./openapi-paths";
+import { extensionCatalog } from "../providers/extensions";
 
 export const openApiSpec = {
 	openapi: "3.1.0",
@@ -148,6 +149,41 @@ export function handleOpenApi(
 			servers: [{ url: serverUrl, description: "Live API origin" }],
 		}),
 	);
+	// Endpoints a composition registered. A built-in path is never replaced.
+	for (const group of extensionCatalog()) {
+		for (const e of group.items) {
+			if (spec.paths[e.path]) continue;
+			const inPath = [...e.path.matchAll(/\{(\w+)\}/g)].map((m) => ({
+				name: m[1],
+				in: "path",
+				required: true,
+				schema: { type: "string" },
+			}));
+			const inQuery = (e.query || []).map((q) => ({
+				name: q.name,
+				in: "query",
+				required: false,
+				description: q.description,
+				schema: { type: "string" },
+				...(q.example ? { example: q.example } : {}),
+			}));
+			spec.paths[e.path] = {
+				get: {
+					summary: e.summary,
+					description: e.detail || e.summary,
+					tags: [group.group],
+					security: [{ apiKey: [] }],
+					parameters: [...inPath, ...inQuery],
+					responses: {
+						"200": {
+							description: e.summary,
+							content: { "application/json": { schema: { type: "object" } } },
+						},
+					},
+				},
+			};
+		}
+	}
 	for (const pathItem of Object.values(
 		spec.paths as Record<string, Record<string, { responses?: Record<string, unknown> }>>,
 	)) {

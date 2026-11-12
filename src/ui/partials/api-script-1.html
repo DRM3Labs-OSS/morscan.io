@@ -124,6 +124,8 @@ var EPS = [
       detail:'All builder staking positions for a wallet: which subnets, how much staked, pool share, estimated daily emissions, lock status (7-day withdrawal lock).' },
   ]},
 ];
+// Endpoint groups a composition registered (set by the page before this script).
+if (Array.isArray(window.__MORSCAN_EXTRA_EPS)) EPS = EPS.concat(window.__MORSCAN_EXTRA_EPS);
 
 // Metering class per endpoint: 'free' never counts, 'metered' draws 1 per call,
 // 'dual' is free without a key but metered when you send one (the price paths).

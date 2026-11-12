@@ -8,6 +8,7 @@
  * handleProviderDetailPage, handleWalletDetailPage: separate SSR pages.
  */
 
+import { extraEndpointsScript } from "./extra-endpoints";
 import type { Env } from "../../types";
 import { baseUrl } from "../../config";
 import { handleWalletDetail } from "../sessions";
@@ -294,7 +295,9 @@ export async function handleApiPage(
 ): Promise<Response> {
 	const price = await getCachedPrice(env);
 	const statBar = await getStatBarData(env, price);
-	const { styles, content } = extractPage(apiHtml as string);
+	const page = extractPage(apiHtml as string);
+	const styles = page.styles;
+	const content = extraEndpointsScript() + page.content;
 	const isDocs = path === "/api/docs";
 	const activeTab = (isDocs ? "api_docs" : "api") as Tab;
 	const planeConfig = apiPlane(activeTab, [

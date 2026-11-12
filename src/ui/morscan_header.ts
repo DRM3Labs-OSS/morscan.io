@@ -5,7 +5,7 @@
  * Desktop and mobile. Tabs, stat bar, contract, sync, pricing, sign-out.
  */
 
-import { getExtensions } from "../providers/extensions";
+import { orderPlanes } from "../providers/extensions";
 
 // ─── Types ───
 
@@ -259,16 +259,15 @@ function renderContract(c: ContractInfo): string {
 }
 
 function renderPlaneTabs(plane: PlaneConfig): string {
-	const planes: { key: string; label: string; href: string }[] = [
+	const planes = orderPlanes<{ key: string; label: string; href: string }>([
 		{ key: "analytics", label: "Analytics", href: "/analytics/overview" },
 		{ key: "compute", label: "Compute", href: "/compute/network" },
 		{ key: "builder", label: "Builder", href: "/builder/subnets" },
 		{ key: "holders", label: "Holders", href: "/holders/all" },
 		{ key: "pools", label: "Pools", href: "/pools" },
 		{ key: "api", label: "API", href: "/api/playground" },
-		// Sections a composition registered. Empty on the reference build.
-		...getExtensions().planes,
-	];
+		// Sections a composition registered are placed by orderPlanes.
+	]);
 	const tabs = planes
 		.map(
 			(p) =>
