@@ -4,6 +4,23 @@ Releases are tagged vX.Y.Z on GitHub.
 
 ## Unreleased
 
+## v2.55.0 - 2026-11-12 - a composition can add a section
+
+- New composition extensions (`src/providers/extensions.ts`), three optional
+  fields on `createMorscanApp`: `planes` (extra header navigation sections),
+  `publicRoutes` (extra public pages outside `/mor/v1` and `/admin`) and
+  `apiRoutes` (extra `/mor/v1` endpoints). A composition can now add a whole
+  section without any of it living in the core.
+- Built-in routes always win: an extension adds a path and never replaces one.
+  An injected `/mor/v1` endpoint passes the same auth, rate limit, call
+  balance and payment gates as a built-in endpoint before its handler runs.
+- New package export `morscan/ui`, the page kit: `renderPage` renders a page
+  in the shared layout and header; `cachedPage` puts it behind the same edge
+  cache and market tape as a built-in page.
+- Registered sections are added to `sitemap.xml`. `/version` reports what a
+  composition registered under `composition.extensions`.
+- The reference build registers nothing and behaves as before.
+
 ## v2.54.0 - 2026-11-10 - freshness judged in seconds, not blocks
 
 - Base moved from ~2s blocks to ~200ms blocks on 2026-11-05 (around block

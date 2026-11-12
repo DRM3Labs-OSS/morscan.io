@@ -52,6 +52,12 @@ import { pruneUsageLog } from "../db/usage-log";
 import { keylessGate } from "../utils/keyless-gate";
 import { pruneAnonCounters } from "../db/anon-counters";
 import { installProviders, getProviders, type Providers } from "./index";
+import {
+	installExtensions,
+	type ApiRoutes,
+	type ExtraPlane,
+	type PublicRoutes,
+} from "./extensions";
 import { handleAuthRoutes } from "../routes/auth";
 import { handleUiRoutes } from "../routes/ui";
 import { handlePublicRoutes } from "../routes/public";
@@ -75,6 +81,7 @@ import { selectSyncStateIn3 } from "../db/explorer-core";
 export { SyncCoordinator } from "../durable/SyncCoordinator";
 export type { Env } from "../types";
 export type { Providers } from "./index";
+export type { ApiRoutes, ExtraPlane, PublicRoutes } from "./extensions";
 
 /** Sanitize redirect target - must be a relative path, no open redirect */
 export function safeRedirect(target: string | null | undefined): string {
@@ -134,6 +141,24 @@ export interface MorscanAppOptions {
 	 * and error-isolated: it can never abort or delay other scheduled work.
 	 */
 	scheduledTick?: (env: Env, ctx: ExecutionContext) => Promise<void>;
+	/**
+	 * Optional extra top-level sections in the header navigation, appended
+	 * after the built-in ones. A page marks itself active by using the same
+	 * key as its plane key.
+	 */
+	planes?: ExtraPlane[];
+	/**
+	 * Optional extra public routes (pages, files), outside /mor/v1 and /admin.
+	 * Consulted only after every built-in route declined, so an extension can
+	 * add a path and never replace one. Return null for the stock 404.
+	 */
+	publicRoutes?: PublicRoutes;
+	/**
+	 * Optional extra /mor/v1 endpoints. The core dispatcher runs its auth,
+	 * rate limit, call balance and payment gates BEFORE the handler, so an
+	 * injected endpoint is metered exactly like a built-in one.
+	 */
+	apiRoutes?: ApiRoutes;
 	/** Optional composition deploy identity, surfaced at /version. */
 	composition?: CompositionDeployInfo;
 }
@@ -155,9 +180,15 @@ export function getCompositionDeploy(): CompositionDeployInfo | null {
 
 export function createMorscanApp(options: MorscanAppOptions = {}): MorscanApp {
 	installProviders(options.providers);
+	installExtensions({
+		planes: options.planes,
+		publicRoutes: options.publicRoutes,
+		apiRoutes: options.apiRoutes,
+	});
 	activeCompositionDeploy = options.composition ?? null;
 	const composedAdminRoutes = options.adminRoutes;
 	const composedScheduledTick = options.scheduledTick;
+	const composedPublicRoutes = options.publicRoutes;
 
 	return {
 		async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
@@ -261,6 +292,15 @@ export function createMorscanApp(options: MorscanAppOptions = {}): MorscanApp {
 
 				const apiResult = await handleApiRoutes(path, request, url, env, HEADERS, ctx);
 				if (apiResult) return apiResult;
+
+				// Composition-injected public routes (the generic open-core seam; see
+				// src/providers/extensions.ts). Reached only after every built-in
+				// route declined, so an extension adds paths and never replaces one.
+				// /admin/* stays with the admin gate below.
+				if (composedPublicRoutes && !path.startsWith("/admin/")) {
+					const extResult = await composedPublicRoutes(path, request, url, env, ctx);
+					if (extResult) return extResult;
+				}
 
 				// Admin alert area (page + JSON API + test-fire). Admin-key gated.
 				const adminAlertsResult = await getProviders().admin.handleAlerts(

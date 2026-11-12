@@ -28,6 +28,7 @@ import { handleAgentReadyRoutes } from "../handlers/agent-ready";
 import { handleNotify } from "../handlers/notify";
 import { handleSyncRoute } from "./sync";
 import { getProviders, getOverriddenProviders } from "../providers";
+import { describeExtensions } from "../providers/extensions";
 import { getCompositionDeploy } from "../providers/compose";
 import { validateApiKey, checkRateLimit, rateLimitResponse } from "../utils/auth";
 import { withCfCache, withKvCache } from "../utils/cache";
@@ -147,6 +148,7 @@ export async function handlePublicRoutes(
 		const composition = {
 			core: { version: MORSCAN_VERSION, commit: BUILD_INFO.commit },
 			overrides: getOverriddenProviders(),
+			extensions: describeExtensions(),
 			...(deploy ? { deploy } : {}),
 		};
 		return new Response(

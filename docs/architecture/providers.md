@@ -103,7 +103,52 @@ handler object with the provided providers merged over the reference registry
 | `providers` | `Partial<Providers>` - swap any seam; missing entries keep the reference impl. |
 | `adminRoutes(path, request, url, env)` | Operator routes under `/admin/*`. The dispatcher authenticates the caller against the AdminProvider gate BEFORE this is consulted, so every injected route is admin-gated by construction; non-admin requests fall through unchanged (unknown paths keep their stock 404). |
 | `scheduledTick(env, ctx)` | Maintenance tick fired from the minute cron, fire-and-forget and error-isolated: it can never abort or delay the other scheduled work. |
+| `planes` | Extra top-level sections in the header navigation (`{ key, label, href }`), appended after the built-in ones and added to the sitemap. A page marks itself active by using the same key as its plane key. |
+| `publicRoutes(path, request, url, env, ctx)` | Extra public pages and files, outside `/mor/v1` and `/admin`. Consulted only after every built-in route declined, so an extension adds a path and never replaces one. Return null for the stock 404. |
+| `apiRoutes` | Extra `/mor/v1` endpoints: `known(path)` and `handle(path, request, url, env, headers)`. The dispatcher runs its auth, rate limit, call balance and payment gates BEFORE the handler, so an injected endpoint is metered exactly like a built-in one. A built-in path always wins. |
 | `composition` | Deploy identity (`name`, `commit`, `dirty`, `coreRef`) surfaced at `/version` - see the honesty contract below. |
+
+### Extensions: adding a section next to the core
+
+The provider seams swap a behavior the core already has. The three extension
+fields (`planes`, `publicRoutes`, `apiRoutes`, held in
+[`src/providers/extensions.ts`](../../src/providers/extensions.ts)) do the
+other job: they let a composition add a whole section the core knows nothing
+about - a nav item, its pages, its API - without a line of that section
+living here.
+
+A page built by a composition uses the page kit, imported as `morscan/ui`
+([`src/ui/kit.ts`](../../src/ui/kit.ts)): `renderPage(env, page)` renders it in
+the shared layout and header, and `cachedPage(url, ctx, env, handler, ttl)`
+puts it behind the same edge cache and market tape as a built-in page.
+
+```ts
+import { createMorscanApp } from "morscan/app";
+import { cachedPage, renderPage } from "morscan/ui";
+
+const plane = { key: "example", label: "Example", href: "/example" };
+
+export default createMorscanApp({
+	planes: [plane],
+	publicRoutes: async (path, _request, url, env, ctx) =>
+		path === "/example"
+			? cachedPage(url, ctx, env, () =>
+					renderPage(env, {
+						title: "Example - MorScan",
+						description: "One sentence about the page.",
+						path: "/example",
+						subtitle: "Example",
+						plane: { ...plane, subtitle: "Example", subTabs: [], stats: [] },
+						content: "<p>Hello.</p>",
+					}),
+				)
+			: null,
+});
+```
+
+The reference build registers no extension and behaves as it did before the
+fields existed. `/version` reports what a composition registered under
+`composition.extensions`.
 
 That is the whole mechanism: dependency-injection simple, no plugin-loader
 machinery. (The earlier deploy-time stub-swap slot,
@@ -147,7 +192,8 @@ export default createMorscanApp({
 
 Package surface: `morscan` (root: entry + factory re-exports), `morscan/app`
 (the factory + DO class + `Env`/`Providers` types, with no default-composition
-module side effect), `morscan/providers` (the registry + reference impls).
+module side effect), `morscan/providers` (the registry + reference impls),
+`morscan/ui` (the page kit for composition-added pages).
 The published surface is the TypeScript source itself; a Workers consumer
 bundles `src/` directly.
 

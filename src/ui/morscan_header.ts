@@ -5,6 +5,8 @@
  * Desktop and mobile. Tabs, stat bar, contract, sync, pricing, sign-out.
  */
 
+import { getExtensions } from "../providers/extensions";
+
 // ─── Types ───
 
 export type Plane = "analytics" | "pools" | "compute" | "builder" | "holders" | "api";
@@ -51,7 +53,9 @@ export interface SubTab {
 }
 
 export interface PlaneConfig {
-	key: Plane;
+	// A built-in plane, or the key of a plane a composition registered
+	// (src/providers/extensions.ts).
+	key: Plane | (string & {});
 	label: string;
 	href: string;
 	subtitle: string;
@@ -255,18 +259,20 @@ function renderContract(c: ContractInfo): string {
 }
 
 function renderPlaneTabs(plane: PlaneConfig): string {
-	const planes: { key: Plane; label: string; href: string }[] = [
+	const planes: { key: string; label: string; href: string }[] = [
 		{ key: "analytics", label: "Analytics", href: "/analytics/overview" },
 		{ key: "compute", label: "Compute", href: "/compute/network" },
 		{ key: "builder", label: "Builder", href: "/builder/subnets" },
 		{ key: "holders", label: "Holders", href: "/holders/all" },
 		{ key: "pools", label: "Pools", href: "/pools" },
 		{ key: "api", label: "API", href: "/api/playground" },
+		// Sections a composition registered. Empty on the reference build.
+		...getExtensions().planes,
 	];
 	const tabs = planes
 		.map(
 			(p) =>
-				`<a href="${p.href}"${p.key === plane.key ? ' class="active" aria-current="page"' : ""}>${p.label}</a>`,
+				`<a href="${esc(p.href)}"${p.key === plane.key ? ' class="active" aria-current="page"' : ""}>${esc(p.label)}</a>`,
 		)
 		.join("");
 	return `<div class="plane-tabs" role="navigation" aria-label="Primary sections">${tabs}</div>`;

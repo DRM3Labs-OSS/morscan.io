@@ -63,6 +63,7 @@ import {
 } from "../utils/d1-budget";
 import type { X402Payment } from "../utils/x402";
 import { getProviders } from "../providers";
+import { getExtensions } from "../providers/extensions";
 import type { AuthResult } from "../utils/auth/key-validation";
 
 /**
@@ -178,7 +179,11 @@ export async function handleApiRoutes(
 	}
 
 	// Unknown /mor/v1/* path → 404 (not the auth 401). Real endpoints continue.
-	if (!isKnownApiPath(path)) {
+	// A composition may add endpoints (src/providers/extensions.ts); they pass
+	// the same gates below and dispatch after the built-in ones.
+	const extApi = getExtensions().apiRoutes;
+	const isExtPath = !isKnownApiPath(path) && !!extApi?.known(path);
+	if (!isKnownApiPath(path) && !isExtPath) {
 		return new Response(JSON.stringify({ error: "Not found" }), {
 			status: 404,
 			headers: HEADERS,
@@ -552,6 +557,11 @@ export async function handleApiRoutes(
 		if (path.match(/^\/mor\/v1\/wallet\/0x[0-9a-fA-F]{40}\/audit$/)) {
 			const addr = path.split("/")[4];
 			return await handleWalletAudit(env, addr, HEADERS);
+		}
+
+		if (isExtPath && extApi) {
+			const extResp = await extApi.handle(path, request, url, env, HEADERS);
+			if (extResp) return extResp;
 		}
 
 		return new Response(JSON.stringify({ error: "Not found" }), {

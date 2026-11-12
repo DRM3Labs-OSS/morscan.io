@@ -11,6 +11,7 @@ license posture) is [docs/architecture/providers.md](../../docs/architecture/pro
 |------|------|
 | `index.ts` | The registry + injection point: `Providers`, `installProviders`, `getProviders`, `getOverriddenProviders`, reference impl re-exports. |
 | `compose.ts` | The composition factory: `createMorscanApp(options)` returns the `{ fetch, scheduled }` worker handlers. `src/app.ts` and `src/index.ts` are thin pointers to it. |
+| `extensions.ts` | What a composition adds NEXT TO the core: extra nav sections, public routes and `/mor/v1` endpoints. Empty on the reference build. |
 | `commerce/` | CommerceProvider seam + reference impl. |
 | `analytics/` | AnalyticsProvider seam + reference impl. |
 | `admin/` | AdminProvider seam + reference impl. |
@@ -61,6 +62,12 @@ Factory options (`MorscanAppOptions` in `compose.ts`):
   caller against the AdminProvider gate BEFORE the handler is consulted.
 - `scheduledTick` - maintenance tick off the minute cron; fire-and-forget and
   error-isolated so it can never delay other scheduled work.
+- `planes` - extra top-level nav sections (`{ key, label, href }`).
+- `publicRoutes` - extra public pages outside `/mor/v1` and `/admin`; reached
+  only after every built-in route declined. Build pages with the kit at
+  `morscan/ui` (`renderPage`, `cachedPage`).
+- `apiRoutes` - extra `/mor/v1` endpoints (`known` + `handle`); the core runs
+  every auth, rate and payment gate before the handler.
 - `composition` - deploy identity surfaced at `/version` (honesty marker).
 
 `/version` always reports `composition.overrides` (the seam names a

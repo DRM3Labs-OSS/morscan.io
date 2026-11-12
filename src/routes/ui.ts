@@ -59,8 +59,9 @@ async function withMarketTicker(env: Env, fresh: Response): Promise<Response> {
 	return new Response(filled, { status: fresh.status, headers: fresh.headers });
 }
 
-/** Cache SSR pages at the Worker level (CF Cache API). */
-async function cachedPage(
+/** Cache SSR pages at the Worker level (CF Cache API). Exported for the page
+ * kit (src/ui/kit.ts), so a composition's pages ride the same cache and tape. */
+export async function cachedPage(
 	url: URL,
 	ctx: ExecutionContext,
 	env: Env,

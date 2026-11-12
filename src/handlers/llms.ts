@@ -8,6 +8,7 @@
  * src/config.ts) so they reflect wherever the explorer is actually deployed.
  */
 
+import { getExtensions } from "../providers/extensions";
 import { baseUrl } from "../config";
 import { listModelSlugs } from "./model-detail";
 import { accessDoorsMarkdown } from "../providers/commerce/offers";
@@ -316,13 +317,23 @@ const sitemapXml = (modelSlugs: string[]) => `<?xml version="1.0" encoding="UTF-
     <changefreq>daily</changefreq>
     <priority>1.0</priority>
   </url>
-${UI_PAGES.map(
-	(p) => `  <url>
+${[
+	...UI_PAGES,
+	// Sections a composition registered (src/providers/extensions.ts).
+	...getExtensions().planes.map((x) => ({
+		path: x.href,
+		changefreq: "hourly",
+		priority: "0.7",
+	})),
+]
+	.map(
+		(p) => `  <url>
     <loc>${baseUrl()}${p.path}</loc>
     <changefreq>${p.changefreq}</changefreq>
     <priority>${p.priority}</priority>
   </url>`,
-).join("\n")}
+	)
+	.join("\n")}
   <url>
     <loc>${baseUrl()}/health</loc>
     <changefreq>always</changefreq>
