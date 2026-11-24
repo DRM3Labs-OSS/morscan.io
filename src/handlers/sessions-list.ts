@@ -6,6 +6,7 @@ import type { Env } from "../types";
 import { signingMnemonic } from "../config";
 import { getSyncState, buildMeta } from "../utils/rpc";
 import { getTotalSessionCount } from "../utils/metrics";
+import { withKvValue } from "../utils/cache";
 import { signResponse, signBatchResponse } from "../utils/provenance";
 import { SELECTORS, ethCallBatchChecked } from "../sync/parsers";
 import {
@@ -71,20 +72,55 @@ async function _verifyExpiredOpenRows(
 // _verifyExpiredOpenRows is retained for chain-rehydration repair paths.
 void _verifyExpiredOpenRows;
 
+/** Deepest page a keyed or paying caller may ask for (offset 99,900 at 100 a page). */
+export const SESSIONS_MAX_PAGE = 1000;
+/**
+ * Deepest page for a free caller (the public serving key, a wallet-signature
+ * caller, a bottom-tier key): 5,000 rows deep. The explorer's own feed stops at
+ * page 10; a deeper walk is a keyed caller's job, and an OFFSET read costs
+ * every row it skips.
+ */
+export const FREE_SESSIONS_MAX_PAGE = 50;
+
+/**
+ * The applied page and limit: hard caps, server-enforced (max 100 rows per page,
+ * page depth `maxPage`). The route builds its cache key from these integers
+ * only, so `page=01`, `page=1x` and an unused parameter are one key, not three.
+ */
+export function sessionsPaging(
+	url: URL,
+	maxPage = SESSIONS_MAX_PAGE,
+): { page: number; limit: number } {
+	const rawPage = parseInt(url.searchParams.get("page") || "1", 10);
+	const page = Number.isFinite(rawPage) ? Math.min(maxPage, Math.max(1, rawPage)) : 1;
+	const rawLimit = parseInt(url.searchParams.get("limit") || "100", 10);
+	const limit = Number.isFinite(rawLimit) ? Math.min(100, Math.max(1, rawLimit)) : 100;
+	return { page, limit };
+}
+
+// The page-invariant counts beside the list. Each was a full scan of the
+// sessions table on every cache miss, whatever the page (the distinct-wallet
+// count alone reads every row): one shared value now, like the total.
+const SESSION_WALLETS_CACHE_KEY = "v1:count:session-wallets";
+const SESSION_WALLETS_TTL_SECONDS = 300;
+const SESSION_ACTIVE_CACHE_KEY = "v1:count:sessions-active";
+const SESSION_ACTIVE_TTL_SECONDS = 60;
+
 export async function handleAllSessions(
 	env: Env,
 	headers: Record<string, string>,
 	url: URL,
+	opts: { page?: number; limit?: number; persist?: boolean } = {},
 ) {
 	const { lastBlock, currentBlock, startBlock, lastSyncTs } = await getSyncState(env);
 
-	// Hard caps, server-enforced: max 100 rows per page, max page depth 1000
-	// (keeps offset*limit from forcing a deep scan). The pagination meta echoes
-	// the applied values, so over-cap requests see what they actually got.
-	const rawPage = parseInt(url.searchParams.get("page") || "1", 10);
-	const page = Number.isFinite(rawPage) ? Math.min(1000, Math.max(1, rawPage)) : 1;
-	const rawLimit = parseInt(url.searchParams.get("limit") || "100", 10);
-	const limit = Number.isFinite(rawLimit) ? Math.min(100, Math.max(1, rawLimit)) : 100;
+	// The pagination meta echoes the applied values, so over-cap requests see
+	// what they actually got. `persist: false` (a free caller) still signs the
+	// response; only the stored copy of its receipt is skipped.
+	const parsed = sessionsPaging(url);
+	const page = opts.page ?? parsed.page;
+	const limit = opts.limit ?? parsed.limit;
+	const persist = opts.persist !== false;
 	const offset = (page - 1) * limit;
 
 	// The total is PAGE-INVARIANT, but this route's KV cache is keyed on limit/page/status,
@@ -118,8 +154,18 @@ export async function handleAllSessions(
 		}),
 	);
 
-	const activeResult = await countActiveSessions(env.DB, now);
-	const walletResult = await countDistinctSessionWallets(env.DB);
+	const activeResult = await withKvValue(
+		env,
+		SESSION_ACTIVE_CACHE_KEY,
+		SESSION_ACTIVE_TTL_SECONDS,
+		() => countActiveSessions(env.DB, now),
+	);
+	const walletResult = await withKvValue(
+		env,
+		SESSION_WALLETS_CACHE_KEY,
+		SESSION_WALLETS_TTL_SECONDS,
+		() => countDistinctSessionWallets(env.DB),
+	);
 	const totalPages = Math.ceil(totalCount / limit);
 
 	const responseData: Record<string, unknown> = {
@@ -149,7 +195,7 @@ export async function handleAllSessions(
 			{ endpoint: "/mor/v1/sessions", syncedBlock: lastBlock, page },
 			{ total: totalCount, pageSize: sessions.length },
 			mnemonic,
-			env.DB,
+			persist ? env.DB : undefined,
 			responseData,
 		);
 		if (aggregateReceipt)

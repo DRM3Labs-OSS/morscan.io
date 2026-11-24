@@ -123,7 +123,10 @@ X402_FACILITATOR_URL = ""
 # Durable Objects for real-time sync
 [durable_objects]
 bindings = [
-  { name = "SYNC_COORDINATOR", class_name = "SyncCoordinator" }
+  { name = "SYNC_COORDINATOR", class_name = "SyncCoordinator" },
+  # Exact global ceilings for the doors strangers can make expensive
+  # (src/durable/CallMeter.ts). Optional: without it only per-IP limits apply.
+  { name = "CALL_METER", class_name = "CallMeter" }
 ]
 
 [[kv_namespaces]]
@@ -147,6 +150,10 @@ id = "0000000000000000000000000000000b"
 [[migrations]]
 tag = "v1"
 new_sqlite_classes = ["SyncCoordinator"]
+
+[[migrations]]
+tag = "v2"
+new_sqlite_classes = ["CallMeter"]
 
 # Optional: durable rate limiting (requires wrangler >= 4.36). Without these
 # bindings the worker falls back to best-effort per-isolate counters.

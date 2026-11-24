@@ -18,6 +18,7 @@
 
 // Durable Object class must export from the wrangler entry module.
 export { SyncCoordinator } from "./durable/SyncCoordinator";
+export { CallMeter } from "./durable/CallMeter";
 
 // Public factory surface, for consumers that import the package root.
 export {

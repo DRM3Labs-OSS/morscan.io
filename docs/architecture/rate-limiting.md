@@ -1,6 +1,6 @@
 # Rate Limiting and Metering
 
-> **Status: LIVE** - 2026-09-07. Describes rate limiting and metering as deployed.
+> **Status: LIVE** - 2026-11-24. Describes rate limiting, metering and the global ceilings as deployed.
 
 Two layers, checked on every gated request (`src/utils/auth/rate-limit.ts`):
 a **minute burst** limit (abuse protection) and **day/month volume caps** (the
@@ -43,6 +43,53 @@ The rest of this doc is the enforcement mechanism behind that model.
 - **Exemptions**: admin identities skip both checks. Keys whose limit exceeds
   the binding pools (the serving key at 1M/min) skip the per-key binding check
   only; each client IP still rides the per-IP budget.
+
+## Per-door IP pools
+
+A door that asks `checkRateLimit` / `checkIpRateLimit` for a tighter per-IP
+limit than the API's 100/min gets the fixed pool that holds it (`ipPool()`):
+10/min `RL_LOW` (`POST /login`, `POST /notify`), 30/min `RL_STRICT`
+(`/teaser`, the wallet challenge and verify, `POST /mor/v1/keys/purchase`),
+60/min `RL_MED` (`/mor/v1/capacity`), each under its own key
+(`ip:<path>:<ip>`). So the limit a door names is the limit it gets, and a
+flood of one door never spends another door's or the API's budget. The
+default door (every `/mor/v1` call) stays `RL_STANDARD` under `ip:<ip>`.
+
+## Global ceilings (exact)
+
+Per-IP limits stop one address. A botnet has thousands, so every door a
+stranger can make expensive also has a GLOBAL ceiling, counted exactly by
+the `CallMeter` Durable Object (`src/durable/CallMeter.ts`, called through
+`meterTake()` in `src/utils/call-meter.ts`; one object per counting key,
+single-threaded; a hot key is spread over shards that each hold their share
+of the limit, so the total admitted never exceeds it). Only paths that
+already pay a database round trip call it (a cache miss, a write done off the
+response path), so a request served from a cache never waits on it.
+
+| Door | Ceiling | When it is passed | On a counter error |
+|------|---------|-------------------|--------------------|
+| Detail-page render (`/compute/providers/<addr>`, `/compute/consumers/wallet/<addr>`, `/compute/models/<id or slug>`, `/builder/subnet/<id>`), cache miss only | 300 renders/min for everyone; 120/min for crawlers Cloudflare has verified, counted apart so a flood never starves search engines. First shed: 100 renders/min per IP (`RL_STANDARD`, `render:<ip>`). `src/utils/render-budget.ts` | 429, `Retry-After` | open |
+| `/mor/v1/sessions` cache miss by a free caller | 120/min | 429, `Retry-After` | open |
+| Heavy uncached reads (`d1-budget.ts`) | a day budget per caller class | 503, `Retry-After` to 00:00 UTC | open |
+| Usage-log rows (`usage-track.ts`) | 600/min and 50,000/UTC day; past 100 rows/min from one IP its rows are sampled 1 in 20 at weight 20 | row not written | closed (row dropped) |
+| `POST /notify` signups | 200/UTC day | 429, `Retry-After` | closed |
+| Wallet challenges minted | 300/min | 429, `Retry-After` | open |
+
+Without the `CALL_METER` binding the per-IP limits still apply and the
+global ceilings are off.
+
+## Caller classes
+
+`src/utils/caller-class.ts` names who pays for a call, and the
+shared-database guards budget by it: `admin` (never shed); `paid` (call packs,
+x402 payments, keys whose stake raised their burst above the free tier);
+`free` (the public serving key, wallet-signature callers, bottom-tier keys).
+Free traffic can only spend free budgets: the D1 read budget has one per
+class (`D1_FREE_READ_BUDGET`, default half of `D1_DAILY_READ_BUDGET`), and it
+is taken before a pack debit or an x402 settlement, so a shed call is never
+charged. A free caller's `/mor/v1/sessions` reaches page 50 at most (keyed
+and paying callers keep 1000), and its signed receipts ship inline without a
+stored copy.
 
 ## Day/month volume layer
 
@@ -92,8 +139,10 @@ approximate by nature - an isolate recycling and losing its counters is fine.
 The volume layer does use D1 (`usage_counters`), but amortized to two UPSERTs
 per request with 60s-cached reads.
 
-### Why not Durable Objects?
-A DO would be authoritative across isolates but adds latency per request. The
-rate-limiting bindings provide durable cross-isolate enforcement for the burst
-layer without that cost; the in-memory path remains only as the unconfigured
-fallback.
+### Why not Durable Objects for every request?
+A DO is authoritative across isolates but adds a round trip to wherever the
+object lives. The rate-limiting bindings give the per-IP burst layer
+cross-isolate enforcement without that cost, so a DO counter (`CallMeter`)
+is used only for the global ceilings above, on paths that already pay a
+database round trip; the in-memory path remains only as the unconfigured
+fallback for the bindings.

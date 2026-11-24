@@ -40,6 +40,10 @@ Two-tier cache in front of D1. Source: `src/utils/cache.ts` (`withKvCache`,
 | `/mor/v1/reputation` | CF Cache API | 60s | `v1:reputation` | |
 | `/mor/v1/holders` | CF Cache API | 5m | `v1:holders:<page>` | Per page. |
 | `/mor/v1/sessions/daily` | KV | 10m | `v1:sessions:daily` | |
+| `/mor/v1/sessions` | KV | 30s | `v1:sessions:<limit>:<page>:<p or f>` | From the parsed, clamped integers only (an unused or malformed parameter is the same key); `f` = a free caller (page 50 at most, receipts not stored). The page-invariant counts are shared values (`v1:count:sessions`, `v1:count:session-wallets` 5m, `v1:count:sessions-active` 60s). |
+| `/mor/v1/sessions/analytics` | KV | 5m | `v1:sessions:analytics` | Global aggregate over the precomputed `wallet_stats`. |
+| `/chart.svg` | CF Cache API | 10m | `chart:svg:v1` | One key whatever the query string. |
+| `/og/<slug>` | CF Cache API | 1h (chart cards 10m) | the card's own slug, or `default` | An unknown slug renders and caches as the default card; the subnet card's `?id=` is not in the key. The holder count on the cards is a shared value (`v1:count:holders`, 5m). |
 | `/health` | CF Cache API | 3s | `health:v1` | Eliminates a 6x COUNT + 4x first() D1 fan-out on every probe. The FULL reading is what is cached; every answer is projected per caller on the way out (`public-health.allow`) and sent `no-store`. |
 
 KV freshness is checked against an embedded `cachedAt` timestamp to support

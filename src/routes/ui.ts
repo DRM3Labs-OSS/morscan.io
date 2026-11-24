@@ -39,6 +39,11 @@ import { wantsMarkdown, handleMarkdownPage } from "../handlers/markdown-pages";
 import { TICKER_SLOT, marketTickerHtml } from "../ui/ticker";
 import { consentSnippet } from "../ui/consent";
 import swJs from "../ui/vendor/sw.txt";
+import { renderRefusal } from "../utils/render-budget";
+
+// The detail pages keyed by an on-chain address or id (see the budget below).
+const DETAIL_ADDR_RE =
+	/^\/(?:compute\/providers\/0x[0-9a-fA-F]{40}|compute\/consumers\/wallet\/0x[0-9a-fA-F]{40}|compute\/models\/0x[0-9a-fA-F]{64}|builder\/subnet\/0x[0-9a-fA-F]{64})$/;
 
 /** Fill the layout's market-tape slot on pages that carry it. One place, so
  * every unified-header page gets the ticker and the tape rides the same page
@@ -60,18 +65,23 @@ async function withMarketTicker(env: Env, fresh: Response): Promise<Response> {
 }
 
 /** Cache SSR pages at the Worker level (CF Cache API). Exported for the page
- * kit (src/ui/kit.ts), so a composition's pages ride the same cache and tape. */
+ * kit (src/ui/kit.ts), so a composition's pages ride the same cache and tape.
+ * `gate` runs on a cache MISS only, before the render: a Response from it is
+ * returned as is and never cached (the render budget, src/utils/render-budget.ts). */
 export async function cachedPage(
 	url: URL,
 	ctx: ExecutionContext,
 	env: Env,
 	handler: () => Promise<Response>,
 	ttl = 30,
+	gate?: () => Promise<Response | null>,
 ): Promise<Response> {
 	const cacheKey = new Request(url.toString().split("?")[0], { method: "GET" });
 	const cache = caches.default;
 	const cached = await cache.match(cacheKey);
 	if (cached) return cached;
+	const refused = gate ? await gate() : null;
+	if (refused) return refused;
 	const fresh = await withMarketTicker(env, await handler());
 	// Edge + browser cache for `ttl`s. s-maxage drives Cloudflare's edge cache
 	// (CF-Cache-Status: HIT on repeat hits within the window); max-age matches it
@@ -152,27 +162,63 @@ export async function handleUiRoutes(
 	if (path === "/analytics/overview") {
 		return await cachedPage(url, ctx, env, () => handleAnalyticsTabPage(env));
 	}
+	// ── Detail pages: one cache key per address, so each render is budgeted
+	// (src/utils/render-budget.ts) and an address has ONE spelling: a mixed-case
+	// address answers 301 to its lowercase page, so case variants never split
+	// the cache into misses.
+	const budget = () => renderRefusal(request, env);
+	if (DETAIL_ADDR_RE.test(path) && path !== path.toLowerCase()) {
+		return redirect301(`${path.toLowerCase()}${url.search}`);
+	}
 	// Provider detail - must be before the compute subtab routes
 	if (path.match(/^\/compute\/providers\/0x[0-9a-fA-F]{40}$/)) {
 		const address = path.split("/").pop() || "";
-		return await cachedPage(url, ctx, env, () => handleProviderDetailPage(env, address));
+		return await cachedPage(
+			url,
+			ctx,
+			env,
+			() => handleProviderDetailPage(env, address),
+			30,
+			budget,
+		);
 	}
 	// Wallet detail
 	if (path.match(/^\/compute\/consumers\/wallet\/0x[0-9a-fA-F]{40}$/)) {
 		const address = path.split("/").pop() || "";
-		return await cachedPage(url, ctx, env, () => handleWalletDetailPage(env, address));
+		return await cachedPage(
+			url,
+			ctx,
+			env,
+			() => handleWalletDetailPage(env, address),
+			30,
+			budget,
+		);
 	}
 	// Model detail - one model's bids, sessions, providers, and demand.
 	// Two spellings: the on-chain listing id, and the canonical slug we own
 	// ("/compute/models/kimi-k3"). Both render the same aggregated page.
 	if (path.match(/^\/compute\/models\/0x[0-9a-fA-F]{64}$/)) {
 		const modelId = (path.split("/").pop() || "").toLowerCase();
-		return await cachedPage(url, ctx, env, () => handleModelDetailPage(env, modelId));
+		return await cachedPage(
+			url,
+			ctx,
+			env,
+			() => handleModelDetailPage(env, modelId),
+			30,
+			budget,
+		);
 	}
 	const slugMatch = path.match(/^\/compute\/models\/([a-z0-9][a-z0-9.\-]{0,80})$/);
 	if (slugMatch) {
 		const slug = slugMatch[1];
-		return await cachedPage(url, ctx, env, () => handleModelSlugPage(env, slug, path));
+		return await cachedPage(
+			url,
+			ctx,
+			env,
+			() => handleModelSlugPage(env, slug, path),
+			30,
+			budget,
+		);
 	}
 	// About page - public, standalone, no auth, no shell header.
 	if (path === "/about") {
@@ -237,7 +283,14 @@ export async function handleUiRoutes(
 	}
 	if (path.match(/^\/builder\/subnet\/0x[0-9a-fA-F]{64}$/)) {
 		const subnetId = path.split("/").pop() || "";
-		return await cachedPage(url, ctx, env, () => handleBuilderSubnetPage(env, subnetId));
+		return await cachedPage(
+			url,
+			ctx,
+			env,
+			() => handleBuilderSubnetPage(env, subnetId),
+			30,
+			budget,
+		);
 	}
 	if (path === "/og-image.png" || path === "/og-image.svg") {
 		return handleOgImage();

@@ -52,9 +52,29 @@ export async function getCurrentBlock(env: Env): Promise<number> {
 	throw new Error("All RPC endpoints failed for eth_blockNumber");
 }
 
+// The live head as the response meta reports it, held 15 s per isolate with one
+// fetch in flight. A crawl of wallet and provider pages used to make one
+// eth_blockNumber call per render; 15 s is about seventy-five 200 ms blocks,
+// far inside every stall threshold, so the meta still cannot hide a stall.
+// Only getSyncState reads it: the sync loop and its watchdog call
+// getCurrentBlock directly and always see the chain as it is.
+const HEAD_MEMO_MS = 15_000;
+let headMemo: { at: number; block: Promise<number> } | null = null;
+
+function liveHead(env: Env): Promise<number> {
+	const now = Date.now();
+	if (headMemo && now - headMemo.at < HEAD_MEMO_MS) return headMemo.block;
+	const block = getCurrentBlock(env).catch(() => 0);
+	headMemo = { at: now, block };
+	// A failed read is not held: the next caller asks the chain again.
+	void block.then((b) => {
+		if (b <= 0 && headMemo?.block === block) headMemo = null;
+	});
+	return block;
+}
+
 // 2026-04-27: Fetches REAL currentBlock from RPC instead of estimating from wall clock.
 // The old estimation hid a 181,000-block stall behind "blocksBehind: 4" for 4 days.
-// getCurrentBlock() is called once per health check (~30s cache), not per sync tick.
 export async function getSyncState(env: Env): Promise<{
 	lastBlock: number;
 	currentBlock: number;
@@ -66,7 +86,7 @@ export async function getSyncState(env: Env): Promise<{
 			getSyncStateValue(env.DB, "last_block"),
 			getSyncStateValue(env.DB, "start_block"),
 			getSyncStateValue(env.DB, "last_sync_ts"),
-			getCurrentBlock(env).catch(() => 0),
+			liveHead(env),
 		]);
 		const lastBlock = lastResult ? parseInt(lastResult.value as string, 10) : 0;
 		const startBlock = startResult ? parseInt(startResult.value as string, 10) : 42400000;

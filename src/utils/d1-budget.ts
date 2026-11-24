@@ -1,10 +1,10 @@
 /**
- * D1 rows-read budget backstop (Cloudflare Free plan).
+ * D1 rows-read budget backstop, by caller class.
  *
- * The operator runs on the Free plan, whose hard ceiling is ~5,000,000 D1
- * rows-read per UTC day. If a flood pounds the heavy UNCACHED endpoints it could
- * silently blow that quota mid-day and take the whole site down at some random
- * hour. This guard tracks an APPROXIMATE running total of rows read for the
+ * On the Free plan the hard ceiling is ~5,000,000 D1 rows-read per UTC day; on
+ * any plan the one database is shared by the sync and every page. If a flood
+ * pounds the heavy UNCACHED endpoints it could blow that quota or saturate the
+ * database mid-day. This guard tracks an estimated running total of rows read for the
  * current UTC day and, once the day is at a configurable budget
  * (`D1_DAILY_READ_BUDGET`, default 4,000,000 to leave headroom), lets callers
  * shed load gracefully - the caller returns a 503 with `Retry-After` on the
@@ -22,9 +22,27 @@
  * the real free quota is exhausted. Threading exact `rows_read` is a future
  * refinement; the coarse estimate is enough for a load-shed backstop.
  *
- * ## Sharing across isolates
+ * ## By caller class (src/utils/caller-class.ts)
  *
- * The day total is aggregated in KV (`MORSCAN_CACHE`, key `d1reads:<UTC-date>`).
+ * Each class has its OWN day budget: `free` (the public serving key, wallet
+ * signatures, bottom-tier keys) gets `D1_FREE_READ_BUDGET` (default half of
+ * the daily budget), `paid` (packs, x402, staked keys) gets
+ * `D1_DAILY_READ_BUDGET`. Free traffic can only exhaust the free budget, so
+ * it can never shed a paying caller. Admin is never counted or shed. The
+ * caller (routes/api.ts) takes the budget BEFORE a pack debit or an x402
+ * settlement, so a shed call is never charged.
+ *
+ * ## Counting
+ *
+ * With the CallMeter object bound (src/durable/CallMeter.ts) each class's day
+ * total is one exact counter: a take that does not fit is refused and not
+ * counted. Without it, or when it does not answer, the per-class KV estimate
+ * below is used.
+ *
+ * ## Sharing across isolates (the KV fallback)
+ *
+ * The day total is aggregated in KV (`MORSCAN_CACHE`, key
+ * `d1reads:<class>:<UTC-date>`).
  * Each isolate accumulates locally and flushes a coalesced delta at most once a
  * minute (or sooner once its local delta crosses a threshold), so the guard's own
  * KV writes stay modest. Reads of the shared total are cached in-isolate for
@@ -37,13 +55,16 @@
  * ## Reset
  *
  * The key is UTC-day scoped, so the budget resets automatically at 00:00 UTC.
- * Manual reset: delete the `d1reads:<UTC-date>` key from the `MORSCAN_CACHE` KV
- * namespace (e.g. `wrangler kv key delete --binding MORSCAN_CACHE d1reads:<date>`).
+ * With the KV fallback, a manual reset is deleting the `d1reads:<class>:<UTC-date>`
+ * key from the `MORSCAN_CACHE` KV namespace.
  */
 
 import type { Env } from "../types";
+import { meterTake } from "./call-meter";
 
-const DEFAULT_BUDGET = 4_000_000; // stay under the ~5M/day Free-plan rows-read limit
+export type BudgetClass = "free" | "paid";
+
+const DEFAULT_BUDGET = 4_000_000;
 const KV_REFRESH_MS = 30_000; // how long an isolate trusts its cached shared total
 const KV_FLUSH_MS = 60_000; // min gap between this isolate's KV writes (coalesce)
 const KV_FLUSH_ROWS = 20_000; // or flush sooner once the local delta crosses this
@@ -55,102 +76,137 @@ function utcDay(now = new Date()): string {
 	return `${y}-${mo}-${d}`;
 }
 
-function budgetOf(env: Env): number {
-	const v = Number(env.D1_DAILY_READ_BUDGET);
-	return Number.isFinite(v) && v > 0 ? v : DEFAULT_BUDGET;
+function positive(v: unknown): number | null {
+	const n = Number(v);
+	return Number.isFinite(n) && n > 0 ? Math.floor(n) : null;
 }
 
-// ─── Per-isolate day state ───
-let _day = utcDay();
-let _localTotal = 0; // rows this isolate has accounted today (running)
-let _flushedAt = 0; // _localTotal value at the last successful KV flush
-let _lastFlush = 0; // ts of the last flush attempt
-let _globalTotal = 0; // last-known shared total from KV (excludes our unflushed delta)
-let _globalAt = 0; // ts of the last KV read
+function budgetOf(env: Env, cls: BudgetClass): number {
+	const total = positive(env.D1_DAILY_READ_BUDGET) ?? DEFAULT_BUDGET;
+	if (cls === "paid") return total;
+	return positive(env.D1_FREE_READ_BUDGET) ?? Math.floor(total / 2);
+}
 
-function rollDayIfNeeded(): void {
+// ─── Per-isolate day state for the KV fallback, one per class ───
+interface DayState {
+	day: string;
+	localTotal: number; // rows this isolate has accounted today (running)
+	flushedAt: number; // localTotal value at the last successful KV flush
+	lastFlush: number; // ts of the last flush attempt
+	globalTotal: number; // last-known shared total from KV (excludes our unflushed delta)
+	globalAt: number; // ts of the last KV read
+}
+
+const states = new Map<BudgetClass, DayState>();
+
+function stateOf(cls: BudgetClass): DayState {
 	const d = utcDay();
-	if (d !== _day) {
-		_day = d;
-		_localTotal = 0;
-		_flushedAt = 0;
-		_lastFlush = 0;
-		_globalTotal = 0;
-		_globalAt = 0;
+	let st = states.get(cls);
+	if (!st || st.day !== d) {
+		st = {
+			day: d,
+			localTotal: 0,
+			flushedAt: 0,
+			lastFlush: 0,
+			globalTotal: 0,
+			globalAt: 0,
+		};
+		states.set(cls, st);
 	}
+	return st;
 }
 
-function kvKey(): string {
-	return `d1reads:${_day}`;
+function kvKey(cls: BudgetClass, st: DayState): string {
+	return `d1reads:${cls}:${st.day}`;
 }
 
-async function refreshGlobal(env: Env): Promise<void> {
+async function refreshGlobal(env: Env, cls: BudgetClass, st: DayState): Promise<void> {
 	const kv = env.MORSCAN_CACHE;
 	if (!kv) return;
-	if (Date.now() - _globalAt < KV_REFRESH_MS) return;
+	if (Date.now() - st.globalAt < KV_REFRESH_MS) return;
 	try {
-		const raw = await kv.get(kvKey());
-		_globalTotal = raw ? Number(raw) || 0 : 0;
-		_globalAt = Date.now();
+		const raw = await kv.get(kvKey(cls, st));
+		st.globalTotal = raw ? Number(raw) || 0 : 0;
+		st.globalAt = Date.now();
 	} catch {
 		// non-fatal: keep the last-known value
 	}
 }
 
-async function maybeFlush(env: Env): Promise<void> {
+async function maybeFlush(env: Env, cls: BudgetClass, st: DayState): Promise<void> {
 	const kv = env.MORSCAN_CACHE;
 	if (!kv) return;
-	const delta = _localTotal - _flushedAt;
+	const delta = st.localTotal - st.flushedAt;
 	if (delta <= 0) return;
-	const due = delta >= KV_FLUSH_ROWS || Date.now() - _lastFlush >= KV_FLUSH_MS;
+	const due = delta >= KV_FLUSH_ROWS || Date.now() - st.lastFlush >= KV_FLUSH_MS;
 	if (!due) return;
-	_lastFlush = Date.now();
+	st.lastFlush = Date.now();
 	try {
-		const raw = await kv.get(kvKey());
+		const raw = await kv.get(kvKey(cls, st));
 		const cur = raw ? Number(raw) || 0 : 0;
 		const next = cur + delta;
 		// 2-day TTL so a key lingers past its day but never leaks forever.
-		await kv.put(kvKey(), String(next), { expirationTtl: 172_800 });
-		_flushedAt = _localTotal;
-		_globalTotal = next;
-		_globalAt = Date.now();
+		await kv.put(kvKey(cls, st), String(next), { expirationTtl: 172_800 });
+		st.flushedAt = st.localTotal;
+		st.globalTotal = next;
+		st.globalAt = Date.now();
 	} catch {
-		// non-fatal: e.g. Free-plan KV write cap under an extreme flood. The guard
-		// then rides the per-isolate signal only until the next successful flush.
+		// non-fatal: the guard rides the per-isolate signal until the next flush.
 	}
 }
 
-/** Best-known day total = shared KV total + this isolate's unflushed local delta. */
-export function estimatedDayReads(): number {
-	return _globalTotal + (_localTotal - _flushedAt);
+/** KV fallback: best-known day total = shared KV total + this isolate's unflushed delta. */
+export function estimatedDayReads(cls: BudgetClass = "free"): number {
+	const st = stateOf(cls);
+	return st.globalTotal + (st.localTotal - st.flushedAt);
 }
 
-/**
- * Account an estimate of rows read for the current UTC day, then schedule a
- * coalesced KV flush (off the hot path via `ctx.waitUntil` when available).
- */
+/** KV fallback: account an estimate of rows read for the class's UTC day. */
 export function noteRowsRead(
 	env: Env,
 	ctx: ExecutionContext | undefined,
 	rows: number,
+	cls: BudgetClass = "free",
 ): void {
-	rollDayIfNeeded();
-	_localTotal += Math.max(0, Math.floor(rows) || 0);
-	const p = maybeFlush(env);
+	const st = stateOf(cls);
+	st.localTotal += Math.max(0, Math.floor(rows) || 0);
+	const p = maybeFlush(env, cls, st);
 	if (ctx?.waitUntil) ctx.waitUntil(p);
 	else void p;
 }
 
-/** True when the current UTC day is at or over the configured rows-read budget. */
-export async function isOverReadBudget(env: Env): Promise<boolean> {
-	rollDayIfNeeded();
-	await refreshGlobal(env);
-	return estimatedDayReads() >= budgetOf(env);
+/** KV fallback: true when the class's UTC day is at or over its budget. */
+export async function isOverReadBudget(
+	env: Env,
+	cls: BudgetClass = "free",
+): Promise<boolean> {
+	const st = stateOf(cls);
+	await refreshGlobal(env, cls, st);
+	return estimatedDayReads(cls) >= budgetOf(env, cls);
 }
 
-/** The active budget (for logging / diagnostics). */
-export function readBudget(env: Env): number {
-	return budgetOf(env);
+/**
+ * Take `rows` from the class's day budget before a guarded read. True: go
+ * ahead (the rows are counted). False: shed. Exact with the CallMeter bound;
+ * the KV estimate otherwise. Fails OPEN either way.
+ */
+export async function takeReadBudget(
+	env: Env,
+	ctx: ExecutionContext | undefined,
+	cls: BudgetClass,
+	rows: number,
+): Promise<boolean> {
+	const n = Math.max(1, Math.floor(rows) || 1);
+	const v = await meterTake(env, `d1reads:${cls}`, [[budgetOf(env, cls), 86400]], { n });
+	if (v) return v.ok;
+	if (await isOverReadBudget(env, cls)) return false;
+	noteRowsRead(env, ctx, n, cls);
+	return true;
+}
+
+/** The active budget of a class (for logging / diagnostics). */
+export function readBudget(env: Env, cls: BudgetClass = "free"): number {
+	return budgetOf(env, cls);
 }
 
 /** Seconds until the next UTC midnight (a sensible `Retry-After` when shedding). */
@@ -166,9 +222,10 @@ export function secondsToUtcMidnight(now = new Date()): number {
  * the module header for why they are approximate.
  */
 export function heavyUncachedEstimate(path: string): number {
-	// /mor/v1/sessions is KV-cached (30s, per query shape) in the router, so it is
-	// no longer an uncached read driver and is not guarded here.
-	if (path === "/mor/v1/sessions/analytics") return 200_000; // multi-scan session aggregate (uncached)
+	// /mor/v1/sessions (30s, per parsed page shape) and /mor/v1/sessions/analytics
+	// (300s, one global key over the small precomputed wallet_stats table) are
+	// KV-cached in the router, so they are not uncached read drivers and are not
+	// guarded here.
 	if (path === "/mor/v1/provenance") return 20_000; // receipt/chain history scan
 	if (/^\/mor\/v1\/sessions\/0x[0-9a-fA-F]{40}$/.test(path)) return 5_000; // per-wallet sessions
 	if (/^\/mor\/v1\/wallet\/0x[0-9a-fA-F]{40}\/(transactions|gas)$/.test(path))

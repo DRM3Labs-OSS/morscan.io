@@ -27,6 +27,7 @@ flowchart TD
 | `src/providers/` | The open-core seam: commerce / analytics / admin provider interfaces + bundled reference impls. One injection point (`providers/index.ts`). |
 | `src/sync/` | The indexer: compute + builder discovery, event processing, RPC, ABI parsers. |
 | `src/durable/SyncCoordinator.ts` | Durable Object running the 5-second forward-only projector. |
+| `src/durable/CallMeter.ts` | Durable Object counting the global ceilings exactly (see `rate-limiting.md`). |
 | `src/utils/` | Cross-cutting helpers - `auth/`, `cache.ts`, `rpc.ts`, `bigquery/`, `provenance*.ts`, `snapshot*.ts`, `jwt.ts`. |
 | `src/ui/` | HTML / Mustache templates for the dashboards. |
 | `src/types.ts` | `Env` bindings, event signatures, shared types. |

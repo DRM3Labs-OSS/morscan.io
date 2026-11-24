@@ -231,6 +231,38 @@ export function rateLimitHeaders(limits: RateLimitInfo): Record<string, string> 
 	return h;
 }
 
+/**
+ * The per-IP pool and counting key for a door. The default door (ipLimit 100,
+ * every /mor/v1 call) is RL_STANDARD under `ip:<ip>`. A door that asks for a
+ * tighter limit gets the fixed pool that holds it (10 -> RL_LOW, 30 ->
+ * RL_STRICT, 60 -> RL_MED) under its OWN key, `ip:<path>:<ip>`, so its limit is
+ * the one it asked for and a flood of one door never spends another door's or
+ * the API's budget. The pools are fixed by wrangler.toml; a limit between two
+ * pools takes the tighter one. Without the pool bound, RL_STANDARD.
+ */
+export function ipPool(
+	env: Env,
+	ipLimit: number,
+	path: string,
+	ip: string,
+): { binding: NonNullable<Env["RL_STANDARD"]>; key: string; limit: number } | null {
+	if (!env.RL_STANDARD) return null;
+	if (ipLimit >= 100) return { binding: env.RL_STANDARD, key: `ip:${ip}`, limit: 100 };
+	const key = `ip:${path}:${ip}`;
+	if (ipLimit <= 10 && env.RL_LOW) return { binding: env.RL_LOW, key, limit: 10 };
+	if (ipLimit <= 30 && env.RL_STRICT) return { binding: env.RL_STRICT, key, limit: 30 };
+	if (ipLimit <= 60 && env.RL_MED) return { binding: env.RL_MED, key, limit: 60 };
+	return { binding: env.RL_STANDARD, key, limit: 100 };
+}
+
+function pathOf(request: Request): string {
+	try {
+		return new URL(request.url).pathname;
+	} catch {
+		return "";
+	}
+}
+
 export async function checkRateLimit(
 	request: Request,
 	env: Env,
@@ -257,13 +289,14 @@ export async function checkRateLimit(
 	const highLimit = !!auth?.rateLimit && auth.rateLimit >= 10000;
 	if (env.RL_STANDARD) {
 		const ip = request.headers.get("CF-Connecting-IP") || "unknown";
-		if (!isAdmin) {
-			const ipRes = await env.RL_STANDARD.limit({ key: `ip:${ip}` });
+		const pool = ipPool(env, ipLimit, pathOf(request), ip);
+		if (!isAdmin && pool) {
+			const ipRes = await pool.binding.limit({ key: pool.key });
 			if (!ipRes.success)
 				return {
 					allowed: false,
 					retryAfter: 60,
-					reason: `IP rate limit exceeded (${ipLimit}/min)`,
+					reason: `IP rate limit exceeded (${pool.limit}/min)`,
 				};
 		}
 		if (auth?.keyId && !isAdmin && !highLimit) {
@@ -386,13 +419,14 @@ export async function checkIpRateLimit(
 ): Promise<{ allowed: boolean; retryAfter?: number; reason?: string }> {
 	if (auth && isAdminAuth(auth, env)) return { allowed: true };
 	const ip = request.headers.get("CF-Connecting-IP") || "unknown";
-	if (env.RL_STANDARD) {
-		const ipRes = await env.RL_STANDARD.limit({ key: `ip:${ip}` });
+	const pool = ipPool(env, ipLimit, pathOf(request), ip);
+	if (pool) {
+		const ipRes = await pool.binding.limit({ key: pool.key });
 		if (!ipRes.success)
 			return {
 				allowed: false,
 				retryAfter: 60,
-				reason: `IP rate limit exceeded (${ipLimit}/min)`,
+				reason: `IP rate limit exceeded (${pool.limit}/min)`,
 			};
 		return { allowed: true };
 	}

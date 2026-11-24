@@ -4,14 +4,25 @@
  * POST /notify captures an email into the `notify_list` D1 table so the apex
  * coming-soon page can collect launch signups without a separate backend.
  * Public + unauthenticated by design (a launch list), so it is deliberately
- * minimal: strict email validation, idempotent insert, per-IP rate limit.
+ * minimal: strict email validation, idempotent insert, a per-IP rate limit
+ * (its own 10/min pool) and a global day ceiling. Answered only on a
+ * coming-soon host (routes/public.ts).
  */
 
 import type { Env } from "../types";
 import { checkRateLimit } from "../utils/auth";
 import { insertNotifyEmail } from "../db/ops";
+import { allowedClosed, meterTake } from "../utils/call-meter";
 
 const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]{2,}$/;
+
+/**
+ * Signups a UTC day across every caller (exact, CallMeter). Each one writes a
+ * list row and a forward, so the list has a ceiling as well as the per-IP
+ * limit (10 a minute). A launch list takes far fewer in a day; past it, or
+ * when the meter is configured and does not answer, the signup is refused.
+ */
+export const NOTIFY_PER_DAY = 200;
 
 /**
  * Forward a capture to the configured forwarding endpoint when
@@ -96,6 +107,15 @@ export async function handleNotify(
 		return new Response(
 			JSON.stringify({ error: "Signups are not available right now." }),
 			{ status: 503, headers: HEADERS },
+		);
+	}
+
+	const day = await meterTake(env, "notify", [[NOTIFY_PER_DAY, 86400]]);
+	if (!allowedClosed(env, day)) {
+		const retry = day?.retry || 3600;
+		return new Response(
+			JSON.stringify({ error: "The list is closed for today. Try again tomorrow." }),
+			{ status: 429, headers: { ...HEADERS, "Retry-After": String(retry) } },
 		);
 	}
 

@@ -7,9 +7,12 @@
  */
 
 export {
+	FREE_SESSIONS_MAX_PAGE,
+	SESSIONS_MAX_PAGE,
 	handleAllSessions,
 	handleSessionAnalytics,
 	handleWalletSessions,
+	sessionsPaging,
 } from "./sessions-list";
 
 export {

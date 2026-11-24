@@ -79,6 +79,7 @@ import { selectSyncStateIn3 } from "../db/explorer-core";
 // module-scope default composition would otherwise run first, harmlessly but
 // pointlessly).
 export { SyncCoordinator } from "../durable/SyncCoordinator";
+export { CallMeter } from "../durable/CallMeter";
 export type { Env } from "../types";
 export type { Providers } from "./index";
 export type { ApiRoutes, ExtraPlane, PublicRoutes } from "./extensions";
@@ -190,8 +191,8 @@ export function createMorscanApp(options: MorscanAppOptions = {}): MorscanApp {
 	const composedScheduledTick = options.scheduledTick;
 	const composedPublicRoutes = options.publicRoutes;
 
-	return {
-		async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
+	const app = {
+		async serve(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
 			setBaseUrl(env.PUBLIC_BASE_URL || "");
 			setGaId(env.GA_MEASUREMENT_ID || "");
 			configureRpcPool(env);
@@ -201,13 +202,6 @@ export function createMorscanApp(options: MorscanAppOptions = {}): MorscanApp {
 			if (request.method === "OPTIONS") {
 				return new Response(null, { headers: HEADERS });
 			}
-
-			// First-party usage instrument (src/utils/usage-track.ts). One row per
-			// non-asset request, off the response path and self-silencing, so it can
-			// never add latency to or fail a render. This is the ONLY place the
-			// operator sees the traffic the per-key usage_counters never see: human
-			// page reads (serving key), anonymous and machine API callers, crawlers.
-			if (trackable(path)) ctx.waitUntil(logRequest(env, request, path));
 
 			// Keyless gate (src/utils/keyless-gate.ts): refuse zero-value marketing
 			// crawlers and, when armed, cap anonymous per-IP /mor/v1 volume. No-op for
@@ -715,6 +709,27 @@ export function createMorscanApp(options: MorscanAppOptions = {}): MorscanApp {
 					),
 				);
 			}
+		},
+	};
+
+	return {
+		async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
+			const resp = await app.serve(request, env, ctx);
+			// First-party usage instrument (src/utils/usage-track.ts). One row per
+			// non-asset request, written AFTER routing so the row knows the answer
+			// (a 404 is logged as "(404)", never as a stranger's random path), off
+			// the response path and self-silencing, so it can never add latency to
+			// or fail a render. The rows are capped per address and across every
+			// isolate (usage-track.ts). This is the ONLY place the operator sees
+			// the traffic the per-key usage_counters never see: human page reads
+			// (serving key), anonymous and machine API callers, crawlers.
+			const path = new URL(request.url).pathname;
+			if (request.method !== "OPTIONS" && trackable(path))
+				ctx.waitUntil(logRequest(env, request, path, resp.status));
+			return resp;
+		},
+		scheduled(event: ScheduledEvent, env: Env, ctx: ExecutionContext): Promise<void> {
+			return app.scheduled(event, env, ctx);
 		},
 	};
 }

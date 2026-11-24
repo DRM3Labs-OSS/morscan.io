@@ -41,6 +41,7 @@ export interface Env {
 	SNAPSHOT_PUBLIC_HOST?: string; // Public host fronting the R2 snapshot bucket
 	SNAPSHOT_SIGNER_KEY_ID?: string; // Key id advertised in the signed CDN snapshot envelope
 	SYNC_COORDINATOR: DurableObjectNamespace;
+	CALL_METER?: DurableObjectNamespace; // Exact global ceilings (src/durable/CallMeter.ts, src/utils/call-meter.ts). Unset = no global ceilings (per-IP limits still apply).
 	MORSCAN_DEMO_KEY: string; // UI serving key, embedded in explorer pages so page scripts can fetch /mor/v1 data (wrangler SECRET; per-IP limits still apply)
 	// First-party usage instrument (src/utils/usage-track.ts, src/db/usage-log.ts).
 	USAGE_LOG_SAMPLE?: string; // Sample divisor for high-volume human-ish traffic (serving key + browser page GETs); machine/keyed/x402/crawler rows are always logged. Default "1" = log every request.
@@ -91,6 +92,7 @@ export interface Env {
 	MORSCAN_ADMIN_KEY_IDS?: string; // Comma-separated api_key ids granted admin (beyond the `admin` row)
 	OPS_READ_KEY?: string; // Operator read key for /health: a request carrying it in X-DRM3-Ops-Key gets the full body; unset reveals to nobody (public-health.allow)
 	D1_DAILY_READ_BUDGET?: string; // Approx D1 rows-read/day before heavy uncached endpoints shed to 503 (Free-plan backstop; default 4_000_000, under the 5M free limit). See src/utils/d1-budget.ts
+	D1_FREE_READ_BUDGET?: string; // The free class's own day budget (serving key, wallet signatures, bottom-tier keys). Default half of D1_DAILY_READ_BUDGET; paid callers are never shed by free traffic. See src/utils/d1-budget.ts
 	ALERT_SYNC_STALL_SECONDS?: string; // Stall threshold in seconds (default 120)
 	ALERT_TELEGRAM_BOT_TOKEN?: string; // @BotFather bot token; needs ALERT_TELEGRAM_CHAT_ID too
 	ALERT_TELEGRAM_CHAT_ID?: string; // Target chat/channel id for Telegram alerts

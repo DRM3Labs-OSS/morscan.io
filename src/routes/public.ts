@@ -26,6 +26,7 @@ import { handleTeaser } from "../handlers/teaser";
 import { handleWellKnownKeys } from "../handlers/well-known";
 import { handleAgentReadyRoutes } from "../handlers/agent-ready";
 import { handleNotify } from "../handlers/notify";
+import { isComingSoonHost } from "../handlers/coming-soon";
 import { handleSyncRoute } from "./sync";
 import { getProviders, getOverriddenProviders } from "../providers";
 import { describeExtensions } from "../providers/extensions";
@@ -41,8 +42,11 @@ export async function handlePublicRoutes(
 	env: Env,
 	HEADERS: Record<string, string>,
 ): Promise<Response | null> {
-	// Coming-soon launch-list capture (public, unauthenticated by design).
-	if (path === "/notify") {
+	// Coming-soon launch-list capture (public, unauthenticated by design). Only
+	// the coming-soon page posts here, so it is answered only on a host that
+	// serves that page (COMING_SOON_HOSTS); everywhere else it is the stock 404
+	// and no stranger can write the list or the forward behind it.
+	if (path === "/notify" && isComingSoonHost(url.hostname, env)) {
 		return await handleNotify(request, env, HEADERS);
 	}
 
@@ -192,9 +196,11 @@ export async function handlePublicRoutes(
 		return await withCfCache("v1:price", 60, () => handlePrice(env, HEADERS));
 	}
 
-	// Pre-rendered 90-day price chart SVG (no key required - cached, public)
+	// Pre-rendered 90-day price chart SVG (no key required - cached, public).
+	// One fixed cache key for 10 minutes (the series gains one point per 10
+	// minutes), so a repeat or a query-string variant never reads price_history.
 	if (path === "/chart.svg") {
-		return await handleChartSvg(env);
+		return await withCfCache("chart:svg:v1", 600, () => handleChartSvg(env));
 	}
 
 	// Price-chart JSON (no key required - same public market data as /chart.svg,

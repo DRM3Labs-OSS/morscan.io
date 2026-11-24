@@ -26,6 +26,7 @@ import type { Env } from "../types";
 import { getNetworkMetrics } from "../utils/metrics";
 import { getSyncStateTokenPrices } from "../db/explorer-market";
 import { countDiscoveredHolders } from "../db/explorer-core";
+import { withKvValue } from "../utils/cache";
 import {
 	assembleChartPoints,
 	chartWindowDays,
@@ -162,13 +163,20 @@ interface LiveStats {
 	staked?: number;
 }
 
+const HOLDER_COUNT_CACHE_KEY = "v1:count:holders";
+const HOLDER_COUNT_TTL_SECONDS = 300;
+
 async function gatherStats(env: Env): Promise<LiveStats> {
 	const out: LiveStats = {};
 	const [metrics, priceRow, holdersRow] = await Promise.all([
 		getNetworkMetrics(env).catch(() => null),
 		// Price is cached in D1 sync_state by the price handler (no RPC here).
 		getSyncStateTokenPrices(env.DB).catch(() => null),
-		countDiscoveredHolders(env.DB).catch(() => null),
+		// A share card's holder chip tolerates minutes of staleness; the raw count
+		// is a full scan of mor_holders, so it is memoized (one scan per 5 min).
+		withKvValue(env, HOLDER_COUNT_CACHE_KEY, HOLDER_COUNT_TTL_SECONDS, () =>
+			countDiscoveredHolders(env.DB),
+		).catch(() => null),
 	]);
 
 	if (metrics) {
@@ -535,7 +543,11 @@ export async function handleOgCard(
 	url: URL,
 	ctx: ExecutionContext,
 ): Promise<Response> {
-	const normalized = slug.toLowerCase();
+	// The cache key never carries a stranger's string: an unknown slug renders
+	// the default card (unfurlers keep a card) under the ONE "default" key, so a
+	// random /og/<slug> walk is a cache hit after the first render per colo.
+	const lower = slug.toLowerCase();
+	const normalized = CARDS[lower] || CHART_SLUGS.has(lower) ? lower : "default";
 	const isChart = CHART_SLUGS.has(normalized);
 	const ttl = isChart ? CHART_OG_TTL_SECONDS : OG_TTL_SECONDS;
 
@@ -554,10 +566,9 @@ export async function handleOgCard(
 	// Cache key folds in a coarse time bucket so live stats refresh once per TTL
 	// window even behind an immutable Cache-Control on the client.
 	const bucket = Math.floor(Date.now() / (ttl * 1000));
-	const idSuffix =
-		normalized === "subnet" ? `:${url.searchParams.get("id") || "x"}` : tfSuffix;
+	// The subnet card's render never reads ?id=, so the id is not in the key.
 	const cacheUrl = new URL(
-		`https://morscan-og.internal/${CACHE_VERSION}/${normalized}${idSuffix}/${bucket}`,
+		`https://morscan-og.internal/${CACHE_VERSION}/${normalized}${tfSuffix}/${bucket}`,
 	);
 	const cacheReq = new Request(cacheUrl.toString());
 	const cache = caches.default;

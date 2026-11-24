@@ -21,6 +21,7 @@ import { signJwt, sessionCookie, clearSessionCookie } from "../../utils/jwt";
 import { eip191Digest, ecrecover } from "../../utils/crypto";
 import { stakeMorFor } from "../../utils/stake-tier";
 import { getProviders } from "../../providers";
+import { allowedOpen, meterTake } from "../../utils/call-meter";
 import {
 	JSON_NO_STORE,
 	WALLET_CHALLENGE_TTL_SECS,
@@ -30,6 +31,8 @@ import {
 } from "./helpers";
 
 const ADDRESS_RE = /^0x[0-9a-fA-F]{40}$/;
+/** Wallet challenges minted a minute across every caller (each a stored nonce). */
+export const CHALLENGES_PER_MIN = 300;
 
 /** What the KV row behind a nonce holds (short keys: the row is tiny and hot). */
 interface StoredChallenge {
@@ -91,6 +94,12 @@ export async function handleWalletRoutes(
 				{ status: 400, headers: JSON_NO_STORE },
 			);
 		}
+		// Every challenge is a stored nonce. Past the per-IP limit (30 a minute,
+		// its own pool) the mints across every caller are held to
+		// CHALLENGES_PER_MIN (exact, CallMeter; fails open, so sign-in never
+		// depends on the counter).
+		const mints = await meterTake(env, "wallet-challenge", [[CHALLENGES_PER_MIN, 60]]);
+		if (!allowedOpen(mints)) return rateLimitResponse(mints?.retry || 60);
 		const challenge: WalletChallenge = {
 			domain: url.host,
 			uri: `${url.origin}/console`,

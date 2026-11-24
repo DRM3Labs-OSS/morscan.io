@@ -13,9 +13,12 @@ import {
 import { rateLimitHeaders, type RateLimitInfo } from "../utils/auth/rate-limit";
 import { handleAll, handleProviders, handleBids } from "../handlers/marketplace";
 import {
+	FREE_SESSIONS_MAX_PAGE,
+	SESSIONS_MAX_PAGE,
 	handleAllSessions,
 	handleWalletSessions,
 	handleSessionAnalytics,
+	sessionsPaging,
 	handleWalletDetail,
 	handleWalletAudit,
 	handleWalletTransactions,
@@ -54,17 +57,24 @@ import { handleProvenance } from "../handlers/provenance";
 import { handleSyncStatus } from "../handlers/health";
 import { withKvCache, withCfCache } from "../utils/cache";
 import {
-	estimatedDayReads,
 	heavyUncachedEstimate,
-	isOverReadBudget,
-	noteRowsRead,
 	readBudget,
 	secondsToUtcMidnight,
+	takeReadBudget,
 } from "../utils/d1-budget";
+import { callerClass } from "../utils/caller-class";
+import { allowedOpen, meterTake } from "../utils/call-meter";
 import type { X402Payment } from "../utils/x402";
 import { getProviders } from "../providers";
 import { getExtensions } from "../providers/extensions";
 import type { AuthResult } from "../utils/auth/key-validation";
+
+/**
+ * Uncached /mor/v1/sessions pages that free callers may cause per minute,
+ * together. The explorer's own feed asks for a handful a visit; 120 a minute
+ * is two misses a second, and each miss reads at most 5,000 rows.
+ */
+const SESSIONS_FREE_MISSES = 120;
 
 /**
  * Does this path match a real /mor/v1/* endpoint? Genuinely unknown paths must
@@ -287,6 +297,36 @@ export async function handleApiRoutes(
 		);
 	}
 
+	// D1 rows-read budget backstop, by caller class (src/utils/d1-budget.ts). The
+	// heavy UNCACHED endpoints shed to a 503 with Retry-After once their class's
+	// day is at budget (the cached endpoints stay up). Taken HERE, before the
+	// pack debit and the x402 settlement below, so a shed call is never charged;
+	// and per class, so free traffic can never shed a paying caller. Admin
+	// bypasses. Non-guarded paths return 0 and are untouched.
+	const cls = admin.isAdmin(auth, env) ? "admin" : callerClass(auth, env);
+	const readEst = heavyUncachedEstimate(path);
+	if (readEst > 0 && cls !== "admin") {
+		if (!(await takeReadBudget(env, ctx, cls, readEst))) {
+			const retry = secondsToUtcMidnight();
+			console.log(
+				JSON.stringify({
+					t: "d1_budget_shed",
+					path,
+					class: cls,
+					budget: readBudget(env, cls),
+				}),
+			);
+			return new Response(
+				JSON.stringify({
+					error:
+						"MorScan is shedding load to stay within its daily data budget. Cached endpoints still work; retry this query later.",
+					retry_after: retry,
+				}),
+				{ status: 503, headers: { ...HEADERS, "Retry-After": String(retry) } },
+			);
+		}
+	}
+
 	// Prepaid call balances (the pack door). Burst first, balance second: only
 	// requests that passed the rate gate reach the debit, so a flood cannot
 	// grind D1. When the composed provider meters prepaid keys, one metered
@@ -340,34 +380,6 @@ export async function handleApiRoutes(
 	// X-RateLimit-* headers onto whatever the handler returned (one place).
 	const rlLimits = rateCheck.limits;
 	const dispatch = async (): Promise<Response> => {
-		// D1 rows-read budget backstop (Free plan). The heavy UNCACHED endpoints
-		// are the ones that can silently blow the ~5M/day free rows-read quota under
-		// a flood; when the UTC day is at budget, shed them to a 503 with
-		// Retry-After instead of hard-crashing the quota (the cached endpoints stay
-		// up). Admin bypasses. Non-guarded paths return 0 and are untouched.
-		const readEst = heavyUncachedEstimate(path);
-		if (readEst > 0 && !admin.isAdmin(auth, env)) {
-			if (await isOverReadBudget(env)) {
-				const retry = secondsToUtcMidnight();
-				console.log(
-					JSON.stringify({
-						t: "d1_budget_shed",
-						path,
-						dayReads: estimatedDayReads(),
-						budget: readBudget(env),
-					}),
-				);
-				return new Response(
-					JSON.stringify({
-						error:
-							"MorScan is shedding load to stay within its daily data budget. Cached endpoints still work; retry this query later.",
-						retry_after: retry,
-					}),
-					{ status: 503, headers: { ...HEADERS, "Retry-After": String(retry) } },
-				);
-			}
-			noteRowsRead(env, ctx, readEst);
-		}
 		// Fatboy blob for SPA (not in OpenAPI docs)
 		// ui-init is the SPA's primary data blob, fetched on every explorer load. It
 		// runs several full-table GROUP BY / COUNT(*) scans over ~100k sessions rows
@@ -497,8 +509,12 @@ export async function handleApiRoutes(
 		if (path.match(/^\/mor\/v1\/builder\/stakes\/0x[0-9a-fA-F]{40}$/i)) {
 			return await handleBuilderWalletStakes(env, path.split("/").pop() || "");
 		}
+		// A global aggregate over the small precomputed wallet_stats table: one
+		// shared answer for 300s, like the other aggregates.
 		if (path === "/mor/v1/sessions/analytics")
-			return await handleSessionAnalytics(env, HEADERS);
+			return await withKvCache(env, "v1:sessions:analytics", 300, () =>
+				handleSessionAnalytics(env, HEADERS),
+			);
 		if (path === "/mor/v1/sessions/daily")
 			return await withKvCache(env, "v1:sessions:daily", 600, () =>
 				handleDailySessions(env, HEADERS),
@@ -510,14 +526,33 @@ export async function handleApiRoutes(
 		if (path.match(/^\/mor\/v1\/sessions\/0x[0-9a-fA-F]{40}$/))
 			return await handleWalletSessions(env, path.split("/").pop() || "", HEADERS);
 		if (path === "/mor/v1/sessions") {
-			// KV-cache per query shape (limit/page/status) for 30s. The list + COUNT is a
-			// hot read (landing feed + the sessions page), so caching collapses bursty
-			// loads onto one compute the same way providers/bids/all do.
-			const limit = url.searchParams.get("limit") || "";
-			const page = url.searchParams.get("page") || "";
-			const status = url.searchParams.get("status") || "";
-			return await withKvCache(env, `v1:sessions:${limit}:${page}:${status}`, 30, () =>
-				handleAllSessions(env, HEADERS, url),
+			// KV-cache per PARSED page shape for 30s. The key is the clamped integers
+			// (limit, page) and whether this caller's receipts are stored, never a raw
+			// query string: `page=01`, `page=1x` or an unused parameter is the same
+			// key. A free caller (the serving key every page ships, a wallet
+			// signature, a bottom-tier key) reaches page FREE_SESSIONS_MAX_PAGE at
+			// most, its receipts are signed but not stored, and its cache misses are
+			// held to SESSIONS_FREE_MISSES a minute across every caller (exact,
+			// CallMeter; fails open). Paying and keyed callers keep page 1000.
+			const free = cls === "free";
+			const { page, limit } = sessionsPaging(
+				url,
+				free ? FREE_SESSIONS_MAX_PAGE : SESSIONS_MAX_PAGE,
+			);
+			const persist = !free;
+			return await withKvCache(
+				env,
+				`v1:sessions:${limit}:${page}:${persist ? "p" : "f"}`,
+				30,
+				async () => {
+					if (free) {
+						const v = await meterTake(env, "sessions-miss:free", [
+							[SESSIONS_FREE_MISSES, 60],
+						]);
+						if (!allowedOpen(v)) return rateLimitResponse(v?.retry || 60);
+					}
+					return handleAllSessions(env, HEADERS, url, { page, limit, persist });
+				},
 			);
 		}
 		if (path === "/mor/v1/sync-status") return await handleSyncStatus(env, HEADERS);

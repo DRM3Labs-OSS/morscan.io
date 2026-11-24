@@ -183,11 +183,11 @@ wrangler config:
 
 ```ts
 // the composition repo's src/index.ts
-import { createMorscanApp, SyncCoordinator } from "morscan/app";
+import { CallMeter, createMorscanApp, SyncCoordinator } from "morscan/app";
 import { referenceCommerceProvider } from "morscan/providers";
 import { createCommerceProvider } from "some-private-package";
 
-export { SyncCoordinator }; // wrangler DO binding needs the class on the entry
+export { CallMeter, SyncCoordinator }; // wrangler DO bindings need the classes on the entry
 
 export default createMorscanApp({
 	providers: {
@@ -222,6 +222,8 @@ wrangler 4.107):
 3. **DO migrations.** Migration tags belong to the deployed WORKER name. A
    composition taking over an existing worker must reuse the same
    `[[migrations]]` tags so wrangler never tries to re-create the classes.
+   `CallMeter` (binding `CALL_METER`) is tag `v2`, after `SyncCoordinator`'s
+   `v1`; without the binding the global ceilings are off.
 4. **Ambient asset types.** For `tsc`, include the core's declaration files
    (`node_modules/morscan/src/declarations.d.ts`,
    `node_modules/morscan/src/types/*.d.ts`) in the consumer `tsconfig.json`.

@@ -4,6 +4,40 @@ Releases are tagged vX.Y.Z on GitHub.
 
 ## Unreleased
 
+## v2.58.0 - 2026-11-24 - every costly door has a global ceiling
+
+- New `CallMeter` Durable Object (binding `CALL_METER`, migration tag `v2`)
+  counts global ceilings exactly; `meterTake` in `morscan/ui` for a
+  composition's own doors. Without the binding the per-IP limits still apply.
+- Share cards: the cache key is the card, never the URL. An unknown
+  `/og/<slug>` renders and caches as the default card, and the subnet card's
+  `?id=` is not in the key. The holder count on the cards is a shared value.
+- `/chart.svg` is one cached copy for 10 minutes. `withCfCache` keeps the
+  handler's content type.
+- Detail pages (provider, wallet, model, subnet) are budgeted on a cache miss:
+  100 renders a minute per IP, then 300 a minute for everyone and 120 for
+  verified crawlers, then 429 with `Retry-After`. A mixed-case address answers
+  301 to its lowercase page. The response meta reads the chain head at most
+  once per 15 seconds per isolate.
+- `/mor/v1/sessions`: the cache key is the parsed page and limit (the unused
+  `status` parameter is gone from it); the page-invariant counts are shared
+  values; a free caller reaches page 50 at most, its receipts are signed but
+  not stored, and its cache misses are held to 120 a minute in all.
+- The D1 read budget is per caller class (`D1_FREE_READ_BUDGET`, default half
+  of `D1_DAILY_READ_BUDGET`) and is taken before a pack debit or an x402
+  settlement, so free traffic never sheds a paying caller and a shed call is
+  never charged. `/mor/v1/sessions/analytics` is cached for 5 minutes and no
+  longer counted.
+- The usage log is written after routing: a 404 is `(404)`, a string that
+  cannot be a key is one tag, rows are capped at 600 a minute and 50,000 a
+  day in all, and an address past 100 rows a minute is sampled.
+- A tighter per-IP door has its own pool and key: `/login` and `/notify`
+  10/min, `/teaser`, the wallet challenge and verify, and the pack door
+  30/min, `/mor/v1/capacity` 60/min. Wallet challenges are held to 300 a
+  minute in all.
+- `POST /notify` is answered only on a coming-soon host, with a ceiling of 200
+  signups a UTC day.
+
 ## v2.57.0 - 2026-11-12 - a section chooses its place and documents its endpoints
 
 - A registered plane takes an optional `before`: the key of a built-in

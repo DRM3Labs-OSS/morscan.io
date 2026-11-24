@@ -87,7 +87,8 @@ indexing a different deployment.
 | `BUILDER_CONTRACT` | yes | BuildersV4 proxy (Base). |
 | `PUBLIC_BASE_URL` | recommended | Your deployed origin (no trailing slash). |
 | `LOCK_WORKERS_DEV` | no | `true` restricts the `*.workers.dev` origin to admin-key API calls only (no UI). Default: open, so the copy-paste path below just works. |
-| `D1_DAILY_READ_BUDGET` | no | Approximate D1 rows-read per UTC day before the heavy uncached endpoints shed to `503`. Default `4000000`, under the Workers Free plan's 5,000,000/day. See `src/utils/d1-budget.ts`. |
+| `D1_DAILY_READ_BUDGET` | no | Estimated D1 rows-read per UTC day before the heavy uncached endpoints shed to `503` for paying callers. Default `4000000`, under the Workers Free plan's 5,000,000/day. See `src/utils/d1-budget.ts`. |
+| `D1_FREE_READ_BUDGET` | no | The free callers' own day budget for the same endpoints. Default half of `D1_DAILY_READ_BUDGET`. |
 | `COMING_SOON_HOSTS` | no | Comma-separated hostnames that serve a static coming-soon page instead of the UI (`/health` + brand assets stay live). |
 | `REGISTER_URL` | no | Where the signup / upgrade link on the access-tier cards points. Default `/about`. |
 | `SSO_APP_ID` | no | Audience id for IdP launch tokens. Default `morscan`. |

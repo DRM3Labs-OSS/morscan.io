@@ -168,7 +168,8 @@ export async function withCfCache(
 		const cacheResponse = new Response(body, {
 			status: 200,
 			headers: {
-				"Content-Type": "application/json",
+				// The handler's own type (an SVG stays an SVG); JSON when it sets none.
+				"Content-Type": response.headers.get("Content-Type") || "application/json",
 				"Cache-Control": `public, max-age=${ttlSeconds}`,
 				"Access-Control-Allow-Origin": "*",
 			},

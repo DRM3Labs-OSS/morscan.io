@@ -99,7 +99,8 @@ curl "$PUBLIC_BASE_URL/sync/coordinator/start" -H "X-Morscan-Key: $KEY"
 | `SNAPSHOT_PUBLIC_HOST` | Public host fronting the R2 snapshot bucket. |
 | `SNAPSHOT_SIGNER_KEY_ID` | Key id advertised in the signed snapshot envelope. |
 | `BIGQUERY_ENABLED` / `BIGQUERY_PROJECT_ID` / `BIGQUERY_DATASET_ID` | Optional BigQuery archive (off by default). |
-| `D1_DAILY_READ_BUDGET` | `4000000`. Approximate D1 rows-read per UTC day before the heavy uncached `/mor/v1` endpoints shed to `503` + `Retry-After`; sized under the Workers Free plan's 5,000,000 rows-read/day so the app degrades instead of going dark. The running total lives in `MORSCAN_CACHE` under `d1reads:<UTC-date>` and resets at 00:00 UTC (`src/utils/d1-budget.ts`). Admin identities bypass the shed. |
+| `D1_DAILY_READ_BUDGET` | `4000000`. Estimated D1 rows-read per UTC day before the heavy uncached `/mor/v1` endpoints shed to `503` + `Retry-After` for PAYING callers (packs, x402, staked keys); sized under the Workers Free plan's 5,000,000 rows-read/day so the app degrades instead of going dark. Admin identities bypass the shed. |
+| `D1_FREE_READ_BUDGET` | Default half of `D1_DAILY_READ_BUDGET`. The free callers' own day budget (the serving key, wallet signatures, bottom-tier keys), so free traffic never sheds a paying caller. Each class's total is counted exactly by `CALL_METER` (or, without it, estimated in `MORSCAN_CACHE` under `d1reads:<class>:<UTC-date>`) and resets at 00:00 UTC (`src/utils/d1-budget.ts`). |
 | `LOCK_WORKERS_DEV` | `true` restricts the `*.workers.dev` origin to admin-key API calls (no UI, no demo key). Default: open. |
 | `COMING_SOON_HOSTS` | Comma-separated hostnames that serve a static coming-soon page instead of the UI. |
 | `PROVENANCE_ENABLED` / `RPC_POOL_ENABLED` | Both default `"true"`. `false` runs unsigned (no receipt fields, `/version` reports `provenance: "disabled"`) or swaps the RPC failover pool for a plain `fetch` to `RPC_URL`. |
@@ -133,6 +134,10 @@ These are public on-chain addresses the explorer indexes.
 - **Durable Object:** `SyncCoordinator` runs a 5-second forward-only sync loop:
   `eth_getLogs` over the Diamond and MOR token contracts, projected into D1
   (see [`sync.md`](sync.md)).
+- **Durable Object (optional):** `CallMeter` (binding `CALL_METER`, migration
+  tag `v2`) counts the global ceilings exactly (see
+  [`rate-limiting.md`](rate-limiting.md#global-ceilings-exact)). Without it
+  only the per-IP limits apply.
 - **Cron:** every minute (delta sync + fatboy cache rebuild + wallet-cap refresh),
   every 3 minutes (optional snapshot writer), daily 03:00 UTC (snapshot prune).
 - **Storage (optional):** R2 bucket for the signed marketplace snapshot; BigQuery for the analytics archive.
